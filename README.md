@@ -11,6 +11,8 @@ Extracts [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.h
 - [Faster and more accurate](#Benchmark) than other tools
 - Tested on Solidity and Vyper compiled contracts
 
+[Try it online](https://cdump.github.io/evmole/)
+
 ## Usage
 
 ### JavaScript
