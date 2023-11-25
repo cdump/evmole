@@ -69,8 +69,8 @@ $ find ./ -type f -name '*.vy' | cut -d'/' -f3 | cut -d'_' -f1 > vyper.txt
 
 6. Download contracts code & abi:
 ```sh
-$ poetry run python3 datasets/download.py --etherscan-api-key=CHANGE_ME --addrs-list=top.txt --out-dir=datasets/largest_1k --limit=1000 --code-regexp='^0x(?!73).'
-$ poetry run python3 datasets/download.py --etherscan-api-key=CHANGE_ME --addrs-list=random.txt --out-dir=datasets/random_10k --limit=10000 --code-regexp='^0x(?!73).'
+$ poetry run python3 datasets/download.py --etherscan-api-key=CHANGE_ME --addrs-list=top.txt --out-dir=datasets/largest1k --limit=1000 --code-regexp='^0x(?!73).'
+$ poetry run python3 datasets/download.py --etherscan-api-key=CHANGE_ME --addrs-list=random.txt --out-dir=datasets/random50k --limit=50000 --code-regexp='^0x(?!73).'
 $ poetry run python3 datasets/download.py --etherscan-api-key=CHANGE_ME --addrs-list=vyper.txt --out-dir=datasets/vyper --code-regexp='^0x(?!73).'
 ```
 
