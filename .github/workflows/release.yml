@@ -1,0 +1,76 @@
+name: release
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # need tags to generate release notes
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install NodeJS
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: 'https://registry.npmjs.org/'
+
+    - name: Install python poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python -
+        echo "$HOME/.poetry/bin" >> $GITHUB_PATH
+
+    - name: Python - check and build
+      id: buildpy
+      run: |
+        poetry install
+        poetry run ruff evmole
+        poetry run black --check evmole
+        poetry build
+        echo "wheel_name=evmole-${GITHUB_REF#refs/tags/}-py3-none-any.whl" >> $GITHUB_OUTPUT
+
+
+    - name: NodeJS - check and build
+      id: buildjs
+      run: |
+        cd js/
+        npm ci
+        npm run build
+        npm pack
+        echo "tarball_name=evmole-${GITHUB_REF#refs/tags/}.tgz" >> $GITHUB_OUTPUT
+
+    - name: Generate Release Notes
+      run: |
+        echo '## Changes since previous release:' > changelog.md
+        git log --oneline $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- [%h](https://github.com/cdump/evmole/commit/%H) %s" >> changelog.md
+
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body_path: changelog.md
+          files: |
+            dist/${{ steps.buildpy.outputs.wheel_name }}
+            js/${{ steps.buildjs.outputs.tarball_name }}
+
+    - name: Publish to NPM and PyPI
+      env:
+        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        poetry publish
+        cd js && npm publish

@@ -1,0 +1,36 @@
+{
+  "name": "evmole",
+  "version": "0.1.0",
+  "description": "Extracts function selectors from EVM bytecode",
+  "main": "dist/index.cjs",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "exports": {
+    "import": "./dist/index.esm.js",
+    "require": "./dist/index.cjs"
+  },
+  "scripts": {
+    "build-cjs": "npx esbuild ./src/ --bundle --minify --sourcemap --format=cjs --outfile=dist/index.cjs",
+    "build-esm": "npx esbuild ./src/ --bundle --minify --sourcemap --format=esm --outfile=dist/index.esm.js",
+    "build": "rm -rf dist/ && npm run build-cjs && npm run build-esm && cp ./src/index.d.ts dist/",
+    "lint": "npx eslint ./src/",
+    "format": "npx prettier ./src/ --write"
+  },
+  "author": "Maxim Andreev <andreevmaxim@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/cdump/evmole",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cdump/evmole.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "devDependencies": {
+    "esbuild": "0.19.6",
+    "eslint": "^8.53.0",
+    "prettier": "3.1.0"
+  }
+}
