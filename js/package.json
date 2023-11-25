@@ -1,17 +1,17 @@
 {
   "name": "evmole",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Extracts function selectors from EVM bytecode",
-  "main": "dist/index.cjs",
+  "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "exports": {
     "import": "./dist/index.esm.js",
-    "require": "./dist/index.cjs"
+    "require": "./dist/index.js"
   },
   "scripts": {
-    "build-cjs": "npx esbuild ./src/ --bundle --minify --sourcemap --format=cjs --outfile=dist/index.cjs",
+    "build-cjs": "npx esbuild ./src/ --bundle --minify --sourcemap --format=cjs --outfile=dist/index.js",
     "build-esm": "npx esbuild ./src/ --bundle --minify --sourcemap --format=esm --outfile=dist/index.esm.js",
     "build": "rm -rf dist/ && npm run build-cjs && npm run build-esm && cp ./src/index.d.ts dist/",
     "lint": "npx eslint ./src/",
