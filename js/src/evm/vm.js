@@ -161,7 +161,7 @@ export default class Vm {
             break
           case Op.EXP:
             res = modExp(s0, s1, E256)
-            gas_used = 50 * (1 + Math.floor(s1.toString(2).length / 8))  // ~approx
+            gas_used = 50 * (1 + Math.floor(s1.toString(2).length / 8)) // ~approx
             break
           case Op.XOR:
             res = s0 ^ s1
