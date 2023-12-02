@@ -52,6 +52,7 @@ See [examples](./examples) for more
   <td></td>
   <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
   <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
+  <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evm-hound-rs</i></b></a></td>
   <td><a href="benchmark/providers/evmole-js/"><b><i>evmole-js</i></b></a> (<a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a>)</td>
  </tr>
  <tr>
@@ -59,59 +60,68 @@ See [examples](./examples) for more
   <td><i>FP/FN contracts:</i></td>
   <td>95 / 9</td>
   <td>38 / 8</td>
+  <td>75 / 40</td>
   <td>1 / 0 :1st_place_medal:</td>
  </tr>
  <tr>
   <td><i>FP/FN functions:</i></td>
   <td>749 / 12</td>
   <td>38 / 8 :1st_place_medal: :2nd_place_medal:</td>
+  <td>720 / 191</td>
   <td>192 / 0 :2nd_place_medal: :1st_place_medal:</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>2.06s</td>
+  <td>1.97s</td>
   <td>3.8s</td>
-  <td>1.99s (2.09s) :rocket:</td>
+  <td>1.34s</td>
+  <td>2.03s (1.99s)</td>
  </tr>
- <tr><td colspan="6"></td></tr>
+ <tr><td colspan="7"></td></tr>
  <tr>
  <td rowspan="3"><i><b>random50k</b><br>50000 contracts<br>1171102 functions</i></td>
   <td><i>FP/FN contracts:</i></td>
   <td>4136 / 77</td>
   <td>251 / 31</td>
+  <td>693 / 2903</td>
   <td>1 / 9 :1st_place_medal:</td>
  </tr>
  <tr>
   <td><i>FP/FN functions:</i></td>
   <td>14652 / 96</td>
   <td>261 / 32</td>
+  <td>10798 / 3538</td>
   <td>3 / 10 :1st_place_medal:</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>32.3s</td>
-  <td>71.13s</td>
-  <td>25.63s (33.56s) :rocket:</td>
+  <td>35.84s</td>
+  <td>69.91s</td>
+  <td>11.97s</td>
+  <td>25.02s (33.62s)</td>
  </tr>
- <tr><td colspan="6"></td></tr>
+ <tr><td colspan="7"></td></tr>
  <tr>
  <td rowspan="3"><i><b>vyper</b><br>780 contracts<br>21244 functions</i></td>
   <td><i>FP/FN contracts:</i></td>
   <td>185 / 480</td>
   <td>178 / 780</td>
+  <td>19 / 300</td>
   <td>0 / 0 :1st_place_medal:</td>
  </tr>
  <tr>
   <td><i>FP/FN functions:</i></td>
   <td>197 / 12971</td>
   <td>181 / 21244</td>
+  <td>19 / 8273</td>
   <td>0 / 0 :1st_place_medal:</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>1.71s</td>
-  <td>2.52s</td>
-  <td>1.58s (1.8s) :rocket:</td>
+  <td>1.62s</td>
+  <td>2.55s</td>
+  <td>1.29s</td>
+  <td>1.44s (1.6s)</td>
  </tr>
 </table>
 
