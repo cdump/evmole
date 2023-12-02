@@ -1,7 +1,7 @@
 # EVMole
 
-[![PyPI](https://img.shields.io/pypi/v/evmole)](https://pypi.org/project/evmole)
 [![npm](https://img.shields.io/npm/v/evmole)](https://www.npmjs.com/package/evmole)
+[![PyPI](https://img.shields.io/pypi/v/evmole?color=006dad)](https://pypi.org/project/evmole)
 [![license](https://img.shields.io/github/license/cdump/evmole)](./LICENSE)
 
 Extracts [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector) from EVM bytecode, even for unverified contracts.
