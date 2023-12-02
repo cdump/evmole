@@ -1,4 +1,4 @@
-PROVIDERS ?= etherscan simple whatsabi evmole-py evmole-js
+PROVIDERS ?= etherscan simple whatsabi evm-hound-rs evmole-py evmole-js
 DATASETS ?= largest1k random50k vyper
 DOCKER ?= docker
 DOCKER_CPUS ?= 1

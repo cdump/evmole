@@ -2,6 +2,7 @@ import argparse
 import json
 import pathlib
 
+
 def process_dataset(dname: str, providers: list[str], results_dir: str):
     pdata = []
     ptimes = []
@@ -35,7 +36,7 @@ def markdown(providers: list[str], all_results: list):
     print('  <td>Dataset</td>')
     print('  <td></td>')
     for name in providers[1:]:
-        print(f'  <td><i><b>{name}</b></i></td>')
+        print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
     print(' </tr>')
     for dataset_idx, dataset_result in enumerate(all_results):
         dataset_name = dataset_result['dataset']
@@ -120,7 +121,7 @@ def show(providers: list[str], all_results: list):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', type=str, default=pathlib.Path(__file__).parent / 'results', help='results directory')
-    parser.add_argument('--providers', nargs='+', default=['etherscan', 'simple', 'whatsabi', 'evmole-py', 'evmole-js'])
+    parser.add_argument('--providers', nargs='+', default=['etherscan', 'simple', 'whatsabi', 'evm-hound-rs', 'evmole-js', 'evmole-py'])
     parser.add_argument('--datasets', nargs='+', default=['largest1k', 'random50k', 'vyper'])
     parser.add_argument('--web-listen', type=str, default='', help='start webserver to serve results, example: "127.0.0.1:8080"')
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
