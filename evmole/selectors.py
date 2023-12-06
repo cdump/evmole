@@ -2,6 +2,7 @@ import copy
 
 from .evm.vm import Vm
 from .evm.opcodes import Op
+from .utils import to_bytes
 
 
 class CallData(bytes):
@@ -83,10 +84,6 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
 
 
 def function_selectors(code: bytes | str, gas_limit: int = int(1e6)) -> list[str]:
-    if isinstance(code, str):
-        code = bytes.fromhex(code[2:] if code.startswith('0x') else code)
-    else:
-        assert isinstance(code, bytes), '`code` arg must be hex-string or bytes'
-    vm = Vm(code=code, calldata=CallData(b'\xaa\xbb\xcc\xdd'))
+    vm = Vm(code=to_bytes(code), calldata=CallData(b'\xaa\xbb\xcc\xdd'))
     selectors, _ = process(vm, gas_limit)
     return [s.hex().zfill(8) for s in selectors]
