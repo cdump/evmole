@@ -7,7 +7,7 @@ from .evm.opcodes import Op
 class CallData(bytes):
     def load(self, offset: int, size: int = 32):
         val = self[offset : min(offset + size, len(self))]
-        return CallData(val + b'\x00' * max(0, size - len(val)))
+        return CallData(val.ljust(size, b'\x00'))
 
 
 class CallDataSignature(bytes):

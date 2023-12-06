@@ -56,7 +56,7 @@ class Vm:
         match op:
             case op if op >= Op.PUSH0 and op <= Op.PUSH32:
                 n = op - Op.PUSH0
-                args = self.code[(self.pc + 1) : (self.pc + 1 + n)] if n != 0 else b'\x00'
+                args = self.code[(self.pc + 1) : (self.pc + 1 + n)].rjust(32, b'\x00')
                 self.stack.push(args)
                 return (op, gas_used)
 

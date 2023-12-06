@@ -7,6 +7,7 @@ class Stack:
         return r + ('\n' if len(self._data) else '') + '\n'.join(f'  - {el.hex()} | {len(el)} | {type(el)}' for el in self._data)
 
     def push(self, val: bytes):
+        assert len(val) == 32
         self._data.append(val)
 
     def pop(self) -> bytes:
@@ -24,8 +25,7 @@ class Stack:
         self._data[-1], self._data[-n - 1] = self._data[-n - 1], self._data[-1]
 
     def push_uint(self, val: int):
-        bl = val.bit_length() if val != 0 else 1
-        self.push(val.to_bytes(bl, byteorder='big', signed=False))
+        self.push(val.to_bytes(32, byteorder='big', signed=False))
 
     def pop_uint(self) -> int:
         return int.from_bytes(self.pop(), 'big', signed=False)
