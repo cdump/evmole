@@ -9,13 +9,16 @@ repository = "https://github.com/cdump/evmole"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-aiohttp = {version = "^3.9.0", extras = ["benchmark"]}
+aiohttp = {version = "^3.9.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
 black = "^23.11.0"
 mypy = "^1.7.1"
 ruff = "^0.1.6"
+
+[tool.poetry.extras]
+benchmark = ["aiohttp"]
 
 [build-system]
 requires = ["poetry-core"]
