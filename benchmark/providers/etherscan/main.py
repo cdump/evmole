@@ -19,28 +19,32 @@ def join_inputs(inputs) -> str:
         n += ','
     return n[:-1]
 
-def process(abi) -> list[str]:
+def process(abi) -> dict[str,str]:
     ret = {}
     for x in abi:
         if x['type'] != 'function':
             continue
-        n = x['name'] + '(' + join_inputs(x['inputs']) + ')'
+        args = join_inputs(x['inputs'])
+        n = f'{x["name"]}({args})'
         sg = sign(n.encode('ascii'))
-        ret[sg] = n
-    return list(ret.keys())
+        ret[sg] = args
+    return ret
 
-if len(sys.argv) != 3:
-    print('Usage: python3 main.py INPUT_DIR OUTPUT_FILE')
+if len(sys.argv) < 4:
+    print('Usage: python3 main.py MODE INPUT_DIR OUTPUT_FILE')
     sys.exit(1)
 
 
 ret = {}
-indir = sys.argv[1]
-outfile = sys.argv[2]
+mode = sys.argv[1]
+indir = sys.argv[2]
+outfile = sys.argv[3]
+
 for fname in os.listdir(indir):
     with open(f'{indir}/{fname}', 'r') as fh:
         d = json.load(fh)
-        ret[fname] = process(d['abi'])
+        r = process(d['abi'])
+        ret[fname] = r if mode == 'arguments' else list(r.keys())
 
 with open(outfile, 'w') as fh:
     json.dump(ret, fh)
