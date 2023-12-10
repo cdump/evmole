@@ -9,12 +9,18 @@ struct Input {
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 3 {
-        eprintln!("Usage: ./main INPUT_DIR OUTPUT_FILE");
+    if args.len() < 4 {
+        eprintln!("Usage: ./main MODE INPUT_DIR OUTPUT_FILE");
         std::process::exit(1);
     }
-    let indir = &args[1];
-    let outfile = &args[2];
+    let mode = &args[1];
+    let indir = &args[2];
+    let outfile = &args[3];
+
+    if mode != "selectors" {
+        eprintln!("Only 'selectors' mode supported");
+        std::process::exit(1);
+    }
 
     let mut ret: HashMap<String, Vec<String>> = HashMap::new();
     for entry in fs::read_dir(indir)? {

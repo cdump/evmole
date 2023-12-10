@@ -1,25 +1,36 @@
-PROVIDERS ?= etherscan simple whatsabi evm-hound-rs evmole-py evmole-js
+PROVIDER_BASE = etherscan
+PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs evmole-py evmole-js
+PROVIDERS_ARGUMENTS ?= evmole-py
+
 DATASETS ?= largest1k random50k vyper
 DOCKER ?= docker
 DOCKER_CPUS ?= 1
 DOCKER_PREFIX ?= evmole-bench
 
-DATASET=$(shell pwd)/datasets
-RES=$(shell pwd)/results
+PROVIDERS_SELECTORS := $(PROVIDER_BASE) $(PROVIDERS_SELECTORS)
+PROVIDERS_ARGUMENTS := $(PROVIDER_BASE) $(PROVIDERS_ARGUMENTS)
+PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS))
 
-BUILD_TARGETS=$(addsuffix .build, $(PROVIDERS))
-RUN_TARGETS=$(foreach p,$(PROVIDERS),$(addprefix $(p)/, $(DATASETS)))
-UNPACK_TARGETS=$(foreach d,$(DATASETS),$(addprefix datasets/, $(d)))
+DATASET := $(shell pwd)/datasets
+RES := $(shell pwd)/results
 
-benchmark: build run
+BUILD_TARGETS := $(addsuffix .build, $(PROVIDERS_UNIQ))
+UNPACK_TARGETS := $(foreach d,$(DATASETS),$(addprefix datasets/, $(d)))
+RUN_SELECTORS_TARGETS := $(foreach p,$(PROVIDERS_SELECTORS),$(addprefix $(p).selectors/, $(DATASETS)))
+RUN_ARGUMENTS_TARGETS := $(foreach p,$(PROVIDERS_ARGUMENTS),$(addprefix $(p).arguments/, $(DATASETS)))
+
+RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS)
+
+benchmark-selectors: build run-selectors
+benchmark-arguments: build run-arguments
 
 build: $(BUILD_TARGETS)
-
-run: $(RUN_TARGETS)
+run-selectors: $(RUN_SELECTORS_TARGETS)
+run-arguments: $(RUN_ARGUMENTS_TARGETS)
 
 $(BUILD_TARGETS):
 	$(info [*] Building $(basename $@)...)
-	# special hack for evmole:
+	# for evmole - use latest version, from current git branch
 	[ "$@" = "evmole-py.build" ] && cp -r ../evmole providers/evmole-py/ || true
 	[ "$@" = "evmole-js.build" ] && cp -r ../js providers/evmole-js/ || true
 	$(DOCKER) build -t $(DOCKER_PREFIX)-$(basename $@) providers/$(basename $@)
@@ -33,6 +44,15 @@ $(UNPACK_TARGETS):
 .SECONDEXPANSION:
 $(RUN_TARGETS): datasets/$$(notdir $$@)
 	$(info [*] Running $@...)
-	/bin/time -f '%e' $(DOCKER) run --cpus=$(DOCKER_CPUS) --rm -v $(DATASET)/$(notdir $@):/dataset -v $(RES):/mnt -it $(DOCKER_PREFIX)-$(subst /,,$(dir $@)) /dataset /mnt/$(subst /,_,$@).json 2> $(RES)/$(subst /,_,$@).time
+	/bin/time -f '%e' \
+		$(DOCKER) run --cpus=$(DOCKER_CPUS) --rm \
+		-v $(DATASET)/$(notdir $@):/dataset \
+		-v $(RES):/mnt \
+		-it $(DOCKER_PREFIX)-$(basename $(subst /,,$(dir $@))) \
+		$(subst .,,$(suffix $(subst /,,$(dir $@)))) \
+		/dataset \
+		/mnt/$(subst /,_,$@).json \
+		/mnt/$(PROVIDER_BASE).selectors_$(notdir $@).json \
+		2> $(RES)/$(subst /,_,$@).time
 
-.PHONY: benchmark build run $(BUILD_TARGETS) $(RUN_TARGETS)
+.PHONY: benchmark-selectors benchmark-arguments build run-selectors run-arguments $(BUILD_TARGETS) $(RUN_TARGETS)

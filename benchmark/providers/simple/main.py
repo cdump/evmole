@@ -16,14 +16,16 @@ def process(code: bytes) -> list[str]:
     return [s.hex().zfill(8) for s in ret]
 
 
-if len(sys.argv) != 3:
-    print('Usage: python3 main.py INPUT_DIR OUTPUT_FILE')
+if len(sys.argv) < 4:
+    print('Usage: python3 main.py MODE INPUT_DIR OUTPUT_FILE')
     sys.exit(1)
 
 
 ret = {}
-indir = sys.argv[1]
-outfile = sys.argv[2]
+mode = sys.argv[1]
+assert mode == 'selectors', f'only "selectors" mode supported, got {mode}'
+indir = sys.argv[2]
+outfile = sys.argv[3]
 for fname in os.listdir(indir):
     with open(f'{indir}/{fname}', 'r') as fh:
         d = json.load(fh)

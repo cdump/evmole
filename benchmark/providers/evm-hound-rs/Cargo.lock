@@ -3,16 +3,6 @@
 version = 3
 
 [[package]]
-name = "evm-hound-rs"
-version = "0.1.0"
-dependencies = [
- "evm_hound",
- "hex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "evm_hound"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -29,6 +19,16 @@ name = "itoa"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
+
+[[package]]
+name = "main"
+version = "0.1.0"
+dependencies = [
+ "evm_hound",
+ "hex",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "proc-macro2"
