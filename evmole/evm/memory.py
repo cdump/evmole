@@ -1,36 +1,25 @@
 class Memory:
     def __init__(self):
-        self._data = []
+        self._seq = 0
+        self._data: list[tuple[int, int, bytes]] = []
 
     def __str__(self):
         r = f'{len(self._data)} elems:\n'
-        return r + '\n'.join(f'  - {off}: {val.hex()} | {type(val)}' for off, val in self._data)
+        return r + '\n'.join(f'  - {off},{seq}: {val.hex()} | {type(val)}' for off, seq, val in self._data)
 
     def store(self, offset: int, value: bytes):
-        self._data.append((offset, value))
+        self._data.append((offset, self._seq, value))
+        self._seq += 1
 
-    def load(self, offset: int) -> tuple[bytes, list[bytes]]:
+    def load(self, offset: int) -> tuple[bytes, set[bytes]]:
         self._data = sorted(self._data)
-        ret = b''
-        used = []
-        for off, val in self._data:
-            b = off + len(val)
-            if b <= offset:
-                continue
-            if offset + (32 - len(ret)) <= off:
-                break
+        res: list[tuple[int, bytes, bytes | None]] = [(-1, b'\x00', None)] * 32
+        for i in range(offset, offset + 32):
+            idx = i - offset
+            for off, seq, val in self._data:
+                if seq > res[idx][0] and i >= off and i < off + len(val):
+                    res[idx] = (seq, val[i - off : i - off + 1], val)
 
-            if off > offset:
-                ret += b'\x00' * (off - offset) + val
-            elif off < offset:
-                ret += val[offset - off :]
-            else:
-                ret += val
-            used.append(val)
-            offset += b
-
-        if len(ret) > 32:
-            ret = ret[:32]
-        else:
-            ret += b'\x00' * max(0, 32 - len(ret))
+        ret = b''.join(v[1] for v in res)
+        used = set(v[2] for v in res if v[2] is not None)
         return ret, used

@@ -18,15 +18,19 @@ class CallDataSignature(bytes):
 def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
     selectors = []
     gas_used = 0
+
+    # we don't need this OPs for function selector extraction, so blacklist them to exit the vm loop early
+    blacklisted_ops = set({Op.NOT, Op.SHL, Op.MUL})
     while not vm.stopped:
         # print(vm, '\n')
         try:
-            ret = vm.step()
+            ret = vm.step(blacklisted_ops)
             gas_used += ret[1]
             if gas_used > gas_limit:
                 raise Exception(f'gas overflow: {gas_used} > {gas_limit}')
         except Exception as ex:
             _ = ex
+            # print(ex)
             # raise ex
             break
 
@@ -47,7 +51,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
             #fmt: on
                 selectors.append(s1[-4:])
 
-            case (Op.LT | Op.GT, *_):
+            case (Op.LT | Op.GT, _, CallDataSignature(), _) | (Op.LT | Op.GT, _, _, CallDataSignature()):
                 cloned_vm = copy.copy(vm)
                 s, g = process(cloned_vm, gas_limit // 2)
                 selectors += s
@@ -71,7 +75,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
             case (Op.ISZERO, _, CallDataSignature()):
                 selectors.append(b'\x00\x00\x00\x00')
 
-            case (Op.MLOAD, _, list() as used):
+            case (Op.MLOAD, _, set() as used):
                 for u in used:
                     if isinstance(u, CallData):
                         p = vm.stack.peek()
@@ -83,7 +87,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
     return selectors, gas_used
 
 
-def function_selectors(code: bytes | str, gas_limit: int = int(1e6)) -> list[str]:
+def function_selectors(code: bytes | str, gas_limit: int = int(5e5)) -> list[str]:
     vm = Vm(code=to_bytes(code), calldata=CallData(b'\xaa\xbb\xcc\xdd'))
     selectors, _ = process(vm, gas_limit)
     return [s.hex().zfill(8) for s in selectors]
