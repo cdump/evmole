@@ -1,6 +1,6 @@
 PROVIDER_BASE = etherscan
 PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs evmole-py evmole-js
-PROVIDERS_ARGUMENTS ?= evmole-py
+PROVIDERS_ARGUMENTS ?= simple evmole-py evmole-js
 
 DATASETS ?= largest1k random50k vyper
 DOCKER ?= docker

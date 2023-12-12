@@ -14,6 +14,7 @@ mode = sys.argv[1]
 indir = sys.argv[2]
 outfile = sys.argv[3]
 
+selectors = {}
 if mode == 'arguments':
     selectors_file = sys.argv[4]
     with open(selectors_file, 'r') as fh:

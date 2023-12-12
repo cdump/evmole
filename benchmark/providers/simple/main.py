@@ -2,7 +2,7 @@ import json
 import os
 import sys
 
-def process(code: bytes) -> list[str]:
+def extract_selectors(code: bytes) -> list[str]:
     ret = []
     for i in range(len(code) - 5):
         # PUSH2/PUSH3
@@ -15,21 +15,34 @@ def process(code: bytes) -> list[str]:
 
     return [s.hex().zfill(8) for s in ret]
 
+def extract_arguments(code: bytes, selector: bytes) -> str:
+    return ''
+
 
 if len(sys.argv) < 4:
-    print('Usage: python3 main.py MODE INPUT_DIR OUTPUT_FILE')
+    print('Usage: python3 main.py MODE INPUT_DIR OUTPUT_FILE [SELECTORS_FILE]')
     sys.exit(1)
-
 
 ret = {}
 mode = sys.argv[1]
-assert mode == 'selectors', f'only "selectors" mode supported, got {mode}'
 indir = sys.argv[2]
 outfile = sys.argv[3]
+
+selectors = {}
+if mode == 'arguments':
+    selectors_file = sys.argv[4]
+    with open(selectors_file, 'r') as fh:
+        selectors = json.load(fh)
+
 for fname in os.listdir(indir):
     with open(f'{indir}/{fname}', 'r') as fh:
         d = json.load(fh)
-        ret[fname] = process(bytes.fromhex(d['code'][2:]))
+        code = bytes.fromhex(d['code'][2:])
+        if mode == 'arguments':
+            r = {s: extract_arguments(code, bytes.fromhex(s)) for s in selectors[fname]}
+        else:
+            r = extract_selectors(code)
+        ret[fname] = r
 
 with open(outfile, 'w') as fh:
     json.dump(ret, fh)
