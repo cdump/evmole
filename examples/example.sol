@@ -7,4 +7,8 @@ contract Example {
     function deposit() public payable {
         balance += msg.value;
     }
+
+    function inc(uint32 v) public {
+        balance += v;
+    }
 }
