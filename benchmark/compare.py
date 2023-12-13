@@ -188,8 +188,10 @@ def show_arguments(providers: list[str], all_results: list, show_errors: bool):
         cnt_funcs = sum(len(x['func']) for x in dataset_result['results'])
         for provider_idx, name in enumerate(providers[1:]):
             good_fn = sum(y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
+            bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} functions), {name}:')
             print(f'  time: {dataset_result["timings"][provider_idx]}s')
+            print(f'  bad:  {bad_fn} functions {(bad_fn*100/cnt_funcs):.2f}%')
             print(f'  good: {good_fn} functions ({(good_fn*100/cnt_funcs):.2f}%)')
 
             if show_errors is not True:
