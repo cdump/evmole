@@ -63,7 +63,7 @@ def markdown_selectors(providers: list[str], all_results: list):
         print(' <tr>')
         print('  <td><i>Time:</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
-            print(f'  <td>{dataset_result["timings"][idx]}s</td>')
+            print(f'  <td>{dataset_result["timings"][idx]:.1f}s</td>')
         print(' </tr>')
         if dataset_idx != len(all_results) - 1:
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
@@ -91,7 +91,7 @@ def markdown_arguments(providers: list[str], all_results: list):
         print(' <tr>')
         print('  <td><i>Time:</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
-            print(f'  <td>{dataset_result["timings"][idx]}s</td>')
+            print(f'  <td>{dataset_result["timings"][idx]:.1f}s</td>')
         print(' </tr>')
         if dataset_idx != len(all_results) - 1:
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
@@ -141,7 +141,7 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
             fp_contracts = sum(len(x['data'][provider_idx][0]) > 0 for x in dataset_result['results'])
             fn_contracts = sum(len(x['data'][provider_idx][1]) > 0 for x in dataset_result['results'])
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} signatures), {name}:')
-            print(f'  time: {dataset_result["timings"][provider_idx]}s')
+            print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
             print(f'  False Positive: {fp_signatures} signatures, {fp_contracts} contracts')
             print(f'  False Negative: {fn_signatures} signatures, {fn_contracts} contracts')
             if show_errors is not True:
@@ -190,7 +190,7 @@ def show_arguments(providers: list[str], all_results: list, show_errors: bool):
             good_fn = sum(y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
             bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} functions), {name}:')
-            print(f'  time: {dataset_result["timings"][provider_idx]}s')
+            print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
             print(f'  bad:  {bad_fn} functions {(bad_fn*100/cnt_funcs):.2f}%')
             print(f'  good: {good_fn} functions ({(good_fn*100/cnt_funcs):.2f}%)')
 
