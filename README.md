@@ -51,7 +51,7 @@ See [examples](./examples) for more
 ## Benchmark
 
 ### function selectors
-<i>FP/FN</i> - [False Positive/False Negative](https://en.wikipedia.org/wiki/False_positives_and_false_negatives) errors; smaller is better
+<i>FP·FN</i> - [False Positive·False Negative](https://en.wikipedia.org/wiki/False_positives_and_false_negatives) errors; smaller is better
 
 <table>
  <tr>
@@ -65,20 +65,20 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td rowspan="3"><i><b>largest1k</b><br>1000 contracts<br>24427 functions</i></td>
-  <td><i>FP/FN contracts:</i></td>
-  <td>1 / 0 :1st_place_medal:</td>
-  <td>38 / 8</td>
-  <td>75 / 40</td>
-  <td>18 / 103</td>
-  <td>95 / 9</td>
+  <td><i>FP·FN contracts:</i></td>
+  <td>1 · 0 :1st_place_medal:</td>
+  <td>38 · 8</td>
+  <td>75 · 40</td>
+  <td>18 · 103</td>
+  <td>95 · 9</td>
  </tr>
  <tr>
-  <td><i>FP/FN functions:</i></td>
-  <td>192 / 0 :2nd_place_medal: :1st_place_medal:</td>
-  <td>38 / 8 :1st_place_medal: :2nd_place_medal:</td>
-  <td>720 / 191</td>
-  <td>600 / 116</td>
-  <td>749 / 12</td>
+  <td><i>FP·FN functions:</i></td>
+  <td>192 · 0 :2nd_place_medal: :1st_place_medal:</td>
+  <td>38 · 8 :1st_place_medal: :2nd_place_medal:</td>
+  <td>720 · 191</td>
+  <td>600 · 116</td>
+  <td>749 · 12</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
@@ -91,19 +91,19 @@ See [examples](./examples) for more
  <tr><td colspan="7"></td></tr>
  <tr>
   <td rowspan="3"><i><b>random50k</b><br>50000 contracts<br>1171102 functions</i></td>
-  <td><i>FP/FN contracts:</i></td>
-  <td>1 / 9 :1st_place_medal:</td>
-  <td>251 / 31</td>
-  <td>693 / 2903</td>
+  <td><i>FP·FN contracts:</i></td>
+  <td>1 · 9 :1st_place_medal:</td>
+  <td>251 · 31</td>
+  <td>693 · 2903</td>
   <td rowspan="3">waiting fixes</td>
-  <td>4136 / 77</td>
+  <td>4136 · 77</td>
  </tr>
  <tr>
-  <td><i>FP/FN functions:</i></td>
-  <td>3 / 10 :1st_place_medal:</td>
-  <td>261 / 32</td>
-  <td>10798 / 3538</td>
-  <td>14652 / 96</td>
+  <td><i>FP·FN functions:</i></td>
+  <td>3 · 10 :1st_place_medal:</td>
+  <td>261 · 32</td>
+  <td>10798 · 3538</td>
+  <td>14652 · 96</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
@@ -115,20 +115,20 @@ See [examples](./examples) for more
  <tr><td colspan="7"></td></tr>
  <tr>
   <td rowspan="3"><i><b>vyper</b><br>780 contracts<br>21244 functions</i></td>
-  <td><i>FP/FN contracts:</i></td>
-  <td>0 / 0 :1st_place_medal:</td>
-  <td>178 / 780</td>
-  <td>19 / 300</td>
-  <td>0 / 780</td>
-  <td>185 / 480</td>
+  <td><i>FP·FN contracts:</i></td>
+  <td>0 · 0 :1st_place_medal:</td>
+  <td>178 · 780</td>
+  <td>19 · 300</td>
+  <td>0 · 780</td>
+  <td>185 · 480</td>
  </tr>
  <tr>
-  <td><i>FP/FN functions:</i></td>
-  <td>0 / 0 :1st_place_medal:</td>
-  <td>181 / 21244</td>
-  <td>19 / 8273</td>
-  <td>0 / 21244</td>
-  <td>197 / 12971</td>
+  <td><i>FP·FN functions:</i></td>
+  <td>0 · 0 :1st_place_medal:</td>
+  <td>181 · 21244</td>
+  <td>19 · 8273</td>
+  <td>0 · 21244</td>
+  <td>197 · 12971</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
@@ -153,7 +153,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td rowspan="2"><i><b>largest1k</b><br>1000 contracts<br>24427 functions</i></td>
-  <td><i>errors:</i></td>
+  <td><i>Errors:</i></td>
   <td>15.1%, 3677 :1st_place_medal:</td>
   <td>42.6%, 10407</td>
   <td>58.3%, 14242</td>
