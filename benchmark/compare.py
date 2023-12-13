@@ -2,16 +2,19 @@ import argparse
 import json
 import pathlib
 
-
-def process_dataset(dname: str, providers: list[str], results_dir: str):
-    pdata = []
-    ptimes = []
+def load_data(btype: str, dname: str, providers: list[str], results_dir: str) -> tuple[list, list]:
+    data = []
+    times = []
     for pname in providers:
-        with open(f'{results_dir}/{pname}_{dname}.json', 'r') as fh:
-            pdata.append(json.load(fh))
-        with open(f'{results_dir}/{pname}_{dname}.time', 'r') as fh:
-            ptimes.append(float(fh.read()))
+        with open(f'{results_dir}/{pname}.{btype}_{dname}.json', 'r') as fh:
+            data.append(json.load(fh))
+        with open(f'{results_dir}/{pname}.{btype}_{dname}.time', 'r') as fh:
+            times.append(float(fh.read()))
+    return data, times
 
+
+def process_selectors(dname: str, providers: list[str], results_dir: str):
+    pdata, ptimes = load_data('selectors', dname, providers, results_dir)
     ret = []
     for fname, gt in pdata[0].items():
         gt_set = set(gt)
@@ -29,7 +32,7 @@ def process_dataset(dname: str, providers: list[str], results_dir: str):
     return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
 
 
-def markdown(providers: list[str], all_results: list):
+def markdown_selectors(providers: list[str], all_results: list):
     # :1st_place_medal: :rocket: :zap:
     print('<table>')
     print(' <tr>')
@@ -100,7 +103,7 @@ def serve_web(listen_host: str, listen_port:int, providers: list[str], all_resul
     web.run_app(app, host=listen_host, port=listen_port)
 
 
-def show(providers: list[str], all_results: list):
+def show_selectors(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
         cnt_contracts = len(dataset_result['results'])
         cnt_signatures = sum(len(x['ground_truth']) for x in dataset_result['results'])
@@ -113,32 +116,105 @@ def show(providers: list[str], all_results: list):
             print(f'  time: {dataset_result["timings"][provider_idx]}s')
             print(f'  False Positive: {fp_signatures} signatures, {fp_contracts} contracts')
             print(f'  False Negative: {fn_signatures} signatures, {fn_contracts} contracts')
-            print('')
+            if show_errors is not True:
+                continue
+            print('  errors:')
+            for x in dataset_result['results']:
+                want = x['ground_truth']
+                fp = x['data'][provider_idx][0]
+                fn = x['data'][provider_idx][1]
+                if len(fp) > 0 or len(fn) > 0:
+                    print('   ', x['addr'])
+                    print(f'      want: {want}')
+                    print(f'      FP  : {fp}')
+                    print(f'      FN  : {fn}')
         print('')
-    pass
+
+
+def process_arguments(dname: str, providers: list[str], results_dir: str):
+    pdata, ptimes = load_data('arguments', dname, providers, results_dir)
+    ret = []
+    for fname, gt in pdata[0].items():
+        func = []
+        for sel, args in gt.items():
+            data = []
+            for i in range(1, len(providers)): # skip ground_truth provider
+                d = pdata[i][fname]
+                dargs = d[sel]
+                if dargs == args:
+                    data.append([1])
+                else:
+                    data.append([0, dargs])
+            func.append({'s': sel, 'gt': args, 'data': data})
+
+        ret.append({
+            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'func': func,
+        })
+    return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
+
+
+def show_arguments(providers: list[str], all_results: list, show_errors: bool):
+    for dataset_result in all_results:
+        cnt_contracts = len(dataset_result['results'])
+        cnt_funcs = sum(len(x['func']) for x in dataset_result['results'])
+        for provider_idx, name in enumerate(providers[1:]):
+            good_fn = sum(y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
+            print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} functions), {name}:')
+            print(f'  time: {dataset_result["timings"][provider_idx]}s')
+            print(f'  good: {good_fn} functions ({(good_fn*100/cnt_funcs):.2f}%)')
+
+            if show_errors is not True:
+                continue
+            print('  errors:')
+            for x in dataset_result['results']:
+                for y in x['func']:
+                    if len(y['data'][provider_idx]) > 1:
+                        assert y['data'][provider_idx][0] == 0
+                        want = y['gt']
+                        got = y['data'][provider_idx][1]
+                        print('   ', x['addr'], y['s'])
+                        print(f'      want: {want}')
+                        print(f'      got : {got}')
+        print('')
+
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', type=str, default=pathlib.Path(__file__).parent / 'results', help='results directory')
-    parser.add_argument('--providers', nargs='+', default=['etherscan', 'simple', 'whatsabi', 'evm-hound-rs', 'evmole-js', 'evmole-py'])
+    parser.add_argument('--mode', choices=['selectors', 'arguments'], default='selectors', help='mode')
+    parser.add_argument('--providers', nargs='+', default=None)
     parser.add_argument('--datasets', nargs='+', default=['largest1k', 'random50k', 'vyper'])
     parser.add_argument('--web-listen', type=str, default='', help='start webserver to serve results, example: "127.0.0.1:8080"')
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
+    parser.add_argument('--show-errors', nargs='?', default=False, const=True, help='show errors')
     cfg = parser.parse_args()
+    if cfg.providers is None:
+        if cfg.mode == 'selectors':
+            cfg.providers = ['etherscan', 'simple', 'whatsabi', 'evm-hound-rs', 'evmole-js', 'evmole-py']
+        else:
+            cfg.providers = ['etherscan', 'simple', 'evmole-py', 'evmole-js']
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
 
     if cfg.web_listen != '':
         from aiohttp import web
 
-    results = [process_dataset(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
+    if cfg.mode == 'arguments':
+        assert cfg.markdown is False, 'markdown for arguments not implemented yet'
+        assert cfg.web_listen == '', 'web-listen for arguments not implemented yet'
+        results = [process_arguments(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
+        show_arguments(cfg.providers, results, cfg.show_errors)
 
-    if cfg.markdown:
-        markdown(cfg.providers, results)
     else:
-        show(cfg.providers, results)
+        results = [process_selectors(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
 
-    if cfg.web_listen != '':
-        host, port = cfg.web_listen.rsplit(':')
-        serve_web(host, int(port), cfg.providers, results)
+        if cfg.markdown:
+            markdown_selectors(cfg.providers, results)
+        else:
+            show_selectors(cfg.providers, results, cfg.show_errors)
+
+        if cfg.web_listen != '':
+            host, port = cfg.web_listen.rsplit(':')
+            serve_web(host, int(port), cfg.providers, results)
