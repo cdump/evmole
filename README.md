@@ -60,6 +60,7 @@ See [examples](./examples) for more
   <td><a href="benchmark/providers/evmole-js/"><b><i>evmole-js</i></b></a> (<a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a>)</td>
   <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
   <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evm-hound-rs</i></b></a></td>
+  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall-rs</i></b></a></td>
   <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
  </tr>
  <tr>
@@ -68,6 +69,7 @@ See [examples](./examples) for more
   <td>1 / 0 :1st_place_medal:</td>
   <td>38 / 8</td>
   <td>75 / 40</td>
+  <td>18 / 103</td>
   <td>95 / 9</td>
  </tr>
  <tr>
@@ -75,6 +77,7 @@ See [examples](./examples) for more
   <td>192 / 0 :2nd_place_medal: :1st_place_medal:</td>
   <td>38 / 8 :1st_place_medal: :2nd_place_medal:</td>
   <td>720 / 191</td>
+  <td>600 / 116</td>
   <td>749 / 12</td>
  </tr>
  <tr>
@@ -82,6 +85,7 @@ See [examples](./examples) for more
   <td>1.6s (1.74s)</td>
   <td>3.54s</td>
   <td>1.1s</td>
+  <td>691.68s</td>
   <td>1.85s</td>
  </tr>
  <tr><td colspan="7"></td></tr>
@@ -91,6 +95,7 @@ See [examples](./examples) for more
   <td>1 / 9 :1st_place_medal:</td>
   <td>251 / 31</td>
   <td>693 / 2903</td>
+  <td rowspan="3">waiting fixes</td>
   <td>4136 / 77</td>
  </tr>
  <tr>
@@ -114,6 +119,7 @@ See [examples](./examples) for more
   <td>0 / 0 :1st_place_medal:</td>
   <td>178 / 780</td>
   <td>19 / 300</td>
+  <td>0 / 780</td>
   <td>185 / 480</td>
  </tr>
  <tr>
@@ -121,6 +127,7 @@ See [examples](./examples) for more
   <td>0 / 0 :1st_place_medal:</td>
   <td>181 / 21244</td>
   <td>19 / 8273</td>
+  <td>0 / 21244</td>
   <td>197 / 12971</td>
  </tr>
  <tr>
@@ -128,6 +135,7 @@ See [examples](./examples) for more
   <td>1.42s (1.28s)</td>
   <td>2.39s</td>
   <td>0.97s</td>
+  <td>9.86s</td>
   <td>1.34s</td>
  </tr>
 </table>
@@ -140,17 +148,20 @@ See [examples](./examples) for more
   <td>Dataset</td>
   <td></td>
   <td><a href="benchmark/providers/evmole-js/"><b><i>evmole-js</i></b></a> (<a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a>)</td>
+  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall-rs</i></b></a></td>
   <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="2"><i><b>largest1k</b><br>1000 contracts<br>24427 functions</i></td>
   <td><i>errors:</i></td>
   <td>15.1%, 3677 :1st_place_medal:</td>
+  <td>42.6%, 10407</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
   <td>6.84s (13.02s)</td>
+  <td>693.42s</td>
   <td>1.17s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
@@ -158,6 +169,7 @@ See [examples](./examples) for more
   <td rowspan="2"><i><b>random50k</b><br>50000 contracts<br>1171102 functions</i></td>
   <td><i>errors:</i></td>
   <td>5.4%, 63774 :1st_place_medal:</td>
+  <td rowspan="2">waiting fixes</td>
   <td>54.9%, 643213</td>
  </tr>
  <tr>
@@ -170,11 +182,13 @@ See [examples](./examples) for more
   <td rowspan="2"><i><b>vyper</b><br>780 contracts<br>21244 functions</i></td>
   <td><i>errors:</i></td>
   <td>52.3%, 11103 :1st_place_medal:</td>
+  <td>100.0%, 21244</td>
   <td>56.8%, 12077</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
   <td>7.77s (16.05s)</td>
+  <td>10.24s</td>
   <td>0.98s</td>
  </tr>
 </table>
