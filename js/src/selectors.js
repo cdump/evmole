@@ -23,13 +23,11 @@ function process(vm, gas_limit) {
   let selectors = []
   let gas_used = 0
 
-  // we don't need this OPs for function selector extraction, so blacklist them to exit the vm loop early
-  const blacklisted_ops = new Set([Op.NOT, Op.SHL, Op.MUL])
   while (!vm.stopped) {
     // console.log(vm.toString());
     let ret
     try {
-      ret = vm.step(blacklisted_ops)
+      ret = vm.step()
       gas_used += ret[1]
       if (gas_used > gas_limit) {
         throw `gas overflow: ${gas_used} > ${gas_limit}`
@@ -117,7 +115,11 @@ function process(vm, gas_limit) {
 
 export function functionSelectors(code_hex_string, gas_limit = 5e5) {
   const code = hexToUint8Array(code_hex_string)
-  const vm = new Vm(code, new CallData([0xaa, 0xbb, 0xcc, 0xdd]))
+
+  // we don't need these OPs to extract function selectors, so blacklist them to exit the vm loop early
+  const blacklisted_ops = new Set([Op.NOT, Op.SHL, Op.MUL])
+
+  const vm = new Vm(code, new CallData([0xaa, 0xbb, 0xcc, 0xdd]), blacklisted_ops)
   const [selectors] = process(vm, gas_limit)
   return selectors.map((x) => x.toString(16).padStart(8, '0'))
 }

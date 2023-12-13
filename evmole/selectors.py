@@ -19,12 +19,10 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
     selectors = []
     gas_used = 0
 
-    # we don't need this OPs for function selector extraction, so blacklist them to exit the vm loop early
-    blacklisted_ops = set({Op.NOT, Op.SHL, Op.MUL})
     while not vm.stopped:
         # print(vm, '\n')
         try:
-            ret = vm.step(blacklisted_ops)
+            ret = vm.step()
             gas_used += ret[1]
             if gas_used > gas_limit:
                 raise Exception(f'gas overflow: {gas_used} > {gas_limit}')
@@ -88,6 +86,8 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
 
 
 def function_selectors(code: bytes | str, gas_limit: int = int(5e5)) -> list[str]:
-    vm = Vm(code=to_bytes(code), calldata=CallData(b'\xaa\xbb\xcc\xdd'))
+    # we don't need this OPs for function selector extraction, so blacklist them to exit the vm loop early
+    blacklisted_ops = set([Op.NOT, Op.SHL, Op.MUL])
+    vm = Vm(code=to_bytes(code), calldata=CallData(b'\xaa\xbb\xcc\xdd'), blacklisted_ops=blacklisted_ops)
     selectors, _ = process(vm, gas_limit)
     return [s.hex().zfill(8) for s in selectors]

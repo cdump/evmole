@@ -49,10 +49,9 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
     gas_used = 0
     inside_function = False
     args: dict[int, str] = {}
-    blacklisted_ops: set[Op] = set()
     while not vm.stopped:
         try:
-            ret = vm.step(blacklisted_ops)
+            ret = vm.step()
             gas_used += ret[1]
             if gas_used > gas_limit:
                 raise Exception(f'gas overflow: {gas_used} > {gas_limit}')

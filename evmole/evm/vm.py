@@ -9,13 +9,14 @@ E256M1 = E256 - 1
 
 
 class Vm:
-    def __init__(self, *, code: bytes, calldata):
+    def __init__(self, *, code: bytes, calldata, blacklisted_ops: set[Op] | None = None):
         self.code = code
         self.pc = 0
         self.stack = Stack()
         self.memory = Memory()
         self.stopped = False
         self.calldata = calldata
+        self.blacklisted_ops = blacklisted_ops if blacklisted_ops is not None else set()
 
     def __str__(self):
         return '\n'.join(
@@ -34,15 +35,14 @@ class Vm:
         obj.memory._data = self.memory._data[:]
         obj.stack._data = self.stack._data[:]
         obj.stopped = self.stopped
+        obj.blacklisted_ops = self.blacklisted_ops
         return obj
 
     def current_op(self) -> Op:
         return Op(self.code[self.pc])
 
-    def step(self, blacklisted_ops: set[Op] | None = None) -> tuple[Op, int, *tuple[Any, ...]]:
-        if blacklisted_ops is None:
-            blacklisted_ops = set()
-        ret = self._exec_next_opcode(blacklisted_ops)
+    def step(self) -> tuple[Op, int, *tuple[Any, ...]]:
+        ret = self._exec_next_opcode()
         op, gas_used = ret[0], ret[1]
         assert gas_used != -1, f'Op {op} with unset gas_used'
 
@@ -53,11 +53,11 @@ class Vm:
             self.stopped = True
         return ret
 
-    def _exec_next_opcode(self, blacklisted_ops: set[Op]) -> tuple[Op, int, *tuple[Any, ...]]:
+    def _exec_next_opcode(self) -> tuple[Op, int, *tuple[Any, ...]]:
         op = self.current_op()
         gas_used = op.gas if op.gas is not None else -1
         match op:
-            case op if op in blacklisted_ops:
+            case op if op in self.blacklisted_ops:
                 raise Exception(f'blacklisted op {op}')
 
             case op if op >= Op.PUSH0 and op <= Op.PUSH32:

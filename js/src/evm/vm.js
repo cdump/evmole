@@ -8,7 +8,7 @@ const E256M1 = E256 - 1n
 const E255M1 = 2n ** 255n - 1n
 
 export default class Vm {
-  constructor(code, calldata, clone = false) {
+  constructor(code, calldata, blacklisted_ops, clone = false) {
     if (clone) {
       return
     }
@@ -18,6 +18,7 @@ export default class Vm {
     this.memory = new Memory()
     this.stopped = false
     this.calldata = calldata
+    this.blacklisted_ops = blacklisted_ops !== undefined ? blacklisted_ops : new Set()
   }
 
   toString() {
@@ -29,7 +30,7 @@ export default class Vm {
   }
 
   clone() {
-    const c = new Vm(0, 0, true)
+    const c = new Vm(undefined, undefined, undefined, true)
     c.code = this.code
     c.pc = this.pc
     c.stack = new Stack()
@@ -39,6 +40,7 @@ export default class Vm {
     c.memory._data = [...this.memory._data]
     c.stopped = this.stopped
     c.calldata = this.calldata
+    c.blacklisted_ops = this.blacklisted_ops
     return c
   }
 
@@ -46,8 +48,8 @@ export default class Vm {
     return Op.parse(this.code[this.pc])
   }
 
-  step(blacklisted_ops = {}) {
-    const ret = this.#exec_next_opcode(blacklisted_ops)
+  step() {
+    const ret = this.#exec_next_opcode()
     const op = ret[0]
     if (ret[1] == -1) {
       throw `Op ${op.name} with unset gas_used`
@@ -62,10 +64,10 @@ export default class Vm {
     return ret
   }
 
-  #exec_next_opcode(blacklisted_ops) {
+  #exec_next_opcode() {
     const op = this.current_op()
     let gas_used = op.gas !== undefined ? op.gas : -1
-    if (blacklisted_ops.has(op)) {
+    if (this.blacklisted_ops.has(op)) {
       throw `blacklisted op ${op}`
     }
 

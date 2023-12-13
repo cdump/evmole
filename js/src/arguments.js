@@ -54,13 +54,12 @@ export function functionArguments(
   let gas_used = 0
   let inside_function = false
   let args = {}
-  const blacklisted_ops = new Set([])
 
   while (!vm.stopped) {
     // console.log(vm.toString());
     let ret
     try {
-      ret = vm.step(blacklisted_ops)
+      ret = vm.step()
       gas_used += ret[1]
       if (gas_used > gas_limit) {
         throw `gas overflow: ${gas_used} > ${gas_limit}`
