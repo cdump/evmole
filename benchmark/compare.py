@@ -44,9 +44,9 @@ def markdown_selectors(providers: list[str], all_results: list):
     for dataset_idx, dataset_result in enumerate(all_results):
         dataset_name = dataset_result['dataset']
         cnt_contracts = len(dataset_result['results'])
-        cnt_signatures = sum(len(x['ground_truth']) for x in dataset_result['results'])
+        cnt_funcs = sum(len(x['ground_truth']) for x in dataset_result['results'])
         print(' <tr>')
-        print(f' <td rowspan="3"><i><b>{dataset_name}</b><br>{cnt_contracts} contracts<br>{cnt_signatures} functions</i></td>')
+        print(f'  <td rowspan="3"><i><b>{dataset_name}</b><br>{cnt_contracts} contracts<br>{cnt_funcs} functions</i></td>')
         print('  <td><i>FP/FN contracts:</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fp_contracts = sum(len(x['data'][idx][0]) > 0 for x in dataset_result['results'])
@@ -59,6 +59,34 @@ def markdown_selectors(providers: list[str], all_results: list):
             fp_signatures = sum(len(x['data'][idx][0]) for x in dataset_result['results'])
             fn_signatures = sum(len(x['data'][idx][1]) for x in dataset_result['results'])
             print(f'  <td>{fp_signatures} / {fn_signatures}</td>')
+        print(' </tr>')
+        print(' <tr>')
+        print('  <td><i>Time:</i></td>')
+        for idx in range(0, len(providers) - 1): # skip ground_truth provider
+            print(f'  <td>{dataset_result["timings"][idx]}s</td>')
+        print(' </tr>')
+        if dataset_idx != len(all_results) - 1:
+            print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
+    print('</table>')
+
+def markdown_arguments(providers: list[str], all_results: list):
+    print('<table>')
+    print(' <tr>')
+    print('  <td>Dataset</td>')
+    print('  <td></td>')
+    for name in providers[1:]:
+        print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
+    print(' </tr>')
+    for dataset_idx, dataset_result in enumerate(all_results):
+        dataset_name = dataset_result['dataset']
+        cnt_contracts = len(dataset_result['results'])
+        cnt_funcs = sum(len(x['func']) for x in dataset_result['results'])
+        print(' <tr>')
+        print(f'  <td rowspan="2"><i><b>{dataset_name}</b><br>{cnt_contracts} contracts<br>{cnt_funcs} functions</i></td>')
+        print('  <td><i>errors:</i></td>')
+        for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
+            bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
+            print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%, {bad_fn}</td>')
         print(' </tr>')
         print(' <tr>')
         print('  <td><i>Time:</i></td>')
@@ -106,13 +134,13 @@ def serve_web(listen_host: str, listen_port:int, providers: list[str], all_resul
 def show_selectors(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
         cnt_contracts = len(dataset_result['results'])
-        cnt_signatures = sum(len(x['ground_truth']) for x in dataset_result['results'])
+        cnt_funcs = sum(len(x['ground_truth']) for x in dataset_result['results'])
         for provider_idx, name in enumerate(providers[1:]):
             fp_signatures = sum(len(x['data'][provider_idx][0]) for x in dataset_result['results'])
             fn_signatures = sum(len(x['data'][provider_idx][1]) for x in dataset_result['results'])
             fp_contracts = sum(len(x['data'][provider_idx][0]) > 0 for x in dataset_result['results'])
             fn_contracts = sum(len(x['data'][provider_idx][1]) > 0 for x in dataset_result['results'])
-            print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_signatures} signatures), {name}:')
+            print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} signatures), {name}:')
             print(f'  time: {dataset_result["timings"][provider_idx]}s')
             print(f'  False Positive: {fp_signatures} signatures, {fp_contracts} contracts')
             print(f'  False Negative: {fn_signatures} signatures, {fn_contracts} contracts')
@@ -192,9 +220,9 @@ if __name__ == '__main__':
     cfg = parser.parse_args()
     if cfg.providers is None:
         if cfg.mode == 'selectors':
-            cfg.providers = ['etherscan', 'simple', 'whatsabi', 'evm-hound-rs', 'evmole-js', 'evmole-py']
+            cfg.providers = ['etherscan', 'evmole-js', 'evmole-py', 'whatsabi', 'evm-hound-rs', 'simple']
         else:
-            cfg.providers = ['etherscan', 'simple', 'evmole-py', 'evmole-js']
+            cfg.providers = ['etherscan', 'evmole-js', 'evmole-py', 'simple']
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
 
@@ -202,10 +230,12 @@ if __name__ == '__main__':
         from aiohttp import web
 
     if cfg.mode == 'arguments':
-        assert cfg.markdown is False, 'markdown for arguments not implemented yet'
         assert cfg.web_listen == '', 'web-listen for arguments not implemented yet'
         results = [process_arguments(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
-        show_arguments(cfg.providers, results, cfg.show_errors)
+        if cfg.markdown:
+            markdown_arguments(cfg.providers, results)
+        else:
+            show_arguments(cfg.providers, results, cfg.show_errors)
 
     else:
         results = [process_selectors(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
