@@ -34,7 +34,7 @@ export default class Stack {
   }
 
   push_uint(val) {
-    this.push(bigIntToUint8Array(val));
+    this.push(bigIntToUint8Array(val))
   }
 
   pop_uint() {

@@ -20,15 +20,15 @@ export default class Memory {
 
     const res = new Array(32).fill([-1, 0, undefined])
     for (let i = offset; i < offset + 32; i++) {
-      const idx = i - offset;
+      const idx = i - offset
       for (const [off, seq, val] of this._data) {
         if (seq > res[idx][0] && i >= off && i < off + val.length) {
-          res[idx] = [seq, val[i-off], val]
+          res[idx] = [seq, val[i - off], val]
         }
       }
     }
-    const ret = new Uint8Array(res.map((v) => v[1]));
-    const used = new Set(res.map((v) => v[2]));
+    const ret = new Uint8Array(res.map((v) => v[1]))
+    const used = new Set(res.map((v) => v[2]))
     return [ret, used]
   }
 }

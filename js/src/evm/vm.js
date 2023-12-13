@@ -200,8 +200,8 @@ export default class Vm {
         let s1 = this.stack.pop_uint()
 
         // unsigned to signed
-        s0 = s0 <= E255M1 ? s0 : (s0 - E256)
-        s1 = s1 <= E255M1 ? s1 : (s1 - E256)
+        s0 = s0 <= E255M1 ? s0 : s0 - E256
+        s1 = s1 <= E255M1 ? s1 : s1 - E256
         let res
         switch (op) {
           case Op.SLT:

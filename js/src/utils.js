@@ -2,11 +2,12 @@ export function hexToUint8Array(str) {
   if (str.startsWith('0x')) {
     str = str.slice(2)
     if (str.length % 2 !== 0) {
-      str = '0' + str;
+      str = '0' + str
     }
   }
-  if (typeof Buffer !== 'undefined') { // fast path for nodejs:
-    return Buffer.from(str, 'hex');
+  if (typeof Buffer !== 'undefined') {
+    // fast path for nodejs:
+    return Buffer.from(str, 'hex')
   }
   const arr = new Uint8Array(str.length / 2)
   for (let i = 0, p = 0; i < str.length; i += 2, p += 1) {
@@ -16,16 +17,16 @@ export function hexToUint8Array(str) {
 }
 
 export function uint8ArrayToBigInt(arr) {
-    return arr.reduce((acc, b) => acc * 256n + BigInt(b), 0n)
+  return arr.reduce((acc, b) => acc * 256n + BigInt(b), 0n)
 }
 
-export function bigIntToUint8Array(val, n=32) {
-  const r = new Uint8Array(n);
-  while(n > 0) {
-    r[--n] = Number(val & 255n);
-    val >>= 8n;
+export function bigIntToUint8Array(val, n = 32) {
+  const r = new Uint8Array(n)
+  while (n > 0) {
+    r[--n] = Number(val & 255n)
+    val >>= 8n
   }
-  return r;
+  return r
 }
 
 export function toBigInt(v) {
