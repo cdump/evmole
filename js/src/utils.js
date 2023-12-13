@@ -1,13 +1,16 @@
 export function hexToUint8Array(str) {
-  let start = 0
   if (str.startsWith('0x')) {
-    start = 2
+    str = str.slice(2)
+    if (str.length % 2 !== 0) {
+      str = '0' + str;
+    }
   }
-  const arr = new Uint8Array((str.length - start + 1) / 2)
-  let p = 0
-  for (let i = start; i < str.length; i += 2) {
+  if (typeof Buffer !== 'undefined') { // fast path for nodejs:
+    return Buffer.from(str, 'hex');
+  }
+  const arr = new Uint8Array(str.length / 2)
+  for (let i = 0, p = 0; i < str.length; i += 2, p += 1) {
     arr[p] = parseInt(str.slice(i, i + 2), 16)
-    p++
   }
   return arr
 }
