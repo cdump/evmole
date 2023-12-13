@@ -82,11 +82,11 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>1.6s (1.74s)</td>
-  <td>3.54s</td>
+  <td>1.6s (1.7s)</td>
+  <td>3.5s</td>
   <td>1.1s</td>
-  <td>691.68s</td>
-  <td>1.85s</td>
+  <td>691.7s</td>
+  <td>1.8s</td>
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
@@ -107,10 +107,10 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>18.81s (32.27s)</td>
-  <td>67.13s</td>
-  <td>11.95s</td>
-  <td>34.39s</td>
+  <td>18.8s (32.3s)</td>
+  <td>67.1s</td>
+  <td>11.9s</td>
+  <td>34.4s</td>
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
@@ -132,11 +132,11 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>1.42s (1.28s)</td>
-  <td>2.39s</td>
-  <td>0.97s</td>
-  <td>9.86s</td>
-  <td>1.34s</td>
+  <td>1.4s (1.3s)</td>
+  <td>2.4s</td>
+  <td>1.0s</td>
+  <td>9.9s</td>
+  <td>1.3s</td>
  </tr>
 </table>
 
@@ -160,9 +160,9 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>6.84s (13.02s)</td>
-  <td>693.42s</td>
-  <td>1.17s</td>
+  <td>6.8s (13.0s)</td>
+  <td>693.4s</td>
+  <td>1.2s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
@@ -174,8 +174,8 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>185.03s (402.58s)</td>
-  <td>8.76s</td>
+  <td>185.0s (402.6s)</td>
+  <td>8.8s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
@@ -187,9 +187,9 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>7.77s (16.05s)</td>
-  <td>10.24s</td>
-  <td>0.98s</td>
+  <td>7.8s (16.1s)</td>
+  <td>10.2s</td>
+  <td>1.0s</td>
  </tr>
 </table>
 
