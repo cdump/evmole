@@ -1,5 +1,5 @@
 from .utils import to_bytes
-from .evm.vm import Vm
+from .evm.vm import Vm, UnsupportedOpError
 from .evm.opcodes import Op
 
 from .selectors import CallData
@@ -54,16 +54,14 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
             ret = vm.step()
             gas_used += ret[1]
             if gas_used > gas_limit:
-                raise Exception(f'gas overflow: {gas_used} > {gas_limit}')
+                # raise Exception(f'gas overflow: {gas_used} > {gas_limit}')
+                break
 
             if inside_function:
                 # print(vm, '\n')
                 # print(ret)
                 pass
-        except Exception as ex:
-            _ = ex
-            # print(ex)
-            # raise ex
+        except UnsupportedOpError:
             break
 
         if inside_function is False:

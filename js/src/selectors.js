@@ -1,5 +1,5 @@
 import Op from './evm/opcodes.js'
-import Vm from './evm/vm.js'
+import { Vm, BlacklistedOpError, UnsupportedOpError } from './evm/vm.js'
 import { hexToUint8Array, uint8ArrayToBigInt } from './utils.js'
 
 export class CallData extends Uint8Array {
@@ -30,12 +30,15 @@ function process(vm, gas_limit) {
       ret = vm.step()
       gas_used += ret[1]
       if (gas_used > gas_limit) {
-        throw `gas overflow: ${gas_used} > ${gas_limit}`
+        // throw `gas overflow: ${gas_used} > ${gas_limit}`
+        break
       }
-    } catch (err) {
-      // console.log(err);
-      // throw err;
-      break
+    } catch (e) {
+      if (e instanceof BlacklistedOpError || e instanceof UnsupportedOpError) {
+        break
+      } else {
+        throw e
+      }
     }
     const op = ret[0]
 

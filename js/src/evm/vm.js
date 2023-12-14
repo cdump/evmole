@@ -7,7 +7,11 @@ const E256 = 2n ** 256n
 const E256M1 = E256 - 1n
 const E255M1 = 2n ** 255n - 1n
 
-export default class Vm {
+export class BlacklistedOpError extends Error { /* ... */}
+export class UnsupportedOpError extends Error { /* ... */}
+
+
+export class Vm {
   constructor(code, calldata, blacklisted_ops, clone = false) {
     if (clone) {
       return
@@ -69,7 +73,7 @@ export default class Vm {
     const op = this.current_op()
     let gas_used = op.gas !== undefined ? op.gas : -1
     if (this.blacklisted_ops.has(op)) {
-      throw `blacklisted op ${op}`
+      throw new BlacklistedOpError(op.name)
     }
 
     if (op >= Op.PUSH0 && op <= Op.PUSH32) {
@@ -188,10 +192,10 @@ export default class Vm {
             res = s0 | s1
             break
           case Op.SHR:
-            res = s0 >= 256 ? 0 : (s1 >> s0) & E256M1
+            res = s0 >= 256n ? 0n : (s1 >> s0) & E256M1
             break
           case Op.SHL:
-            res = s0 >= 256 ? 0 : (s1 << s0) & E256M1
+            res = s0 >= 256n ? 0n : (s1 << s0) & E256M1
             break
           case Op.BYTE:
             res = s0 >= 32n ? 0n : BigInt(raws1[s0])
@@ -289,7 +293,7 @@ export default class Vm {
       }
 
       default:
-        throw `unknown op ${op.name}`
+        throw new UnsupportedOpError(op.name)
     }
   }
 }

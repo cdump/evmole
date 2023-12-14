@@ -1,5 +1,5 @@
 import Op from './evm/opcodes.js'
-import Vm from './evm/vm.js'
+import { Vm, UnsupportedOpError } from './evm/vm.js'
 import {
   hexToUint8Array,
   bigIntToUint8Array,
@@ -62,16 +62,19 @@ export function functionArguments(
       ret = vm.step()
       gas_used += ret[1]
       if (gas_used > gas_limit) {
-        throw `gas overflow: ${gas_used} > ${gas_limit}`
+        // throw `gas overflow: ${gas_used} > ${gas_limit}`
+        break
       }
 
       if (inside_function) {
         // console.log(vm.toString())
       }
-    } catch (err) {
-      // console.log(err);
-      // throw err;
-      break
+    } catch (e) {
+      if (e instanceof UnsupportedOpError) {
+        break
+      } else {
+        throw e
+      }
     }
     const op = ret[0]
 

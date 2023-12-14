@@ -8,6 +8,14 @@ E256 = 2**256
 E256M1 = E256 - 1
 
 
+class BlacklistedOpError(Exception):
+    pass
+
+
+class UnsupportedOpError(Exception):
+    pass
+
+
 class Vm:
     def __init__(self, *, code: bytes, calldata, blacklisted_ops: set[Op] | None = None):
         self.code = code
@@ -58,7 +66,7 @@ class Vm:
         gas_used = op.gas if op.gas is not None else -1
         match op:
             case op if op in self.blacklisted_ops:
-                raise Exception(f'blacklisted op {op}')
+                raise BlacklistedOpError(op)
 
             case op if op >= Op.PUSH0 and op <= Op.PUSH32:
                 n = op - Op.PUSH0
@@ -240,4 +248,4 @@ class Vm:
                 return (op, 4)
 
             case _:
-                raise Exception(f'unknown op {op}')
+                raise UnsupportedOpError(op)
