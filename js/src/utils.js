@@ -30,7 +30,6 @@ export function bigIntToUint8Array(val, n = 32) {
 }
 
 export function toBigInt(v) {
-  if (typeof v.toBigInt === 'function') return v.toBigInt()
   if (!(v instanceof Uint8Array)) throw `Not uint8array instance`
   return uint8ArrayToBigInt(v)
 }

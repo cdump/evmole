@@ -15,9 +15,6 @@ class CallDataArgument extends Uint8Array {
     v.dynamic = dynamic
     return v
   }
-  toBigInt() {
-    return uint8ArrayToBigInt(this)
-  }
 }
 
 class CallDataArgumentDynamicLength extends Uint8Array {
@@ -25,9 +22,6 @@ class CallDataArgumentDynamicLength extends Uint8Array {
     const v = super(bigIntToUint8Array(1n))
     v.offset = offset
     return v
-  }
-  toBigInt() {
-    return uint8ArrayToBigInt(this)
   }
 }
 
@@ -37,9 +31,6 @@ class CallDataArgumentDynamic extends Uint8Array {
     v.offset = offset
     return v
   }
-  toBigInt() {
-    return uint8ArrayToBigInt(this)
-  }
 }
 
 class CallDataArgumentIsZeroResult extends Uint8Array {
@@ -48,9 +39,6 @@ class CallDataArgumentIsZeroResult extends Uint8Array {
     v.offset = offset
     v.dynamic = dynamic
     return v
-  }
-  toBigInt() {
-    return uint8ArrayToBigInt(this)
   }
 }
 
