@@ -130,7 +130,7 @@ export function functionArguments(
             if (uint8ArrayToBigInt(ot) === 4n) {
               vm.stack.push(new CallDataArgument(arg.offset, false, v))
             } else {
-              vm.stack.push(new CallDataArgumentDynamic(arg.offset))
+              vm.stack.push(new CallDataArgumentDynamic(arg.offset, v))
             }
           }
 

@@ -100,7 +100,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 if int.from_bytes(ot, 'big') == 4:
                     vm.stack.push(CallDataArgument(offset=cd.offset, val=v))
                 else:
-                    vm.stack.push(CallDataArgumentDynamic(offset=cd.offset))
+                    vm.stack.push(CallDataArgumentDynamic(offset=cd.offset, val=v))
 
             case (Op.ADD, _, CallDataArgumentDynamic() as cd, _) | (Op.ADD, _, _, CallDataArgumentDynamic() as cd):
                 v = vm.stack.pop()
