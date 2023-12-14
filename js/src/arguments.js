@@ -108,7 +108,7 @@ export function functionArguments(
             if (off >= 4n) {
               vm.stack.pop()
               vm.stack.push(new CallDataArgument(Number(off)))
-              args[off] = 'uint256'
+              args[off] = ''
             }
           }
         }
@@ -216,12 +216,23 @@ export function functionArguments(
           }
         }
         break
+
+      case Op.BYTE:
+        {
+          const arg = ret[3]
+          if (arg instanceof CallDataArgument) {
+            if (args[arg.offset] === '') {
+              args[arg.offset] = 'bytes32'
+            }
+          }
+        }
+        break
     }
   }
 
   var collator = new Intl.Collator([], { numeric: true })
   return Object.entries(args)
     .sort((a, b) => collator.compare(a, b))
-    .map((v) => v[1])
+    .map((v) => (v[1] !== '' ? v[1] : 'uint256'))
     .join(',')
 }

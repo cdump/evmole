@@ -101,7 +101,22 @@ class Vm:
                 self.stack.pop()
                 return (op, gas_used)
 
-            case op if op in {Op.EQ, Op.LT, Op.GT, Op.SUB, Op.ADD, Op.DIV, Op.MUL, Op.EXP, Op.XOR, Op.AND, Op.OR, Op.SHR, Op.SHL}:
+            case op if op in {
+                Op.EQ,
+                Op.LT,
+                Op.GT,
+                Op.SUB,
+                Op.ADD,
+                Op.DIV,
+                Op.MUL,
+                Op.EXP,
+                Op.XOR,
+                Op.AND,
+                Op.OR,
+                Op.SHR,
+                Op.SHL,
+                Op.BYTE,
+            }:
                 raws0 = self.stack.pop()
                 raws1 = self.stack.pop()
 
@@ -136,6 +151,8 @@ class Vm:
                         res = 0 if s0 >= 256 else (s1 >> s0) & E256M1
                     case Op.SHL:
                         res = 0 if s0 >= 256 else (s1 << s0) & E256M1
+                    case Op.BYTE:
+                        res = 0 if s0 >= 32 else raws1[s0]
                     case _:
                         raise Exception(f'BUG: op {op} not handled in match')
 

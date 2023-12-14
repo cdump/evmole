@@ -95,7 +95,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 if off >= 4:
                     vm.stack.pop()
                     vm.stack.push(CallDataArgument(offset=off))
-                    args[off] = 'uint256'
+                    args[off] = ''
 
             case (Op.ADD, _, CallDataArgument() as cd, bytes() as ot) | (Op.ADD, _, bytes() as ot, CallDataArgument() as cd):
                 v = vm.stack.pop()
@@ -140,7 +140,11 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 t = f'int{(s0+1)*8}'
                 args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
+            case (Op.BYTE, _, _, CallDataArgument() as arg):
+                if args[arg.offset] == '':
+                    args[arg.offset] = 'bytes32'
+
             # case (Op.LT, _, CallDataArgument() as arg, _):
             #     args[arg.offset] = 'uint8' # enum
 
-    return ','.join(v[1] for v in sorted(args.items()))
+    return ','.join(v[1] if v[1] != '' else 'uint256' for v in sorted(args.items()))

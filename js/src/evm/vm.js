@@ -18,7 +18,8 @@ export default class Vm {
     this.memory = new Memory()
     this.stopped = false
     this.calldata = calldata
-    this.blacklisted_ops = blacklisted_ops !== undefined ? blacklisted_ops : new Set()
+    this.blacklisted_ops =
+      blacklisted_ops !== undefined ? blacklisted_ops : new Set()
   }
 
   toString() {
@@ -142,7 +143,8 @@ export default class Vm {
       case Op.AND:
       case Op.OR:
       case Op.SHR:
-      case Op.SHL: {
+      case Op.SHL:
+      case Op.BYTE: {
         const raws0 = this.stack.pop()
         const raws1 = this.stack.pop()
 
@@ -190,6 +192,9 @@ export default class Vm {
             break
           case Op.SHL:
             res = s0 >= 256 ? 0 : (s1 << s0) & E256M1
+            break
+          case Op.BYTE:
+            res = s0 >= 32n ? 0n : BigInt(raws1[s0])
             break
         }
         this.stack.push_uint(res)
