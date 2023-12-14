@@ -51,7 +51,7 @@ See [examples](./examples) for more
 ## Benchmark
 
 ### function selectors
-<i>FP·FN</i> - [False Positive·False Negative](https://en.wikipedia.org/wiki/False_positives_and_false_negatives) errors; smaller is better
+<i>FP/FN</i> - [False Positive/False Negative](https://en.wikipedia.org/wiki/False_positives_and_false_negatives) errors; <b>smaller is better</b>
 
 <table>
  <tr>
@@ -64,24 +64,40 @@ See [examples](./examples) for more
   <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
  </tr>
  <tr>
-  <td rowspan="3"><i><b>largest1k</b><br>1000 contracts<br>24427 functions</i></td>
-  <td><i>FP·FN contracts:</i></td>
-  <td>1 · 0 :1st_place_medal:</td>
-  <td>38 · 8</td>
-  <td>75 · 40</td>
-  <td>18 · 103</td>
-  <td>95 · 9</td>
+  <td rowspan="5"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
+  <td><i>FP <sub>contracts</sub></i></td>
+  <td>1 :1st_place_medal:</td>
+  <td>38</td>
+  <td>75</td>
+  <td>18</td>
+  <td>95</td>
  </tr>
  <tr>
-  <td><i>FP·FN functions:</i></td>
-  <td>192 · 0 :2nd_place_medal: :1st_place_medal:</td>
-  <td>38 · 8 :1st_place_medal: :2nd_place_medal:</td>
-  <td>720 · 191</td>
-  <td>600 · 116</td>
-  <td>749 · 12</td>
+  <td><i>FN <sub>contracts</sub></i></td>
+  <td>0 :1st_place_medal:</td>
+  <td>8</td>
+  <td>40</td>
+  <td>103</td>
+  <td>9</td>
  </tr>
  <tr>
-  <td><i>Time:</i></td>
+  <td><i>FP <sub>functions</sub></i></td>
+  <td>192 :2nd_place_medal:</td>
+  <td>38 :1st_place_medal:</td>
+  <td>720</td>
+  <td>600</td>
+  <td>749</td>
+ </tr>
+ <tr>
+  <td><i>FN <sub>functions</sub></i></td>
+  <td>0 :1st_place_medal:</td>
+  <td>8 :2nd_place_medal:</td>
+  <td>191</td>
+  <td>116</td>
+  <td>12</td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
   <td>1.6s (1.8s)</td>
   <td>3.5s</td>
   <td>1.1s</td>
@@ -90,48 +106,79 @@ See [examples](./examples) for more
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
-  <td rowspan="3"><i><b>random50k</b><br>50000 contracts<br>1171102 functions</i></td>
-  <td><i>FP·FN contracts:</i></td>
-  <td>1 · 9 :1st_place_medal:</td>
-  <td>251 · 31</td>
-  <td>693 · 2903</td>
-  <td rowspan="3">waiting fixes</td>
-  <td>4136 · 77</td>
+  <td rowspan="5"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
+  <td><i>FP <sub>contracts</sub></i></td>
+  <td>1 :1st_place_medal:</td>
+  <td>251</td>
+  <td>693</td>
+  <td rowspan="5">waiting fixes</td>
+  <td>4136</td>
  </tr>
  <tr>
-  <td><i>FP·FN functions:</i></td>
-  <td>3 · 10 :1st_place_medal:</td>
-  <td>261 · 32</td>
-  <td>10798 · 3538</td>
-  <td>14652 · 96</td>
+  <td><i>FN <sub>contracts</sub></i></td>
+  <td>9 :1st_place_medal:</td>
+  <td>31</td>
+  <td>2903</td>
+  <!-- -->
+  <td>77</td>
  </tr>
  <tr>
-  <td><i>Time:</i></td>
-  <td>18.8s (32.3s)</td>
+  <td><i>FP <sub>functions</sub></i></td>
+  <td>3 :1st_place_medal:</td>
+  <td>261</td>
+  <td>10798</td>
+  <td>14652</td>
+ </tr>
+ <tr>
+  <td><i>FN <sub>functions</sub></i></td>
+  <td>10 :1st_place_medal:</td>
+  <td>32</td>
+  <td>3538</td>
+  <td>96</td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>19.6s (32.8s)</td>
   <td>67.1s</td>
   <td>11.9s</td>
   <td>34.4s</td>
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
-  <td rowspan="3"><i><b>vyper</b><br>780 contracts<br>21244 functions</i></td>
-  <td><i>FP·FN contracts:</i></td>
-  <td>0 · 0 :1st_place_medal:</td>
-  <td>178 · 780</td>
-  <td>19 · 300</td>
-  <td>0 · 780</td>
-  <td>185 · 480</td>
+  <td rowspan="5"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
+  <td><i>FP <sub>contracts</sub></i></td>
+  <td>0 :1st_place_medal:</td>
+  <td>178</td>
+  <td>19</td>
+  <td>0</td>
+  <td>185</td>
  </tr>
  <tr>
-  <td><i>FP·FN functions:</i></td>
-  <td>0 · 0 :1st_place_medal:</td>
-  <td>181 · 21244</td>
-  <td>19 · 8273</td>
-  <td>0 · 21244</td>
-  <td>197 · 12971</td>
+  <td><i>FN <sub>contracts</sub></i></td>
+  <td>0 :1st_place_medal:</td>
+  <td>780</td>
+  <td>300</td>
+  <td>780</td>
+  <td>480</td>
  </tr>
  <tr>
-  <td><i>Time:</i></td>
+  <td><i>FP <sub>functions</sub></i></td>
+  <td>0 :1st_place_medal:</td>
+  <td>181</td>
+  <td>19</td>
+  <td>0</td>
+  <td>197</td>
+ </tr>
+ <tr>
+  <td><i>FN <sub>functions</sub></i></td>
+  <td>0 :1st_place_medal:</td>
+  <td>21244</td>
+  <td>8273</td>
+  <td>21244</td>
+  <td>12971</td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
   <td>1.5s (1.4s)</td>
   <td>2.4s</td>
   <td>1.0s</td>
@@ -141,7 +188,7 @@ See [examples](./examples) for more
 </table>
 
 ### function arguments
-<i>errors</i> - when at least 1 argument is incorrect: `(uint256,string)` != `(uint256,bytes)`; smaller is better
+<i>Errors</i> - when at least 1 argument is incorrect: `(uint256,string)` != `(uint256,bytes)`; <b>smaller is better</b>
 
 <table>
  <tr>
@@ -152,41 +199,41 @@ See [examples](./examples) for more
   <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
  </tr>
  <tr>
-  <td rowspan="2"><i><b>largest1k</b><br>1000 contracts<br>24427 functions</i></td>
-  <td><i>Errors:</i></td>
+  <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
+  <td><i>Errors</i></td>
   <td>15.0%, 3671 :1st_place_medal:</td>
   <td>42.6%, 10407</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
-  <td><i>Time:</i></td>
+  <td><i>Time</i></td>
   <td>7.1s (13.1s)</td>
   <td>693.4s</td>
   <td>1.2s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
-  <td rowspan="2"><i><b>random50k</b><br>50000 contracts<br>1171102 functions</i></td>
-  <td><i>errors:</i></td>
+  <td rowspan="2"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
+  <td><i>Errors</i></td>
   <td>5.4%, 63753 :1st_place_medal:</td>
   <td rowspan="2">waiting fixes</td>
   <td>54.9%, 643213</td>
  </tr>
  <tr>
-  <td><i>Time:</i></td>
+  <td><i>Time</i></td>
   <td>200.4s (413.3s)</td>
   <td>8.8s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
-  <td rowspan="2"><i><b>vyper</b><br>780 contracts<br>21244 functions</i></td>
-  <td><i>errors:</i></td>
+  <td rowspan="2"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
+  <td><i>Errors</i></td>
   <td>52.3%, 11103 :1st_place_medal:</td>
   <td>100.0%, 21244</td>
   <td>56.8%, 12077</td>
  </tr>
  <tr>
-  <td><i>Time:</i></td>
+  <td><i>Time</i></td>
   <td>8.1s (16.3s)</td>
   <td>10.2s</td>
   <td>1.0s</td>
@@ -194,6 +241,8 @@ See [examples](./examples) for more
 </table>
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
+
+<i>versions: evmole v0.2.1; whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
 
 ## How it works
 
