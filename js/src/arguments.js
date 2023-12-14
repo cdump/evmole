@@ -32,9 +32,21 @@ class CallDataArgumentDynamicLength extends Uint8Array {
 }
 
 class CallDataArgumentDynamic extends Uint8Array {
-  constructor(offset, val = new Uint8Array(32)) {
+  constructor(offset, val) {
     const v = super(val)
     v.offset = offset
+    return v
+  }
+  toBigInt() {
+    return uint8ArrayToBigInt(this)
+  }
+}
+
+class CallDataArgumentIsZeroResult extends Uint8Array {
+  constructor(offset, dynamic, val) {
+    const v = super(val)
+    v.offset = offset
+    v.dynamic = dynamic
     return v
   }
   toBigInt() {
@@ -205,6 +217,9 @@ export function functionArguments(
         {
           const arg = ret[2]
           if (arg instanceof CallDataArgument) {
+            const v = vm.stack.pop()
+            vm.stack.push(new CallDataArgumentIsZeroResult(arg.offset, arg.dynamic, v))
+          } else if (arg instanceof CallDataArgumentIsZeroResult) {
             args[arg.offset] = arg.dynamic ? 'bool[]' : 'bool'
           }
         }

@@ -34,13 +34,27 @@ class CallDataArgumentDynamicLength(bytes):
 class CallDataArgumentDynamic(bytes):
     offset: int
 
-    def __new__(cls, *, offset: int, val: bytes = b'\x00' * 32):
+    def __new__(cls, *, offset: int, val: bytes):
         v = super().__new__(cls, val)
         v.offset = offset
         return v
 
     def __repr__(self):
         return f'darg({self.offset})'
+
+
+class CallDataArgumentIsZeroResult(bytes):
+    offset: int
+    dynamic: bool
+
+    def __new__(cls, *, offset: int, dynamic: bool, val: bytes):
+        v = super().__new__(cls, val)
+        v.offset = offset
+        v.dynamic = dynamic
+        return v
+
+    def __repr__(self):
+        return f'zarg({self.offset})'
 
 
 def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int = int(1e4)) -> str:
@@ -61,7 +75,9 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 # print(vm, '\n')
                 # print(ret)
                 pass
-        except (BadJumpDestError, UnsupportedOpError):
+        except (BadJumpDestError, UnsupportedOpError) as ex:
+            _ = ex
+            # print(ex)
             break
 
         if inside_function is False:
@@ -132,6 +148,10 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                         args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
             case (Op.ISZERO, _, CallDataArgument() as arg):
+                v = vm.stack.pop()
+                vm.stack.push(CallDataArgumentIsZeroResult(offset=arg.offset, dynamic=arg.dynamic, val=v))
+
+            case (Op.ISZERO, _, CallDataArgumentIsZeroResult() as arg):
                 args[arg.offset] = 'bool[]' if arg.dynamic else 'bool'
 
             case (Op.SIGNEXTEND, _, s0, CallDataArgument() as arg):
