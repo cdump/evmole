@@ -1,5 +1,10 @@
 import Op from './evm/opcodes.js'
-import { Vm, BlacklistedOpError, UnsupportedOpError } from './evm/vm.js'
+import {
+  Vm,
+  BadJumpDestError,
+  BlacklistedOpError,
+  UnsupportedOpError,
+} from './evm/vm.js'
 import { hexToUint8Array, uint8ArrayToBigInt } from './utils.js'
 
 export class CallData extends Uint8Array {
@@ -34,7 +39,11 @@ function process(vm, gas_limit) {
         break
       }
     } catch (e) {
-      if (e instanceof BlacklistedOpError || e instanceof UnsupportedOpError) {
+      if (
+        e instanceof BadJumpDestError ||
+        e instanceof BlacklistedOpError ||
+        e instanceof UnsupportedOpError
+      ) {
         break
       } else {
         throw e
@@ -122,7 +131,11 @@ export function functionSelectors(code_hex_string, gas_limit = 5e5) {
   // we don't need these OPs to extract function selectors, so blacklist them to exit the vm loop early
   const blacklisted_ops = new Set([Op.NOT, Op.SHL, Op.MUL])
 
-  const vm = new Vm(code, new CallData([0xaa, 0xbb, 0xcc, 0xdd]), blacklisted_ops)
+  const vm = new Vm(
+    code,
+    new CallData([0xaa, 0xbb, 0xcc, 0xdd]),
+    blacklisted_ops,
+  )
   const [selectors] = process(vm, gas_limit)
   return selectors.map((x) => x.toString(16).padStart(8, '0'))
 }

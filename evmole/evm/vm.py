@@ -8,6 +8,10 @@ E256 = 2**256
 E256M1 = E256 - 1
 
 
+class BadJumpDestError(Exception):
+    pass
+
+
 class BlacklistedOpError(Exception):
     pass
 
@@ -76,7 +80,8 @@ class Vm:
 
             case op if op in {Op.JUMP, Op.JUMPI}:
                 s0 = self.stack.pop_uint()
-                assert self.code[s0] == Op.JUMPDEST.code, 'not JUMPDEST, pos %d op %02x' % (s0, self.code[s0])
+                if s0 >= len(self.code) or self.code[s0] != Op.JUMPDEST.code:
+                    raise BadJumpDestError(f'pos {s0}')
                 if op == Op.JUMPI:
                     s1 = self.stack.pop_uint()
                     if s1 == 0:

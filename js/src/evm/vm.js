@@ -7,9 +7,9 @@ const E256 = 2n ** 256n
 const E256M1 = E256 - 1n
 const E255M1 = 2n ** 255n - 1n
 
-export class BlacklistedOpError extends Error { /* ... */}
-export class UnsupportedOpError extends Error { /* ... */}
-
+export class BadJumpDestError extends Error { }
+export class BlacklistedOpError extends Error { }
+export class UnsupportedOpError extends Error { }
 
 export class Vm {
   constructor(code, calldata, blacklisted_ops, clone = false) {
@@ -101,8 +101,8 @@ export class Vm {
       case Op.JUMP:
       case Op.JUMPI: {
         const s0 = Number(this.stack.pop_uint())
-        if (this.code[s0] != Op.JUMPDEST.code) {
-          throw 'jump to not JUMPDEST'
+        if (s0 >= this.code.length || this.code[s0] != Op.JUMPDEST.code) {
+          throw new BadJumpDestError(`pos ${s0}`)
         }
         if (op == Op.JUMPI) {
           const s1 = this.stack.pop_uint()

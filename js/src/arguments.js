@@ -1,5 +1,5 @@
 import Op from './evm/opcodes.js'
-import { Vm, UnsupportedOpError } from './evm/vm.js'
+import { Vm, BadJumpDestError, UnsupportedOpError } from './evm/vm.js'
 import {
   hexToUint8Array,
   bigIntToUint8Array,
@@ -70,7 +70,7 @@ export function functionArguments(
         // console.log(vm.toString())
       }
     } catch (e) {
-      if (e instanceof UnsupportedOpError) {
+      if (e instanceof BadJumpDestError || e instanceof UnsupportedOpError) {
         break
       } else {
         throw e
