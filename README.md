@@ -82,7 +82,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>1.6s (1.7s)</td>
+  <td>1.6s (1.8s)</td>
   <td>3.5s</td>
   <td>1.1s</td>
   <td>691.7s</td>
@@ -132,7 +132,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>1.4s (1.3s)</td>
+  <td>1.5s (1.4s)</td>
   <td>2.4s</td>
   <td>1.0s</td>
   <td>9.9s</td>
@@ -154,13 +154,13 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><i><b>largest1k</b><br>1000 contracts<br>24427 functions</i></td>
   <td><i>Errors:</i></td>
-  <td>15.1%, 3677 :1st_place_medal:</td>
+  <td>15.0%, 3671 :1st_place_medal:</td>
   <td>42.6%, 10407</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>6.8s (13.0s)</td>
+  <td>7.1s (13.1s)</td>
   <td>693.4s</td>
   <td>1.2s</td>
  </tr>
@@ -168,13 +168,13 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><i><b>random50k</b><br>50000 contracts<br>1171102 functions</i></td>
   <td><i>errors:</i></td>
-  <td>5.4%, 63774 :1st_place_medal:</td>
+  <td>5.4%, 63753 :1st_place_medal:</td>
   <td rowspan="2">waiting fixes</td>
   <td>54.9%, 643213</td>
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>185.0s (402.6s)</td>
+  <td>200.4s (413.3s)</td>
   <td>8.8s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
@@ -187,7 +187,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time:</i></td>
-  <td>7.8s (16.1s)</td>
+  <td>8.1s (16.3s)</td>
   <td>10.2s</td>
   <td>1.0s</td>
  </tr>
