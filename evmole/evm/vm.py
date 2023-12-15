@@ -1,6 +1,6 @@
 from typing import Any
 
-from .opcodes import Op
+from .opcodes import Op, OpCode
 from .stack import Stack
 from .memory import Memory
 
@@ -21,7 +21,7 @@ class UnsupportedOpError(Exception):
 
 
 class Vm:
-    def __init__(self, *, code: bytes, calldata, blacklisted_ops: set[Op] | None = None):
+    def __init__(self, *, code: bytes, calldata, blacklisted_ops: set[OpCode] | None = None):
         self.code = code
         self.pc = 0
         self.stack = Stack()
@@ -50,24 +50,22 @@ class Vm:
         obj.blacklisted_ops = self.blacklisted_ops
         return obj
 
-    def current_op(self) -> Op:
-        return Op(self.code[self.pc])
+    def current_op(self) -> OpCode:
+        return OpCode(self.code[self.pc])
 
-    def step(self) -> tuple[Op, int, *tuple[Any, ...]]:
+    def step(self) -> tuple[OpCode, int, *tuple[Any, ...]]:
         ret = self._exec_next_opcode()
         op, gas_used = ret[0], ret[1]
         assert gas_used != -1, f'Op {op} with unset gas_used'
-
         if op not in {Op.JUMP, Op.JUMPI}:
-            self.pc += op.blen
+            self.pc += 1
 
         if self.pc >= len(self.code):
             self.stopped = True
         return ret
 
-    def _exec_next_opcode(self) -> tuple[Op, int, *tuple[Any, ...]]:
+    def _exec_next_opcode(self) -> tuple[OpCode, int, *tuple[Any, ...]]:
         op = self.current_op()
-        gas_used = op.gas if op.gas is not None else -1
         match op:
             case op if op in self.blacklisted_ops:
                 raise BlacklistedOpError(op)
@@ -76,43 +74,33 @@ class Vm:
                 n = op - Op.PUSH0
                 args = self.code[(self.pc + 1) : (self.pc + 1 + n)].rjust(32, b'\x00')
                 self.stack.push(args)
-                return (op, gas_used)
+                self.pc += n
+                return (op, 2 if n == 0 else 3)
 
             case op if op in {Op.JUMP, Op.JUMPI}:
                 s0 = self.stack.pop_uint()
-                if s0 >= len(self.code) or self.code[s0] != Op.JUMPDEST.code:
+                if s0 >= len(self.code) or self.code[s0] != Op.JUMPDEST:
                     raise BadJumpDestError(f'pos {s0}')
                 if op == Op.JUMPI:
                     s1 = self.stack.pop_uint()
                     if s1 == 0:
                         self.pc += 1
-                        return (op, gas_used)
+                        return (op, 10)
                 self.pc = s0
-                return (op, gas_used)
+                return (op, 8 if op == Op.JUMP else 10)
 
             case op if op >= Op.DUP1 and op <= Op.DUP16:
                 self.stack.dup(op - Op.DUP1 + 1)
-                return (op, gas_used)
+                return (op, 3)
 
             case Op.JUMPDEST:
-                return (op, gas_used)
+                return (op, 1)
 
             case Op.REVERT:
                 self.stack.pop()
                 self.stack.pop()
                 self.stopped = True
                 return (op, 4)
-
-            case Op.ISZERO:
-                raws0 = self.stack.pop()
-                s0 = int.from_bytes(raws0, 'big', signed=False)
-                res = 0 if s0 else 1
-                self.stack.push_uint(res)
-                return (op, gas_used, raws0)
-
-            case Op.POP:
-                self.stack.pop()
-                return (op, gas_used)
 
             case op if op in {
                 Op.EQ,
@@ -136,6 +124,7 @@ class Vm:
                 s0 = int.from_bytes(raws0, 'big', signed=False)
                 s1 = int.from_bytes(raws1, 'big', signed=False)
 
+                gas_used = 3
                 match op:
                     case Op.EQ:
                         res = 1 if s0 == s1 else 0
@@ -149,8 +138,10 @@ class Vm:
                         res = (s0 + s1) & E256M1
                     case Op.DIV:
                         res = 0 if s1 == 0 else s0 // s1
+                        gas_used = 5
                     case Op.MUL:
                         res = (s0 * s1) & E256M1
+                        gas_used = 5
                     case Op.EXP:
                         res = pow(s0, s1, E256)
                         gas_used = 50 * (1 + (s1.bit_length() // 8))  # ~approx
@@ -178,34 +169,41 @@ class Vm:
 
                 s0 = int.from_bytes(raws0, 'big', signed=True)
                 s1 = int.from_bytes(raws1, 'big', signed=True)
-                match op:
-                    case Op.SLT:
-                        res = 1 if s0 < s1 else 0
-                    case Op.SGT:
-                        res = 1 if s0 > s1 else 0
-                    case _:
-                        raise Exception(f'BUG: op {op} not handled in match')
-
+                if op == Op.SLT:
+                    res = 1 if s0 < s1 else 0
+                else:
+                    res = 1 if s0 > s1 else 0
                 self.stack.push_uint(res)
-                return (op, gas_used, raws0, raws1)
+                return (op, 3)
+
+            case Op.ISZERO:
+                raws0 = self.stack.pop()
+                s0 = int.from_bytes(raws0, 'big', signed=False)
+                res = 0 if s0 else 1
+                self.stack.push_uint(res)
+                return (op, 3, raws0)
+
+            case Op.POP:
+                self.stack.pop()
+                return (op, 2)
 
             case Op.CALLVALUE:
                 self.stack.push_uint(0)  # msg.value == 0
-                return (op, gas_used)
+                return (op, 2)
 
             case Op.CALLDATALOAD:
                 raws0 = self.stack.pop()
                 offset = int.from_bytes(raws0, 'big', signed=False)
                 self.stack.push(self.calldata.load(offset))
-                return (op, gas_used, raws0)
+                return (op, 3, raws0)
 
             case Op.CALLDATASIZE:
                 self.stack.push_uint(len(self.calldata))
-                return (op, gas_used)
+                return (op, 2)
 
             case op if op >= Op.SWAP1 and op <= Op.SWAP16:
                 self.stack.swap(op - Op.SWAP1 + 1)
-                return (op, gas_used)
+                return (op, 3)
 
             case Op.MSTORE:
                 offset = self.stack.pop_uint()
@@ -222,7 +220,7 @@ class Vm:
             case Op.NOT:
                 s0 = self.stack.pop_uint()
                 self.stack.push_uint(E256M1 - s0)
-                return (op, gas_used)
+                return (op, 3)
 
             case Op.SIGNEXTEND:
                 s0 = self.stack.pop_uint()
@@ -238,11 +236,11 @@ class Vm:
                     res = s1
 
                 self.stack.push_uint(res)
-                return (op, gas_used, s0, raws1)
+                return (op, 5, s0, raws1)
 
             case Op.ADDRESS:
                 self.stack.push_uint(1)
-                return (op, gas_used)
+                return (op, 2)
 
             case Op.CALLDATACOPY:
                 mem_off = self.stack.pop_uint()

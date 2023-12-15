@@ -44,6 +44,7 @@ function process(vm, gas_limit) {
         e instanceof BlacklistedOpError ||
         e instanceof UnsupportedOpError
       ) {
+        // console.log(e)
         break
       } else {
         throw e

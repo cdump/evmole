@@ -206,7 +206,9 @@ export function functionArguments(
           const arg = ret[2]
           if (arg instanceof CallDataArgument) {
             const v = vm.stack.pop()
-            vm.stack.push(new CallDataArgumentIsZeroResult(arg.offset, arg.dynamic, v))
+            vm.stack.push(
+              new CallDataArgumentIsZeroResult(arg.offset, arg.dynamic, v),
+            )
           } else if (arg instanceof CallDataArgumentIsZeroResult) {
             args[arg.offset] = arg.dynamic ? 'bool[]' : 'bool'
           }

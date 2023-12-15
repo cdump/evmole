@@ -7,9 +7,9 @@ const E256 = 2n ** 256n
 const E256M1 = E256 - 1n
 const E255M1 = 2n ** 255n - 1n
 
-export class BadJumpDestError extends Error { }
-export class BlacklistedOpError extends Error { }
-export class UnsupportedOpError extends Error { }
+export class BadJumpDestError extends Error {}
+export class BlacklistedOpError extends Error {}
+export class UnsupportedOpError extends Error {}
 
 export class Vm {
   constructor(code, calldata, blacklisted_ops, clone = false) {
@@ -50,7 +50,7 @@ export class Vm {
   }
 
   current_op() {
-    return Op.parse(this.code[this.pc])
+    return this.code[this.pc]
   }
 
   step() {
@@ -59,9 +59,8 @@ export class Vm {
     if (ret[1] == -1) {
       throw `Op ${op.name} with unset gas_used`
     }
-
     if (op != Op.JUMP && op != Op.JUMPI) {
-      this.pc += op.blen
+      this.pc += 1
     }
     if (this.pc >= this.code.length) {
       this.stopped = true
@@ -71,7 +70,6 @@ export class Vm {
 
   #exec_next_opcode() {
     const op = this.current_op()
-    let gas_used = op.gas !== undefined ? op.gas : -1
     if (this.blacklisted_ops.has(op)) {
       throw new BlacklistedOpError(op.name)
     }
@@ -83,57 +81,48 @@ export class Vm {
         const v = new Uint8Array(32)
         v.set(args, v.length - args.length)
         this.stack.push(v)
+        this.pc += n
+        return [op, 3]
       } else {
         this.stack.push_uint(0n)
+        return [op, 2]
       }
-      return [op, gas_used]
     }
     if (op >= Op.DUP1 && op <= Op.DUP16) {
       this.stack.dup(op - Op.DUP1 + 1)
-      return [op, gas_used]
+      return [op, 3]
     }
     if (op >= Op.SWAP1 && op <= Op.SWAP16) {
       this.stack.swap(op - Op.SWAP1 + 1)
-      return [op, gas_used]
+      return [op, 3]
     }
 
     switch (op) {
       case Op.JUMP:
       case Op.JUMPI: {
         const s0 = Number(this.stack.pop_uint())
-        if (s0 >= this.code.length || this.code[s0] != Op.JUMPDEST.code) {
+        if (s0 >= this.code.length || this.code[s0] != Op.JUMPDEST) {
           throw new BadJumpDestError(`pos ${s0}`)
         }
         if (op == Op.JUMPI) {
           const s1 = this.stack.pop_uint()
           if (s1 == 0n) {
             this.pc += 1
-            return [op, gas_used]
+            return [op, 10]
           }
         }
         this.pc = Number(s0)
-        return [op, gas_used]
+        return [op, op === Op.JUMP ? 8 : 10]
       }
 
       case Op.JUMPDEST:
-        return [op, gas_used]
+        return [op, 1]
 
       case Op.REVERT:
         this.stack.pop()
         this.stack.pop()
         this.stopped = true
         return [op, 4]
-
-      case Op.ISZERO: {
-        const raw = this.stack.pop()
-        const v = toBigInt(raw)
-        this.stack.push_uint(v === 0n ? 1n : 0n)
-        return [op, gas_used, raw]
-      }
-
-      case Op.POP:
-        this.stack.pop()
-        return [op, gas_used]
 
       case Op.EQ:
       case Op.LT:
@@ -156,6 +145,7 @@ export class Vm {
         const s1 = toBigInt(raws1)
 
         let res
+        let gas_used = 3
         switch (op) {
           case Op.EQ:
             res = s0 == s1 ? 1n : 0n
@@ -174,9 +164,11 @@ export class Vm {
             break
           case Op.DIV:
             res = s1 != 0n ? s0 / s1 : 0n
+            gas_used = 5
             break
           case Op.MUL:
             res = (s0 * s1) & E256M1
+            gas_used = 5
             break
           case Op.EXP:
             res = modExp(s0, s1, E256)
@@ -214,32 +206,40 @@ export class Vm {
         s0 = s0 <= E255M1 ? s0 : s0 - E256
         s1 = s1 <= E255M1 ? s1 : s1 - E256
         let res
-        switch (op) {
-          case Op.SLT:
-            res = s0 < s1 ? 1n : 0n
-            break
-          case Op.SGT:
-            res = s0 > s1 ? 1n : 0n
-            break
+        if (op === Op.SLT) {
+          res = s0 < s1 ? 1n : 0n
+        } else {
+          res = s0 > s1 ? 1n : 0n
         }
         this.stack.push_uint(res)
-        return [op, gas_used]
+        return [op, 3]
       }
+
+      case Op.ISZERO: {
+        const raw = this.stack.pop()
+        const v = toBigInt(raw)
+        this.stack.push_uint(v === 0n ? 1n : 0n)
+        return [op, 3, raw]
+      }
+
+      case Op.POP:
+        this.stack.pop()
+        return [op, 2]
 
       case Op.CALLVALUE:
         this.stack.push_uint(0n) // msg.value == 0
-        return [op, gas_used]
+        return [op, 2]
 
       case Op.CALLDATALOAD: {
         const raws0 = this.stack.pop()
         const offset = Number(toBigInt(raws0))
         this.stack.push(this.calldata.load(offset))
-        return [op, gas_used, raws0]
+        return [op, 3, raws0]
       }
 
       case Op.CALLDATASIZE:
         this.stack.push_uint(BigInt(this.calldata.length))
-        return [op, gas_used]
+        return [op, 2]
 
       case Op.MSTORE: {
         const offset = Number(this.stack.pop_uint())
@@ -258,7 +258,7 @@ export class Vm {
       case Op.NOT: {
         const s0 = this.stack.pop_uint()
         this.stack.push_uint(E256M1 - s0)
-        return [op, gas_used]
+        return [op, 3]
       }
 
       case Op.SIGNEXTEND: {
@@ -275,12 +275,12 @@ export class Vm {
           }
         }
         this.stack.push_uint(res)
-        return [op, gas_used, s0, raws1]
+        return [op, 5, s0, raws1]
       }
 
       case Op.ADDRESS: {
         this.stack.push_uint(1n)
-        return [op, gas_used]
+        return [op, 2]
       }
 
       case Op.CALLDATACOPY: {
