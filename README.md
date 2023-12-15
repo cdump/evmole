@@ -98,7 +98,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.6s (1.8s)</td>
+  <td>1.6s (1.6s)</td>
   <td>3.5s</td>
   <td>1.1s</td>
   <td>691.7s</td>
@@ -138,7 +138,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>19.6s (32.8s)</td>
+  <td>17.2s (25.3s)</td>
   <td>67.1s</td>
   <td>11.9s</td>
   <td>34.4s</td>
@@ -179,7 +179,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.5s (1.4s)</td>
+  <td>1.2s (1.3s)</td>
   <td>2.4s</td>
   <td>1.0s</td>
   <td>9.9s</td>
@@ -201,13 +201,13 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>15.0%, 3671 :1st_place_medal:</td>
+  <td>15.0%, 3664 :1st_place_medal:</td>
   <td>42.6%, 10407</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>7.1s (13.1s)</td>
+  <td>6.4s (9.8s)</td>
   <td>693.4s</td>
   <td>1.2s</td>
  </tr>
@@ -215,26 +215,26 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>5.4%, 63753 :1st_place_medal:</td>
+  <td>5.4%, 63448 :1st_place_medal:</td>
   <td rowspan="2">waiting fixes</td>
   <td>54.9%, 643213</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>200.4s (413.3s)</td>
+  <td>173.9s (292.6s)</td>
   <td>8.8s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>52.3%, 11103 :1st_place_medal:</td>
+  <td>52.3%, 11122 :1st_place_medal:</td>
   <td>100.0%, 21244</td>
   <td>56.8%, 12077</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>8.1s (16.3s)</td>
+  <td>7.2s (13.1s)</td>
   <td>10.2s</td>
   <td>1.0s</td>
  </tr>
@@ -242,7 +242,7 @@ See [examples](./examples) for more
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.2.1; whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
+<i>versions: evmole [master](https://github.com/cdump/evmole/commit/966fc78ce91e33426b1ee2b1857c718bf1f26bfa); whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
 
 ## How it works
 
