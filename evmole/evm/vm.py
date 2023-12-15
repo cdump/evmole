@@ -1,6 +1,6 @@
 from typing import Any
 
-from .opcodes import Op, OpCode
+from .opcodes import Op, OpCode, name as opcode2name
 from .stack import Stack
 from .memory import Memory
 
@@ -34,7 +34,7 @@ class Vm:
         return '\n'.join(
             (
                 f'Vm ({id(self):x}):',
-                f' .pc = {hex(self.pc)} | {self.current_op()}',
+                f' .pc = {hex(self.pc)} | {opcode2name(self.current_op())}',
                 f' .stack = {self.stack}',
                 f' .memory = {self.memory}',
             )
@@ -54,28 +54,25 @@ class Vm:
         return OpCode(self.code[self.pc])
 
     def step(self) -> tuple[OpCode, int, *tuple[Any, ...]]:
-        ret = self._exec_next_opcode()
-        op, gas_used = ret[0], ret[1]
-        assert gas_used != -1, f'Op {op} with unset gas_used'
+        op = self.current_op()
+        if op in self.blacklisted_ops:
+            raise BlacklistedOpError(op)
+        ret = self._exec_opcode(op)
         if op not in {Op.JUMP, Op.JUMPI}:
             self.pc += 1
 
         if self.pc >= len(self.code):
             self.stopped = True
-        return ret
+        return (op, *ret)
 
-    def _exec_next_opcode(self) -> tuple[OpCode, int, *tuple[Any, ...]]:
-        op = self.current_op()
+    def _exec_opcode(self, op: OpCode) -> tuple[int, *tuple[Any, ...]]:
         match op:
-            case op if op in self.blacklisted_ops:
-                raise BlacklistedOpError(op)
-
             case op if op >= Op.PUSH0 and op <= Op.PUSH32:
                 n = op - Op.PUSH0
                 args = self.code[(self.pc + 1) : (self.pc + 1 + n)].rjust(32, b'\x00')
                 self.stack.push(args)
                 self.pc += n
-                return (op, 2 if n == 0 else 3)
+                return (2 if n == 0 else 3,)
 
             case op if op in {Op.JUMP, Op.JUMPI}:
                 s0 = self.stack.pop_uint()
@@ -85,22 +82,22 @@ class Vm:
                     s1 = self.stack.pop_uint()
                     if s1 == 0:
                         self.pc += 1
-                        return (op, 10)
+                        return (10,)
                 self.pc = s0
-                return (op, 8 if op == Op.JUMP else 10)
+                return (8 if op == Op.JUMP else 10,)
 
             case op if op >= Op.DUP1 and op <= Op.DUP16:
                 self.stack.dup(op - Op.DUP1 + 1)
-                return (op, 3)
+                return (3,)
 
             case Op.JUMPDEST:
-                return (op, 1)
+                return (1,)
 
             case Op.REVERT:
                 self.stack.pop()
                 self.stack.pop()
                 self.stopped = True
-                return (op, 4)
+                return (4,)
 
             case op if op in {
                 Op.EQ,
@@ -161,7 +158,7 @@ class Vm:
                         raise Exception(f'BUG: op {op} not handled in match')
 
                 self.stack.push_uint(res)
-                return (op, gas_used, raws0, raws1)
+                return (gas_used, raws0, raws1)
 
             case op if op in {Op.SLT, Op.SGT}:
                 raws0 = self.stack.pop()
@@ -174,53 +171,53 @@ class Vm:
                 else:
                     res = 1 if s0 > s1 else 0
                 self.stack.push_uint(res)
-                return (op, 3)
+                return (3,)
 
             case Op.ISZERO:
                 raws0 = self.stack.pop()
                 s0 = int.from_bytes(raws0, 'big', signed=False)
                 res = 0 if s0 else 1
                 self.stack.push_uint(res)
-                return (op, 3, raws0)
+                return (3, raws0)
 
             case Op.POP:
                 self.stack.pop()
-                return (op, 2)
+                return (2,)
 
             case Op.CALLVALUE:
                 self.stack.push_uint(0)  # msg.value == 0
-                return (op, 2)
+                return (2,)
 
             case Op.CALLDATALOAD:
                 raws0 = self.stack.pop()
                 offset = int.from_bytes(raws0, 'big', signed=False)
                 self.stack.push(self.calldata.load(offset))
-                return (op, 3, raws0)
+                return (3, raws0)
 
             case Op.CALLDATASIZE:
                 self.stack.push_uint(len(self.calldata))
-                return (op, 2)
+                return (2,)
 
             case op if op >= Op.SWAP1 and op <= Op.SWAP16:
                 self.stack.swap(op - Op.SWAP1 + 1)
-                return (op, 3)
+                return (3,)
 
             case Op.MSTORE:
                 offset = self.stack.pop_uint()
                 value = self.stack.pop()
                 self.memory.store(offset, value)
-                return (op, 3)
+                return (3,)
 
             case Op.MLOAD:
                 offset = self.stack.pop_uint()
                 val, used = self.memory.load(offset)
                 self.stack.push(val)
-                return (op, 4, used)
+                return (4, used)
 
             case Op.NOT:
                 s0 = self.stack.pop_uint()
                 self.stack.push_uint(E256M1 - s0)
-                return (op, 3)
+                return (3,)
 
             case Op.SIGNEXTEND:
                 s0 = self.stack.pop_uint()
@@ -236,11 +233,11 @@ class Vm:
                     res = s1
 
                 self.stack.push_uint(res)
-                return (op, 5, s0, raws1)
+                return (5, s0, raws1)
 
             case Op.ADDRESS:
                 self.stack.push_uint(1)
-                return (op, 2)
+                return (2,)
 
             case Op.CALLDATACOPY:
                 mem_off = self.stack.pop_uint()
@@ -248,7 +245,7 @@ class Vm:
                 size = self.stack.pop_uint()
                 value = self.calldata.load(src_off, size)
                 self.memory.store(mem_off, value)
-                return (op, 4)
+                return (4,)
 
             case _:
                 raise UnsupportedOpError(op)

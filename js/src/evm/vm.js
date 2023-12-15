@@ -28,7 +28,7 @@ export class Vm {
 
   toString() {
     let r = 'Vm:\n'
-    r += ` .pc = 0x${this.pc.toString(16)} | ${this.current_op().name}\n`
+    r += ` .pc = 0x${this.pc.toString(16)} | ${Op.name(this.current_op())}\n`
     r += ` .stack = ${this.stack}\n`
     r += ` .memory = ${this.memory}\n`
     return r
@@ -54,26 +54,21 @@ export class Vm {
   }
 
   step() {
-    const ret = this.#exec_next_opcode()
-    const op = ret[0]
-    if (ret[1] == -1) {
-      throw `Op ${op.name} with unset gas_used`
+    const op = this.current_op()
+    if (this.blacklisted_ops.has(op)) {
+      throw new BlacklistedOpError(op)
     }
+    const ret = this.#exec_opcode(op)
     if (op != Op.JUMP && op != Op.JUMPI) {
       this.pc += 1
     }
     if (this.pc >= this.code.length) {
       this.stopped = true
     }
-    return ret
+    return [op, ...ret]
   }
 
-  #exec_next_opcode() {
-    const op = this.current_op()
-    if (this.blacklisted_ops.has(op)) {
-      throw new BlacklistedOpError(op.name)
-    }
-
+  #exec_opcode(op) {
     if (op >= Op.PUSH0 && op <= Op.PUSH32) {
       const n = op - Op.PUSH0
       if (n != 0) {
@@ -82,19 +77,19 @@ export class Vm {
         v.set(args, v.length - args.length)
         this.stack.push(v)
         this.pc += n
-        return [op, 3]
+        return [3]
       } else {
         this.stack.push_uint(0n)
-        return [op, 2]
+        return [2]
       }
     }
     if (op >= Op.DUP1 && op <= Op.DUP16) {
       this.stack.dup(op - Op.DUP1 + 1)
-      return [op, 3]
+      return [3]
     }
     if (op >= Op.SWAP1 && op <= Op.SWAP16) {
       this.stack.swap(op - Op.SWAP1 + 1)
-      return [op, 3]
+      return [3]
     }
 
     switch (op) {
@@ -108,21 +103,21 @@ export class Vm {
           const s1 = this.stack.pop_uint()
           if (s1 == 0n) {
             this.pc += 1
-            return [op, 10]
+            return [10]
           }
         }
         this.pc = Number(s0)
-        return [op, op === Op.JUMP ? 8 : 10]
+        return [op === Op.JUMP ? 8 : 10]
       }
 
       case Op.JUMPDEST:
-        return [op, 1]
+        return [1]
 
       case Op.REVERT:
         this.stack.pop()
         this.stack.pop()
         this.stopped = true
-        return [op, 4]
+        return [4]
 
       case Op.EQ:
       case Op.LT:
@@ -194,7 +189,7 @@ export class Vm {
             break
         }
         this.stack.push_uint(res)
-        return [op, gas_used, raws0, raws1]
+        return [gas_used, raws0, raws1]
       }
 
       case Op.SLT:
@@ -212,53 +207,53 @@ export class Vm {
           res = s0 > s1 ? 1n : 0n
         }
         this.stack.push_uint(res)
-        return [op, 3]
+        return [3]
       }
 
       case Op.ISZERO: {
         const raw = this.stack.pop()
         const v = toBigInt(raw)
         this.stack.push_uint(v === 0n ? 1n : 0n)
-        return [op, 3, raw]
+        return [3, raw]
       }
 
       case Op.POP:
         this.stack.pop()
-        return [op, 2]
+        return [2]
 
       case Op.CALLVALUE:
         this.stack.push_uint(0n) // msg.value == 0
-        return [op, 2]
+        return [2]
 
       case Op.CALLDATALOAD: {
         const raws0 = this.stack.pop()
         const offset = Number(toBigInt(raws0))
         this.stack.push(this.calldata.load(offset))
-        return [op, 3, raws0]
+        return [3, raws0]
       }
 
       case Op.CALLDATASIZE:
         this.stack.push_uint(BigInt(this.calldata.length))
-        return [op, 2]
+        return [2]
 
       case Op.MSTORE: {
         const offset = Number(this.stack.pop_uint())
         const v = this.stack.pop()
         this.memory.store(offset, v)
-        return [op, 3]
+        return [3]
       }
 
       case Op.MLOAD: {
         const offset = Number(this.stack.pop_uint())
         const [val, used] = this.memory.load(offset)
         this.stack.push(val)
-        return [op, 4, used]
+        return [4, used]
       }
 
       case Op.NOT: {
         const s0 = this.stack.pop_uint()
         this.stack.push_uint(E256M1 - s0)
-        return [op, 3]
+        return [3]
       }
 
       case Op.SIGNEXTEND: {
@@ -275,12 +270,12 @@ export class Vm {
           }
         }
         this.stack.push_uint(res)
-        return [op, 5, s0, raws1]
+        return [5, s0, raws1]
       }
 
       case Op.ADDRESS: {
         this.stack.push_uint(1n)
-        return [op, 2]
+        return [2]
       }
 
       case Op.CALLDATACOPY: {
@@ -289,11 +284,11 @@ export class Vm {
         const size = Number(this.stack.pop_uint())
         const value = this.calldata.load(src_off, size)
         this.memory.store(mem_off, value)
-        return [op, 4]
+        return [4]
       }
 
       default:
-        throw new UnsupportedOpError(op.name)
+        throw new UnsupportedOpError(op)
     }
   }
 }

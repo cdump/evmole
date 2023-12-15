@@ -71,6 +71,7 @@ export function functionArguments(
       }
     } catch (e) {
       if (e instanceof BadJumpDestError || e instanceof UnsupportedOpError) {
+        // console.log(e)
         break
       } else {
         throw e
