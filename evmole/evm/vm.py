@@ -17,7 +17,13 @@ class BlacklistedOpError(Exception):
 
 
 class UnsupportedOpError(Exception):
-    pass
+    op: OpCode
+
+    def __init__(self, op):
+        self.op = op
+
+    def __str__(self):
+        return f'{self.__class__.__name__}({opcode2name(self.op)})'
 
 
 class Vm:

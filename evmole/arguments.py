@@ -87,7 +87,6 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                     inside_function = bytes(ret[2]).endswith(bytes_selector)
             continue
 
-        # print(ret)
         match ret:
             case (Op.CALLDATASIZE, _):
                 vm.stack.pop()
