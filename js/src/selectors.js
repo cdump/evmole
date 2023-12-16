@@ -1,5 +1,6 @@
 import Op from './evm/opcodes.js'
 import {
+  CallData,
   Vm,
   BadJumpDestError,
   BlacklistedOpError,
@@ -7,22 +8,7 @@ import {
 } from './evm/vm.js'
 import { hexToUint8Array, uint8ArrayToBigInt } from './utils.js'
 
-export class CallData extends Uint8Array {
-  load(offset, size = 32) {
-    const v = new CallData(32)
-    v.set(this.subarray(offset, offset + size))
-    return v
-  }
-  toBigInt() {
-    return uint8ArrayToBigInt(this)
-  }
-}
-
-class CallDataSignature extends Uint8Array {
-  toBigInt() {
-    return uint8ArrayToBigInt(this)
-  }
-}
+class CallDataSignature extends Uint8Array {}
 
 function process(vm, gas_limit) {
   let selectors = []
@@ -93,8 +79,7 @@ function process(vm, gas_limit) {
       case Op.AND:
       case Op.DIV:
         {
-          const x = uint8ArrayToBigInt(vm.stack.peek())
-          if ((x & 0xffffffffn) == vm.calldata.toBigInt()) {
+          if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
             const v = vm.stack.pop()
             vm.stack.push(new CallDataSignature(v))
           }
@@ -112,8 +97,7 @@ function process(vm, gas_limit) {
           const used = ret[2]
           for (const u of used) {
             if (u instanceof CallData) {
-              const v = uint8ArrayToBigInt(vm.stack.peek())
-              if ((v & 0xffffffffn) == vm.calldata.toBigInt()) {
+              if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
                 vm.stack.push(new CallDataSignature(vm.stack.pop()))
                 break
               }

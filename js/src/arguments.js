@@ -1,12 +1,11 @@
 import Op from './evm/opcodes.js'
-import { Vm, BadJumpDestError, UnsupportedOpError } from './evm/vm.js'
+import { CallData, Vm, BadJumpDestError, UnsupportedOpError } from './evm/vm.js'
 import {
   hexToUint8Array,
   bigIntToUint8Array,
   uint8ArrayToBigInt,
   bigIntBitLength,
 } from './utils.js'
-import { CallData } from './selectors.js'
 
 class CallDataArgument extends Uint8Array {
   constructor(offset, dynamic = false, val) {

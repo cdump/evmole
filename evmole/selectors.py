@@ -1,14 +1,8 @@
 import copy
 
-from .evm.vm import Vm, BadJumpDestError, BlacklistedOpError, UnsupportedOpError
+from .evm.vm import CallData, Vm, BadJumpDestError, BlacklistedOpError, UnsupportedOpError
 from .evm.opcodes import Op
 from .utils import to_bytes
-
-
-class CallData(bytes):
-    def load(self, offset: int, size: int = 32):
-        val = self[offset : min(offset + size, len(self))]
-        return CallData(val.ljust(size, b'\x00'))
 
 
 class CallDataSignature(bytes):

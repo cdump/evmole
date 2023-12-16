@@ -11,6 +11,14 @@ export class BadJumpDestError extends Error {}
 export class BlacklistedOpError extends Error {}
 export class UnsupportedOpError extends Error {}
 
+export class CallData extends Uint8Array {
+  load(offset, size = 32) {
+    const v = new CallData(32)
+    v.set(this.subarray(offset, offset + size))
+    return v
+  }
+}
+
 export class Vm {
   constructor(code, calldata, blacklisted_ops, clone = false) {
     if (clone) {

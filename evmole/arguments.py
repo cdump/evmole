@@ -1,8 +1,6 @@
 from .utils import to_bytes
-from .evm.vm import Vm, BadJumpDestError, UnsupportedOpError
+from .evm.vm import CallData, Vm, BadJumpDestError, UnsupportedOpError
 from .evm.opcodes import Op
-
-from .selectors import CallData
 
 
 class CallDataArgument(bytes):

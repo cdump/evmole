@@ -26,8 +26,14 @@ class UnsupportedOpError(Exception):
         return f'{self.__class__.__name__}({opcode2name(self.op)})'
 
 
+class CallData(bytes):
+    def load(self, offset: int, size: int = 32):
+        val = self[offset : min(offset + size, len(self))]
+        return CallData(val.ljust(size, b'\x00'))
+
+
 class Vm:
-    def __init__(self, *, code: bytes, calldata, blacklisted_ops: set[OpCode] | None = None):
+    def __init__(self, *, code: bytes, calldata: CallData, blacklisted_ops: set[OpCode] | None = None):
         self.code = code
         self.pc = 0
         self.stack = Stack()
