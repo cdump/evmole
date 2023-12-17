@@ -57,7 +57,6 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 ):
             # fmt: on
                 v = vm.stack.peek()
-                assert v is not None
                 if v[-4:] == vm.calldata[:4]:
                     v = vm.stack.pop()
                     vm.stack.push(CallDataSignature(v))
@@ -69,7 +68,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 for u in used:
                     if isinstance(u, CallData):
                         p = vm.stack.peek()
-                        if p is not None and p[-4:] == vm.calldata[:4]:
+                        if p[-4:] == vm.calldata[:4]:
                             v = vm.stack.pop()
                             vm.stack.push(CallDataSignature(v))
                             break
@@ -82,4 +81,4 @@ def function_selectors(code: bytes | str, gas_limit: int = int(5e5)) -> list[str
     blacklisted_ops = set([Op.NOT, Op.SHL, Op.MUL])
     vm = Vm(code=to_bytes(code), calldata=CallData(b'\xaa\xbb\xcc\xdd'), blacklisted_ops=blacklisted_ops)
     selectors, _ = process(vm, gas_limit)
-    return [s.hex().zfill(8) for s in selectors]
+    return [s.hex() for s in selectors]
