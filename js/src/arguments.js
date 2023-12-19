@@ -132,9 +132,7 @@ export function functionArguments(
             } else {
               vm.stack.push(new CallDataArgumentDynamic(arg.offset, v))
             }
-          }
-
-          if (
+          } else if (
             r2 instanceof CallDataArgumentDynamic ||
             r3 instanceof CallDataArgumentDynamic
           ) {
