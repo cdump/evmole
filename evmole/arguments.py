@@ -130,19 +130,23 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 args[arg.offset] = 'uint256[]'
 
             case (Op.AND, _, CallDataArgument() as arg, bytes() as ot) | (Op.AND, _, bytes() as ot, CallDataArgument() as arg):
-                # 0x0000ffff
                 v = int.from_bytes(ot, 'big')
-                if (v & (v + 1)) == 0:
+                if v == 0:
+                    pass
+                elif (v & (v + 1)) == 0:
+                    # 0x0000ffff
                     bl = v.bit_length()
-                    t = 'address' if bl == 160 else f'uint{bl}'
-                    args[arg.offset] = f'{t}[]' if arg.dynamic else t
+                    if bl % 8 == 0:
+                        t = 'address' if bl == 160 else f'uint{bl}'
+                        args[arg.offset] = f'{t}[]' if arg.dynamic else t
                 else:
                     # 0xffff0000
                     v = int.from_bytes(ot, 'little')
                     if (v & (v + 1)) == 0:
-                        bl = v.bit_length() // 8
-                        t = f'bytes{bl}'
-                        args[arg.offset] = f'{t}[]' if arg.dynamic else t
+                        bl = v.bit_length()
+                        if bl % 8 == 0:
+                            t = f'bytes{bl // 8}'
+                            args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
             case (Op.ISZERO, _, CallDataArgument() as arg):
                 v = vm.stack.pop()

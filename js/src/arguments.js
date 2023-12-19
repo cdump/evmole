@@ -181,18 +181,24 @@ export function functionArguments(
               r2 instanceof CallDataArgument ? [r2, r3] : [r3, r2]
 
             const v = uint8ArrayToBigInt(ot)
-            if ((v & (v + 1n)) === 0n) {
+            if (v === 0n) {
+              // pass
+            } else if ((v & (v + 1n)) === 0n) {
               // 0x0000ffff
               const bl = bigIntBitLength(v)
-              const t = bl === 160 ? 'address' : `uint${bl}`
-              args[arg.offset] = arg.dynamic ? `${t}[]` : t
+              if (bl % 8 === 0) {
+                const t = bl === 160 ? 'address' : `uint${bl}`
+                args[arg.offset] = arg.dynamic ? `${t}[]` : t
+              }
             } else {
               // 0xffff0000
               const v = BigInt(uint8ArrayToBigInt(ot.slice().reverse()))
               if ((v & (v + 1n)) === 0n) {
-                const bl = Math.floor(bigIntBitLength(v) / 8)
-                const t = `bytes${bl}`
-                args[arg.offset] = arg.dynamic ? `${t}[]` : t
+                const bl = bigIntBitLength(v)
+                if (bl % 8 == 0) {
+                  const t = `bytes${bl / 8}`
+                  args[arg.offset] = arg.dynamic ? `${t}[]` : t
+                }
               }
             }
           }
