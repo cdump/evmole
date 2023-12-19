@@ -43,7 +43,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
 
             case (Op.LT | Op.GT, _, CallDataSignature(), _) | (Op.LT | Op.GT, _, _, CallDataSignature()):
                 cloned_vm = copy.copy(vm)
-                s, g = process(cloned_vm, gas_limit // 2)
+                s, g = process(cloned_vm, (gas_limit - gas_used) // 2)
                 selectors += s
                 gas_used += g
                 v = vm.stack.pop_uint()

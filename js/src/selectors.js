@@ -67,7 +67,7 @@ function process(vm, gas_limit) {
           ret[3] instanceof CallDataSignature
         ) {
           const cloned_vm = vm.clone()
-          const [s, gas] = process(cloned_vm, gas_limit / 2)
+          const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / 2))
           selectors.push(...s)
           gas_used += gas
           const v = vm.stack.pop_uint()
