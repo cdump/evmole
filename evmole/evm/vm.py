@@ -255,6 +255,8 @@ class Vm:
                 mem_off = self.stack.pop_uint()
                 src_off = self.stack.pop_uint()
                 size = self.stack.pop_uint()
+                if size > 256:
+                    raise UnsupportedOpError(op)
                 value = self.calldata.load(src_off, size)
                 self.memory.store(mem_off, value)
                 return (4,)

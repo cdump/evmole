@@ -13,7 +13,7 @@ export class UnsupportedOpError extends Error {}
 
 export class CallData extends Uint8Array {
   load(offset, size = 32) {
-    const v = new CallData(32)
+    const v = new CallData(size)
     v.set(this.subarray(offset, offset + size))
     return v
   }
@@ -290,6 +290,9 @@ export class Vm {
         const mem_off = Number(this.stack.pop_uint())
         const src_off = Number(this.stack.pop_uint())
         const size = Number(this.stack.pop_uint())
+        if (size > 256) {
+          throw new UnsupportedOpError(op)
+        }
         const value = this.calldata.load(src_off, size)
         this.memory.store(mem_off, value)
         return [4]
