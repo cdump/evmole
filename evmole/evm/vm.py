@@ -80,13 +80,13 @@ class Vm:
 
             case op if op in {Op.JUMP, Op.JUMPI}:
                 s0 = self.stack.pop_uint()
-                if s0 >= len(self.code) or self.code[s0] != Op.JUMPDEST:
-                    raise BadJumpDestError(f'pos {s0}')
                 if op == Op.JUMPI:
                     s1 = self.stack.pop_uint()
                     if s1 == 0:
                         self.pc += 1
                         return (10,)
+                if s0 >= len(self.code) or self.code[s0] != Op.JUMPDEST:
+                    raise BadJumpDestError(f'pos {s0}')
                 self.pc = s0
                 return (8 if op == Op.JUMP else 10,)
 

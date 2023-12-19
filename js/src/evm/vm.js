@@ -97,9 +97,6 @@ export class Vm {
       case Op.JUMP:
       case Op.JUMPI: {
         const s0 = Number(this.stack.pop_uint())
-        if (s0 >= this.code.length || this.code[s0] != Op.JUMPDEST) {
-          throw new BadJumpDestError(`pos ${s0}`)
-        }
         if (op == Op.JUMPI) {
           const s1 = this.stack.pop_uint()
           if (s1 == 0n) {
@@ -107,7 +104,10 @@ export class Vm {
             return [10]
           }
         }
-        this.pc = Number(s0)
+        if (s0 >= this.code.length || this.code[s0] != Op.JUMPDEST) {
+          throw new BadJumpDestError(`pos ${s0}`)
+        }
+        this.pc = s0
         return [op === Op.JUMP ? 8 : 10]
       }
 
