@@ -16,13 +16,11 @@ export default class Memory {
   }
 
   load(offset) {
-    this._data = this._data.sort((a, b) => a[0] - b[0])
-
-    const res = new Array(32).fill([-1, 0, undefined])
+    const res = new Array(32).fill([0, 0, undefined])
     for (let i = offset; i < offset + 32; i++) {
       const idx = i - offset
       for (const [off, seq, val] of this._data) {
-        if (seq > res[idx][0] && i >= off && i < off + val.length) {
+        if (seq >= res[idx][0] && i >= off && i < off + val.length) {
           res[idx] = [seq, val[i - off], val]
         }
       }
