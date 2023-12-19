@@ -40,7 +40,7 @@ class Vm:
     def __str__(self):
         return '\n'.join(
             (
-                f'Vm ({id(self):x}):',
+                'Vm:',
                 f' .pc = {hex(self.pc)} | {opcode2name(self.current_op())}',
                 f' .stack = {self.stack}',
                 f' .memory = {self.memory}',
