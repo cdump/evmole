@@ -8,7 +8,6 @@ const E256M1 = E256 - 1n
 const E255M1 = 2n ** 255n - 1n
 
 export class BadJumpDestError extends Error {}
-export class BlacklistedOpError extends Error {}
 export class UnsupportedOpError extends Error {}
 
 export class CallData extends Uint8Array {
@@ -20,7 +19,7 @@ export class CallData extends Uint8Array {
 }
 
 export class Vm {
-  constructor(code, calldata, blacklisted_ops, clone = false) {
+  constructor(code, calldata, clone = false) {
     if (clone) {
       return
     }
@@ -30,8 +29,6 @@ export class Vm {
     this.memory = new Memory()
     this.stopped = false
     this.calldata = calldata
-    this.blacklisted_ops =
-      blacklisted_ops !== undefined ? blacklisted_ops : new Set()
   }
 
   toString() {
@@ -43,7 +40,7 @@ export class Vm {
   }
 
   clone() {
-    const c = new Vm(undefined, undefined, undefined, true)
+    const c = new Vm(undefined, undefined, true)
     c.code = this.code
     c.pc = this.pc
     c.stack = new Stack()
@@ -53,7 +50,6 @@ export class Vm {
     c.memory._data = [...this.memory._data]
     c.stopped = this.stopped
     c.calldata = this.calldata
-    c.blacklisted_ops = this.blacklisted_ops
     return c
   }
 
@@ -63,9 +59,6 @@ export class Vm {
 
   step() {
     const op = this.current_op()
-    if (this.blacklisted_ops.has(op)) {
-      throw new BlacklistedOpError(op)
-    }
     const ret = this.#exec_opcode(op)
     if (op != Op.JUMP && op != Op.JUMPI) {
       this.pc += 1

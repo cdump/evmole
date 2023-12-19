@@ -1,6 +1,6 @@
 import copy
 
-from .evm.vm import CallData, Vm, BadJumpDestError, BlacklistedOpError, UnsupportedOpError
+from .evm.vm import CallData, Vm, BadJumpDestError, UnsupportedOpError
 from .evm.opcodes import Op
 from .utils import to_bytes
 
@@ -21,7 +21,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
             if gas_used > gas_limit:
                 # raise Exception(f'gas overflow: {gas_used} > {gas_limit}')
                 break
-        except (BadJumpDestError, BlacklistedOpError, UnsupportedOpError):
+        except (BadJumpDestError, UnsupportedOpError):
             break
 
         match ret:
@@ -77,8 +77,6 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
 
 
 def function_selectors(code: bytes | str, gas_limit: int = int(5e5)) -> list[str]:
-    # we don't need this OPs for function selector extraction, so blacklist them to exit the vm loop early
-    blacklisted_ops = set([Op.NOT, Op.SHL, Op.MUL])
-    vm = Vm(code=to_bytes(code), calldata=CallData(b'\xaa\xbb\xcc\xdd'), blacklisted_ops=blacklisted_ops)
+    vm = Vm(code=to_bytes(code), calldata=CallData(b'\xaa\xbb\xcc\xdd'))
     selectors, _ = process(vm, gas_limit)
     return [s.hex() for s in selectors]

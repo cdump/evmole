@@ -12,10 +12,6 @@ class BadJumpDestError(Exception):
     pass
 
 
-class BlacklistedOpError(Exception):
-    pass
-
-
 class UnsupportedOpError(Exception):
     op: OpCode
 
@@ -33,14 +29,13 @@ class CallData(bytes):
 
 
 class Vm:
-    def __init__(self, *, code: bytes, calldata: CallData, blacklisted_ops: set[OpCode] | None = None):
+    def __init__(self, *, code: bytes, calldata: CallData):
         self.code = code
         self.pc = 0
         self.stack = Stack()
         self.memory = Memory()
         self.stopped = False
         self.calldata = calldata
-        self.blacklisted_ops = blacklisted_ops if blacklisted_ops is not None else set()
 
     def __str__(self):
         return '\n'.join(
@@ -59,7 +54,6 @@ class Vm:
         obj.memory._data = self.memory._data[:]
         obj.stack._data = self.stack._data[:]
         obj.stopped = self.stopped
-        obj.blacklisted_ops = self.blacklisted_ops
         return obj
 
     def current_op(self) -> OpCode:
@@ -67,8 +61,6 @@ class Vm:
 
     def step(self) -> tuple[OpCode, int, *tuple[Any, ...]]:
         op = self.current_op()
-        if op in self.blacklisted_ops:
-            raise BlacklistedOpError(op)
         ret = self._exec_opcode(op)
         if op not in {Op.JUMP, Op.JUMPI}:
             self.pc += 1
