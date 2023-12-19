@@ -4,7 +4,7 @@ class Stack:
 
     def __str__(self):
         r = f'{len(self._data)} elems:'
-        return r + ('\n' if len(self._data) else '') + '\n'.join(f'  - {el.hex()} | {type(el)}' for el in self._data)
+        return r + ('\n' if len(self._data) else '') + '\n'.join(f'  - {el.hex()} | {type(el).__name__}' for el in self._data)
 
     def push(self, val: bytes):
         assert len(val) == 32

@@ -6,7 +6,7 @@ export default class Memory {
 
   toString() {
     let r = `${this._data.length} elems:\n`
-    r += this._data.map(([off,seq,val]) => `  - ${off},${seq}: ${val.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${typeof val}`).join('\n')
+    r += this._data.map(([off,seq,val]) => `  - ${off},${seq}: ${val.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${val.constructor.name}`).join('\n')
     return r
   }
 

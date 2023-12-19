@@ -7,7 +7,7 @@ export default class Stack {
 
   toString() {
     let r = `${this._data.length} elems:\n`
-    r += this._data.map((el) => `  - ${el.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${typeof el}`).join('\n')
+    r += this._data.map((el) => `  - ${el.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${el.constructor.name}`).join('\n')
     return r
   }
 

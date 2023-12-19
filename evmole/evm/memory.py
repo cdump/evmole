@@ -5,7 +5,7 @@ class Memory:
 
     def __str__(self):
         r = f'{len(self._data)} elems:\n'
-        return r + '\n'.join(f'  - {off},{seq}: {val.hex()} | {type(val)}' for off, seq, val in self._data)
+        return r + '\n'.join(f'  - {off},{seq}: {val.hex()} | {type(val).__name__}' for off, seq, val in self._data)
 
     def store(self, offset: int, value: bytes):
         self._data.append((offset, self._seq, value))
