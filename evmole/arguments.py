@@ -3,7 +3,7 @@ from .evm.vm import CallData, Vm, UnsupportedOpError
 from .evm.opcodes import Op
 
 
-class CallDataArgument(bytes):
+class Arg(bytes):
     offset: int
     dynamic: bool
 
@@ -17,7 +17,7 @@ class CallDataArgument(bytes):
         return f'arg({self.offset},{self.dynamic})'
 
 
-class CallDataArgumentDynamicLength(bytes):
+class ArgDynamicLength(bytes):
     offset: int
 
     def __new__(cls, *, offset: int):
@@ -29,7 +29,7 @@ class CallDataArgumentDynamicLength(bytes):
         return f'dlen({self.offset})'
 
 
-class CallDataArgumentDynamic(bytes):
+class ArgDynamic(bytes):
     offset: int
 
     def __new__(cls, *, offset: int, val: bytes):
@@ -41,7 +41,7 @@ class CallDataArgumentDynamic(bytes):
         return f'darg({self.offset})'
 
 
-class CallDataArgumentIsZeroResult(bytes):
+class IsZeroResult(bytes):
     offset: int
     dynamic: bool
 
@@ -90,46 +90,46 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 vm.stack.pop()
                 vm.stack.push_uint(8192)
 
-            case (Op.CALLDATALOAD, _, CallDataArgument() as arg):
+            case (Op.CALLDATALOAD, _, Arg() as arg):
                 args[arg.offset] = 'bytes'
                 vm.stack.pop()
-                v = CallDataArgumentDynamicLength(offset=arg.offset)
+                v = ArgDynamicLength(offset=arg.offset)
                 vm.stack.push(v)
 
-            case (Op.CALLDATALOAD, _, CallDataArgumentDynamic() as arg):
+            case (Op.CALLDATALOAD, _, ArgDynamic() as arg):
                 vm.stack.pop()
-                v = CallDataArgument(offset=arg.offset, dynamic=True)
+                v = Arg(offset=arg.offset, dynamic=True)
                 vm.stack.push(v)
 
             case (Op.CALLDATALOAD, _, bytes() as offset):
                 off = int.from_bytes(offset, 'big')
                 if off >= 4:
                     vm.stack.pop()
-                    vm.stack.push(CallDataArgument(offset=off))
+                    vm.stack.push(Arg(offset=off))
                     args[off] = ''
 
-            case (Op.ADD, _, CallDataArgument() as cd, bytes() as ot) | (Op.ADD, _, bytes() as ot, CallDataArgument() as cd):
+            case (Op.ADD, _, Arg() as cd, bytes() as ot) | (Op.ADD, _, bytes() as ot, Arg() as cd):
                 v = vm.stack.pop()
                 if int.from_bytes(ot, 'big') == 4:
-                    vm.stack.push(CallDataArgument(offset=cd.offset, val=v))
+                    vm.stack.push(Arg(offset=cd.offset, val=v))
                 else:
-                    vm.stack.push(CallDataArgumentDynamic(offset=cd.offset, val=v))
+                    vm.stack.push(ArgDynamic(offset=cd.offset, val=v))
 
-            case (Op.ADD, _, CallDataArgumentDynamic() as cd, _) | (Op.ADD, _, _, CallDataArgumentDynamic() as cd):
+            case (Op.ADD, _, ArgDynamic() as cd, _) | (Op.ADD, _, _, ArgDynamic() as cd):
                 v = vm.stack.pop()
-                v = CallDataArgumentDynamic(offset=cd.offset, val=v)
+                v = ArgDynamic(offset=cd.offset, val=v)
                 vm.stack.push(v)
 
-            case (Op.SHL, _, bytes() as ot, CallDataArgumentDynamicLength() as arg) if int.from_bytes(ot, 'big') == 5:
+            case (Op.SHL, _, bytes() as ot, ArgDynamicLength() as arg) if int.from_bytes(ot, 'big') == 5:
                 args[arg.offset] = 'uint256[]'
 
             # fmt: off
-            case (Op.MUL, _, CallDataArgumentDynamicLength() as arg, bytes() as ot) | \
-                 (Op.MUL, _, bytes() as ot, CallDataArgumentDynamicLength() as arg) if int.from_bytes(ot, 'big') == 32:
+            case (Op.MUL, _, ArgDynamicLength() as arg, bytes() as ot) | \
+                 (Op.MUL, _, bytes() as ot, ArgDynamicLength() as arg) if int.from_bytes(ot, 'big') == 32:
             # fmt: on
                 args[arg.offset] = 'uint256[]'
 
-            case (Op.AND, _, CallDataArgument() as arg, bytes() as ot) | (Op.AND, _, bytes() as ot, CallDataArgument() as arg):
+            case (Op.AND, _, Arg() as arg, bytes() as ot) | (Op.AND, _, bytes() as ot, Arg() as arg):
                 v = int.from_bytes(ot, 'big')
                 if v == 0:
                     pass
@@ -148,18 +148,18 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                             t = f'bytes{bl // 8}'
                             args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
-            case (Op.ISZERO, _, CallDataArgument() as arg):
+            case (Op.ISZERO, _, Arg() as arg):
                 v = vm.stack.pop()
-                vm.stack.push(CallDataArgumentIsZeroResult(offset=arg.offset, dynamic=arg.dynamic, val=v))
+                vm.stack.push(IsZeroResult(offset=arg.offset, dynamic=arg.dynamic, val=v))
 
-            case (Op.ISZERO, _, CallDataArgumentIsZeroResult() as arg):
+            case (Op.ISZERO, _, IsZeroResult() as arg):
                 args[arg.offset] = 'bool[]' if arg.dynamic else 'bool'
 
-            case (Op.SIGNEXTEND, _, s0, CallDataArgument() as arg):
+            case (Op.SIGNEXTEND, _, s0, Arg() as arg):
                 t = f'int{(s0+1)*8}'
                 args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
-            case (Op.BYTE, _, _, CallDataArgument() as arg):
+            case (Op.BYTE, _, _, Arg() as arg):
                 if args[arg.offset] == '':
                     args[arg.offset] = 'bytes32'
 

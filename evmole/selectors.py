@@ -5,7 +5,7 @@ from .evm.opcodes import Op
 from .utils import to_bytes
 
 
-class CallDataSignature(bytes):
+class Signature(bytes):
     pass
 
 
@@ -26,8 +26,8 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
 
         match ret:
             # fmt: off
-            case ((Op.XOR | Op.EQ as op, _, bytes() as s1, CallDataSignature())) | \
-                 ((Op.XOR | Op.EQ as op, _, CallDataSignature(), bytes() as s1)
+            case ((Op.XOR | Op.EQ as op, _, bytes() as s1, Signature())) | \
+                 ((Op.XOR | Op.EQ as op, _, Signature(), bytes() as s1)
                 ):
             #fmt: on
                 selectors.append(s1[-4:])
@@ -35,13 +35,13 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 vm.stack.push_uint(1 if op == Op.XOR else 0)
 
             # fmt: off
-            case (Op.SUB, _, CallDataSignature(), bytes() as s1) | \
-                 (Op.SUB, _, bytes() as s1, CallDataSignature()
+            case (Op.SUB, _, Signature(), bytes() as s1) | \
+                 (Op.SUB, _, bytes() as s1, Signature()
                 ):
             #fmt: on
                 selectors.append(s1[-4:])
 
-            case (Op.LT | Op.GT, _, CallDataSignature(), _) | (Op.LT | Op.GT, _, _, CallDataSignature()):
+            case (Op.LT | Op.GT, _, Signature(), _) | (Op.LT | Op.GT, _, _, Signature()):
                 cloned_vm = copy.copy(vm)
                 s, g = process(cloned_vm, (gas_limit - gas_used) // 2)
                 selectors += s
@@ -50,18 +50,18 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 vm.stack.push_uint(1 if v == 0 else 0)
 
             # fmt: off
-            case (Op.SHR, _, _, CallDataSignature() | CallData()) | \
-                 (Op.AND, _, CallDataSignature() | CallData(), _) | \
-                 (Op.AND, _, _, CallDataSignature() | CallData()) | \
-                 (Op.DIV, _, CallDataSignature() | CallData(), _
+            case (Op.SHR, _, _, Signature() | CallData()) | \
+                 (Op.AND, _, Signature() | CallData(), _) | \
+                 (Op.AND, _, _, Signature() | CallData()) | \
+                 (Op.DIV, _, Signature() | CallData(), _
                 ):
             # fmt: on
                 v = vm.stack.peek()
                 if v[-4:] == vm.calldata[:4]:
                     v = vm.stack.pop()
-                    vm.stack.push(CallDataSignature(v))
+                    vm.stack.push(Signature(v))
 
-            case (Op.ISZERO, _, CallDataSignature()):
+            case (Op.ISZERO, _, Signature()):
                 selectors.append(b'\x00\x00\x00\x00')
 
             case (Op.MLOAD, _, set() as used):
@@ -70,7 +70,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                         p = vm.stack.peek()
                         if p[-4:] == vm.calldata[:4]:
                             v = vm.stack.pop()
-                            vm.stack.push(CallDataSignature(v))
+                            vm.stack.push(Signature(v))
                             break
 
     return selectors, gas_used

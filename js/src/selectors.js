@@ -2,7 +2,7 @@ import Op from './evm/opcodes.js'
 import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
 import { hexToUint8Array, uint8ArrayToBigInt } from './utils.js'
 
-class CallDataSignature extends Uint8Array {}
+class Signature extends Uint8Array {}
 
 function process(vm, gas_limit) {
   let selectors = []
@@ -31,11 +31,11 @@ function process(vm, gas_limit) {
     switch (op) {
       case Op.EQ:
       case Op.XOR:
-        if (ret[2] instanceof CallDataSignature) {
+        if (ret[2] instanceof Signature) {
           selectors.push(uint8ArrayToBigInt(ret[3]))
           vm.stack.pop()
           vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
-        } else if (ret[3] instanceof CallDataSignature) {
+        } else if (ret[3] instanceof Signature) {
           selectors.push(uint8ArrayToBigInt(ret[2]))
           vm.stack.pop()
           vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
@@ -43,9 +43,9 @@ function process(vm, gas_limit) {
         break
 
       case Op.SUB:
-        if (ret[2] instanceof CallDataSignature) {
+        if (ret[2] instanceof Signature) {
           selectors.push(uint8ArrayToBigInt(ret[3]))
-        } else if (ret[3] instanceof CallDataSignature) {
+        } else if (ret[3] instanceof Signature) {
           selectors.push(uint8ArrayToBigInt(ret[2]))
         }
         break
@@ -53,8 +53,8 @@ function process(vm, gas_limit) {
       case Op.LT:
       case Op.GT:
         if (
-          ret[2] instanceof CallDataSignature ||
-          ret[3] instanceof CallDataSignature
+          ret[2] instanceof Signature ||
+          ret[3] instanceof Signature
         ) {
           const cloned_vm = vm.clone()
           const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / 2))
@@ -71,13 +71,13 @@ function process(vm, gas_limit) {
         {
           if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
             const v = vm.stack.pop()
-            vm.stack.push(new CallDataSignature(v))
+            vm.stack.push(new Signature(v))
           }
         }
         break
 
       case Op.ISZERO:
-        if (ret[2] instanceof CallDataSignature) {
+        if (ret[2] instanceof Signature) {
           selectors.push(0n)
         }
         break
@@ -88,7 +88,7 @@ function process(vm, gas_limit) {
           for (const u of used) {
             if (u instanceof CallData) {
               if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
-                vm.stack.push(new CallDataSignature(vm.stack.pop()))
+                vm.stack.push(new Signature(vm.stack.pop()))
                 break
               }
             }
