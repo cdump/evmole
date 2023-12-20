@@ -115,8 +115,7 @@ export class Vm {
         return [1]
 
       case Op.REVERT:
-        this.stack.pop()
-        this.stack.pop()
+        // skip 2 stack pop()s
         this.stopped = true
         return [4]
 

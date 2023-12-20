@@ -98,8 +98,7 @@ class Vm:
                 return (1,)
 
             case Op.REVERT:
-                self.stack.pop()
-                self.stack.pop()
+                # skip 2 stack pop()s
                 self.stopped = True
                 return (4,)
 
