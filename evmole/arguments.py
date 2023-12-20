@@ -1,5 +1,5 @@
 from .utils import to_bytes
-from .evm.vm import CallData, Vm, BadJumpDestError, UnsupportedOpError
+from .evm.vm import CallData, Vm, UnsupportedOpError
 from .evm.opcodes import Op
 
 
@@ -73,7 +73,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 # print(vm, '\n')
                 # print(ret)
                 pass
-        except (BadJumpDestError, UnsupportedOpError) as ex:
+        except (UnsupportedOpError) as ex:
             _ = ex
             # print(ex)
             break

@@ -8,10 +8,6 @@ E256 = 2**256
 E256M1 = E256 - 1
 
 
-class BadJumpDestError(Exception):
-    pass
-
-
 class UnsupportedOpError(Exception):
     op: OpCode
 
@@ -86,7 +82,7 @@ class Vm:
                         self.pc += 1
                         return (10,)
                 if s0 >= len(self.code) or self.code[s0] != Op.JUMPDEST:
-                    raise BadJumpDestError(f'pos {s0}')
+                    raise UnsupportedOpError(op)
                 self.pc = s0
                 return (8 if op == Op.JUMP else 10,)
 

@@ -1,5 +1,5 @@
 import Op from './evm/opcodes.js'
-import { CallData, Vm, BadJumpDestError, UnsupportedOpError } from './evm/vm.js'
+import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
 import { hexToUint8Array, uint8ArrayToBigInt } from './utils.js'
 
 class CallDataSignature extends Uint8Array {}
@@ -19,7 +19,7 @@ function process(vm, gas_limit) {
         break
       }
     } catch (e) {
-      if (e instanceof BadJumpDestError || e instanceof UnsupportedOpError) {
+      if (e instanceof UnsupportedOpError) {
         // console.log(e)
         break
       } else {

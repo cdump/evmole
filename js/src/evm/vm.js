@@ -7,7 +7,6 @@ const E256 = 2n ** 256n
 const E256M1 = E256 - 1n
 const E255M1 = 2n ** 255n - 1n
 
-export class BadJumpDestError extends Error {}
 export class UnsupportedOpError extends Error {}
 
 export class CallData extends Uint8Array {
@@ -105,7 +104,7 @@ export class Vm {
           }
         }
         if (s0 >= this.code.length || this.code[s0] != Op.JUMPDEST) {
-          throw new BadJumpDestError(`pos ${s0}`)
+          throw new UnsupportedOpError(op)
         }
         this.pc = s0
         return [op === Op.JUMP ? 8 : 10]

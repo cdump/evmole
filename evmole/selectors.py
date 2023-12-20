@@ -1,6 +1,6 @@
 import copy
 
-from .evm.vm import CallData, Vm, BadJumpDestError, UnsupportedOpError
+from .evm.vm import CallData, Vm, UnsupportedOpError
 from .evm.opcodes import Op
 from .utils import to_bytes
 
@@ -21,7 +21,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
             if gas_used > gas_limit:
                 # raise Exception(f'gas overflow: {gas_used} > {gas_limit}')
                 break
-        except (BadJumpDestError, UnsupportedOpError):
+        except (UnsupportedOpError):
             break
 
         match ret:
