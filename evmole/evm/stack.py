@@ -1,3 +1,7 @@
+class StackIndexError(Exception):
+    pass
+
+
 class Stack:
     def __init__(self):
         self._data = []
@@ -11,15 +15,24 @@ class Stack:
         self._data.append(val)
 
     def pop(self) -> bytes:
-        return self._data.pop()
+        try:
+            return self._data.pop()
+        except IndexError as e:
+            raise StackIndexError from e
 
-    def peek(self, n: int = 0) -> bytes:
-        return self._data[-1 * (n + 1)]
+    def peek(self) -> bytes:
+        if len(self._data) == 0:
+            raise StackIndexError
+        return self._data[-1]
 
     def dup(self, n: int):
+        if len(self._data) < n:
+            raise StackIndexError
         self.push(self._data[-n])
 
     def swap(self, n: int):
+        if len(self._data) <= n:
+            raise StackIndexError
         self._data[-1], self._data[-n - 1] = self._data[-n - 1], self._data[-1]
 
     def push_uint(self, val: int):

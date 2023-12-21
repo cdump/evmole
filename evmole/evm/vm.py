@@ -1,8 +1,9 @@
 from typing import Any
 
-from .opcodes import Op, OpCode, name as opcode2name
-from .stack import Stack
 from .memory import Memory
+from .opcodes import Op, OpCode
+from .opcodes import name as opcode2name
+from .stack import Stack
 
 E256 = 2**256
 E256M1 = E256 - 1

@@ -1,5 +1,7 @@
 import { bigIntToUint8Array, uint8ArrayToBigInt } from '../utils.js'
 
+export class StackIndexError extends Error {}
+
 export default class Stack {
   constructor() {
     this._data = []
@@ -16,18 +18,33 @@ export default class Stack {
   }
 
   pop() {
-    return this._data.pop()
+    const v = this._data.pop()
+    if (v === undefined) {
+      throw new StackIndexError()
+    }
+    return v
   }
 
-  peek(idx = 0) {
-    return this._data[this._data.length - idx - 1]
+  peek() {
+    const v = this._data[this._data.length - 1]
+    if (v === undefined) {
+      throw new StackIndexError()
+    }
+    return v
   }
 
   dup(n) {
-    this._data.push(this._data[this._data.length - n])
+    const v = this._data[this._data.length - n]
+    if (v === undefined) {
+      throw new StackIndexError()
+    }
+    this._data.push(v)
   }
 
   swap(n) {
+    if (this._data.length <= n) {
+      throw new StackIndexError()
+    }
     const tmp = this._data[this._data.length - n - 1]
     this._data[this._data.length - n - 1] = this._data[this._data.length - 1]
     this._data[this._data.length - 1] = tmp

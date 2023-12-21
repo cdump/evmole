@@ -1,5 +1,6 @@
 import Op from './evm/opcodes.js'
 import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
+import { StackIndexError } from './evm/stack.js'
 import {
   hexToUint8Array,
   bigIntToUint8Array,
@@ -69,7 +70,7 @@ export function functionArguments(
         // console.log(vm.toString())
       }
     } catch (e) {
-      if (e instanceof UnsupportedOpError) {
+      if (e instanceof StackIndexError || e instanceof UnsupportedOpError) {
         // console.log(e)
         break
       } else {
@@ -120,22 +121,15 @@ export function functionArguments(
       case Op.ADD:
         {
           const [r2, r3] = [ret[2], ret[3]]
-          if (
-            r2 instanceof Arg ||
-            r3 instanceof Arg
-          ) {
-            const [arg, ot] =
-              r2 instanceof Arg ? [r2, r3] : [r3, r2]
+          if (r2 instanceof Arg || r3 instanceof Arg) {
+            const [arg, ot] = r2 instanceof Arg ? [r2, r3] : [r3, r2]
             const v = vm.stack.pop()
             if (uint8ArrayToBigInt(ot) === 4n) {
               vm.stack.push(new Arg(arg.offset, false, v))
             } else {
               vm.stack.push(new ArgDynamic(arg.offset, v))
             }
-          } else if (
-            r2 instanceof ArgDynamic ||
-            r3 instanceof ArgDynamic
-          ) {
+          } else if (r2 instanceof ArgDynamic || r3 instanceof ArgDynamic) {
             const v = vm.stack.pop()
             const arg = r2 instanceof ArgDynamic ? r2 : r3
             vm.stack.push(new ArgDynamic(arg.offset, v))
@@ -173,12 +167,8 @@ export function functionArguments(
       case Op.AND:
         {
           const [r2, r3] = [ret[2], ret[3]]
-          if (
-            r2 instanceof Arg ||
-            r3 instanceof Arg
-          ) {
-            const [arg, ot] =
-              r2 instanceof Arg ? [r2, r3] : [r3, r2]
+          if (r2 instanceof Arg || r3 instanceof Arg) {
+            const [arg, ot] = r2 instanceof Arg ? [r2, r3] : [r3, r2]
 
             const v = uint8ArrayToBigInt(ot)
             if (v === 0n) {
@@ -210,9 +200,7 @@ export function functionArguments(
           const arg = ret[2]
           if (arg instanceof Arg) {
             const v = vm.stack.pop()
-            vm.stack.push(
-              new IsZeroResult(arg.offset, arg.dynamic, v),
-            )
+            vm.stack.push(new IsZeroResult(arg.offset, arg.dynamic, v))
           } else if (arg instanceof IsZeroResult) {
             args[arg.offset] = arg.dynamic ? 'bool[]' : 'bool'
           }

@@ -1,5 +1,6 @@
 import Op from './evm/opcodes.js'
 import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
+import { StackIndexError } from './evm/stack.js'
 import { hexToUint8Array, uint8ArrayToBigInt } from './utils.js'
 
 class Signature extends Uint8Array {}
@@ -19,7 +20,7 @@ function process(vm, gas_limit) {
         break
       }
     } catch (e) {
-      if (e instanceof UnsupportedOpError) {
+      if (e instanceof StackIndexError || e instanceof UnsupportedOpError) {
         // console.log(e)
         break
       } else {
@@ -52,10 +53,7 @@ function process(vm, gas_limit) {
 
       case Op.LT:
       case Op.GT:
-        if (
-          ret[2] instanceof Signature ||
-          ret[3] instanceof Signature
-        ) {
+        if (ret[2] instanceof Signature || ret[3] instanceof Signature) {
           const cloned_vm = vm.clone()
           const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / 2))
           selectors.push(...s)

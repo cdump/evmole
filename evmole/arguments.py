@@ -1,6 +1,7 @@
-from .utils import to_bytes
-from .evm.vm import CallData, Vm, UnsupportedOpError
 from .evm.opcodes import Op
+from .evm.stack import StackIndexError
+from .evm.vm import CallData, UnsupportedOpError, Vm
+from .utils import to_bytes
 
 
 class Arg(bytes):
@@ -73,7 +74,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 # print(vm, '\n')
                 # print(ret)
                 pass
-        except (UnsupportedOpError) as ex:
+        except (StackIndexError, UnsupportedOpError) as ex:
             _ = ex
             # print(ex)
             break
