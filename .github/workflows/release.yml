@@ -37,7 +37,6 @@ jobs:
       run: |
         poetry install
         poetry run ruff evmole
-        poetry run black --check evmole
         poetry build
         echo "wheel_name=evmole-${GITHUB_REF#refs/tags/}-py3-none-any.whl" >> $GITHUB_OUTPUT
 
