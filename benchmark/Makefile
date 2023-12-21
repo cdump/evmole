@@ -1,6 +1,6 @@
 PROVIDER_BASE = etherscan
-PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs evmole-py evmole-js
-PROVIDERS_ARGUMENTS ?= simple evmole-py evmole-js
+PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs evmole-rs evmole-js evmole-py
+PROVIDERS_ARGUMENTS ?= simple evmole-rs evmole-js evmole-py
 
 DATASETS ?= largest1k random50k vyper
 DOCKER ?= docker
@@ -33,9 +33,11 @@ $(BUILD_TARGETS):
 	# for evmole - use latest version, from current git branch
 	[ "$@" = "evmole-py.build" ] && cp -r ../evmole providers/evmole-py/ || true
 	[ "$@" = "evmole-js.build" ] && cp -r ../js providers/evmole-js/ || true
+	[ "$@" = "evmole-rs.build" ] && cp -r ../rust providers/evmole-rs/ || true
 	$(DOCKER) build -t $(DOCKER_PREFIX)-$(basename $@) providers/$(basename $@)
 	[ "$@" = "evmole-py.build" ] && rm -rf providers/evmole-py/evmole || true
 	[ "$@" = "evmole-js.build" ] && rm -rf providers/evmole-js/js || true
+	[ "$@" = "evmole-rs.build" ] && rm -rf providers/evmole-rs/rust || true
 
 $(UNPACK_TARGETS):
 	$(info [*] Unpacking $@...)
