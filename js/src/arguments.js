@@ -2,10 +2,10 @@ import Op from './evm/opcodes.js'
 import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
 import { StackIndexError } from './evm/stack.js'
 import {
-  hexToUint8Array,
   bigIntToUint8Array,
   uint8ArrayToBigInt,
   bigIntBitLength,
+  toUint8Array,
 } from './utils.js'
 
 class Arg extends Uint8Array {
@@ -42,14 +42,10 @@ class IsZeroResult extends Uint8Array {
   }
 }
 
-export function functionArguments(
-  code_hex_string,
-  selector_hex_string,
-  gas_limit = 1e4,
-) {
-  const code = hexToUint8Array(code_hex_string)
-  const selector = hexToUint8Array(selector_hex_string)
-  const vm = new Vm(code, new CallData(selector))
+export function functionArguments(code, selector, gas_limit = 1e4) {
+  const code_arr = toUint8Array(code)
+  const selector_arr = toUint8Array(selector)
+  const vm = new Vm(code_arr, new CallData(selector_arr))
 
   let gas_used = 0
   let inside_function = false
@@ -84,7 +80,7 @@ export function functionArguments(
         const p = vm.stack.peek()[31]
         if (p === (op === Op.EQ ? 1 : 0)) {
           const a = ret[2].slice(-4)
-          inside_function = selector.every((v, i) => v === a[i])
+          inside_function = selector_arr.every((v, i) => v === a[i])
         }
       }
 

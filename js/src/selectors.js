@@ -1,7 +1,7 @@
 import Op from './evm/opcodes.js'
 import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
 import { StackIndexError } from './evm/stack.js'
-import { hexToUint8Array, uint8ArrayToBigInt } from './utils.js'
+import { toUint8Array, uint8ArrayToBigInt } from './utils.js'
 
 class Signature extends Uint8Array {}
 
@@ -98,9 +98,9 @@ function process(vm, gas_limit) {
   return [selectors, gas_used]
 }
 
-export function functionSelectors(code_hex_string, gas_limit = 5e5) {
-  const code = hexToUint8Array(code_hex_string)
-  const vm = new Vm(code, new CallData([0xaa, 0xbb, 0xcc, 0xdd]))
+export function functionSelectors(code, gas_limit = 5e5) {
+  const code_arr = toUint8Array(code)
+  const vm = new Vm(code_arr, new CallData([0xaa, 0xbb, 0xcc, 0xdd]))
   const [selectors] = process(vm, gas_limit)
   return selectors.map((x) => x.toString(16).padStart(8, '0'))
 }

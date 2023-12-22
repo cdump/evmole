@@ -30,8 +30,20 @@ export function bigIntToUint8Array(val, n = 32) {
 }
 
 export function toBigInt(v) {
-  if (!(v instanceof Uint8Array)) throw `Not uint8array instance`
-  return uint8ArrayToBigInt(v)
+  if (v instanceof Uint8Array) {
+    return uint8ArrayToBigInt(v)
+  }
+  throw 'Not Uint8Array instance'
+}
+
+export function toUint8Array(v) {
+  if (v instanceof Uint8Array) {
+    return v
+  }
+  if (typeof v === 'string') {
+    return hexToUint8Array(v)
+  }
+  throw 'Must be hex-string or Uint8Array'
 }
 
 export function modExp(a, b, n) {
