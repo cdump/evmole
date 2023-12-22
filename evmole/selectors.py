@@ -51,10 +51,10 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 vm.stack.push_uint(1 if v == 0 else 0)
 
             # fmt: off
-            case (Op.SHR, _, _, Signature() | CallData()) | \
-                 (Op.AND, _, Signature() | CallData(), _) | \
-                 (Op.AND, _, _, Signature() | CallData()) | \
-                 (Op.DIV, _, Signature() | CallData(), _
+            case (Op.SHR, _, _, CallData())  | \
+                 (Op.AND, _, Signature(), _) | \
+                 (Op.AND, _, _, Signature()) | \
+                 (Op.DIV, _, CallData(), _
                 ):
             # fmt: on
                 v = vm.stack.peek()
@@ -62,17 +62,22 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                     v = vm.stack.pop()
                     vm.stack.push(Signature(v))
 
+            case (Op.AND, _, CallData(), _) | (Op.AND, _, _, CallData()):
+                v = vm.stack.pop()
+                vm.stack.push(CallData(v))
+
             case (Op.ISZERO, _, Signature()):
                 selectors.append(b'\x00\x00\x00\x00')
 
             case (Op.MLOAD, _, set() as used):
                 for u in used:
                     if isinstance(u, CallData):
-                        p = vm.stack.peek()
-                        if p[-4:] == vm.calldata[:4]:
-                            v = vm.stack.pop()
+                        v = vm.stack.pop()
+                        if v[-4:] == vm.calldata[:4]:
                             vm.stack.push(Signature(v))
-                            break
+                        else:
+                            vm.stack.push(CallData(v))
+                        break
 
     return selectors, gas_used
 

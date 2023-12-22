@@ -64,12 +64,37 @@ function process(vm, gas_limit) {
         break
 
       case Op.SHR:
+        {
+          if (ret[3] instanceof CallData) {
+            if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
+              const v = vm.stack.pop()
+              vm.stack.push(new Signature(v))
+            }
+          }
+        }
+        break
+
       case Op.AND:
+        {
+          if (ret[2] instanceof Signature || ret[3] instanceof Signature) {
+            if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
+              const v = vm.stack.pop()
+              vm.stack.push(new Signature(v))
+            }
+          } else if (ret[2] instanceof CallData || ret[3] instanceof CallData) {
+              const v = vm.stack.pop()
+              vm.stack.push(new CallData(v))
+          }
+        }
+        break
+
       case Op.DIV:
         {
-          if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
-            const v = vm.stack.pop()
-            vm.stack.push(new Signature(v))
+          if (ret[2] instanceof CallData) {
+            if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
+              const v = vm.stack.pop()
+              vm.stack.push(new Signature(v))
+            }
           }
         }
         break
@@ -85,10 +110,13 @@ function process(vm, gas_limit) {
           const used = ret[2]
           for (const u of used) {
             if (u instanceof CallData) {
-              if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
-                vm.stack.push(new Signature(vm.stack.pop()))
-                break
+              const p = vm.stack.pop()
+              if (p.slice(-4).every((v, i) => v === vm.calldata[i])) {
+                vm.stack.push(new Signature(p))
+              } else {
+                vm.stack.push(new CallData(p))
               }
+              break
             }
           }
         }
