@@ -1,6 +1,3 @@
-benchmark/datasets/*
-!benchmark/datasets/*.tar.gz
-
 benchmark/results/*
 !benchmark/results/.gitkeep
 
