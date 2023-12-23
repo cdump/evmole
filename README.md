@@ -1,14 +1,15 @@
 # EVMole
 
 [![npm](https://img.shields.io/npm/v/evmole)](https://www.npmjs.com/package/evmole)
+[![Crates.io](https://img.shields.io/crates/v/evmole?color=e9b44f)](https://crates.io/crates/evmole)
 [![PyPI](https://img.shields.io/pypi/v/evmole?color=006dad)](https://pypi.org/project/evmole)
 [![license](https://img.shields.io/github/license/cdump/evmole)](./LICENSE)
 
-Extracts [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector) and arguments from EVM bytecode, even for unverified contracts.
+This library extracts [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector) and arguments from Ethereum Virtual Machine (EVM) bytecode, even for unverified contracts.
 
-- Python & JavaScript implementations
-- Clean code with zero dependencies
-- [Faster and more accurate](#Benchmark) than other tools
+- JavaScript, Rust and Python implementations
+- Clean code with zero external dependencies (py & js)
+- [Faster and more accurate](#Benchmark) than other existing tools
 - Tested on Solidity and Vyper compiled contracts
 
 [Try it online](https://cdump.github.io/evmole/)
@@ -29,6 +30,18 @@ console.log( functionSelectors(code) )
 
 console.log( functionArguments(code, '2125b65b') )
 // Output(str): 'uint32,address,uint224'
+```
+
+### Rust
+Documentation available on [docs.rs](https://docs.rs/evmole/latest/evmole/)
+```rust
+let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256fea2646970667358221220fbd308f142157eaf0fdc0374a3f95f796b293d35c337d2d9665b76dfc69501ea64736f6c63430008170033").unwrap();
+
+println!("{:x?}", evmole::function_selectors(&code, 0));
+// Output(Vec<[u8;4]>): [[21, 25, b6, 5b], [b6, 9e, f8, a8]]
+
+println!("{}", evmole::function_arguments(&code, &[0x21, 0x25, 0xb6, 0x5b], 0));
+// Output(String): uint32,address,uint224
 ```
 
 ### Python
@@ -57,7 +70,7 @@ See [examples](./examples) for more
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><a href="benchmark/providers/evmole-js/"><b><i>evmole-js</i></b></a> (<a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a>)</td>
+  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
   <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
   <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evm-hound-rs</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall-rs</i></b></a></td>
@@ -98,7 +111,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.8s (1.8s)</td>
+  <td>1.1s · 1.9s · 1.9s</td>
   <td>3.5s</td>
   <td>1.1s</td>
   <td>691.7s</td>
@@ -138,7 +151,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>17.6s (26.0s)</td>
+  <td>9.8s · 17.4s · 26.7s</td>
   <td>67.1s</td>
   <td>11.9s</td>
   <td>34.4s</td>
@@ -179,7 +192,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.3s (1.5s)</td>
+  <td>1.0s · 1.3s · 1.4s</td>
   <td>2.4s</td>
   <td>1.0s</td>
   <td>9.9s</td>
@@ -194,7 +207,7 @@ See [examples](./examples) for more
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><a href="benchmark/providers/evmole-js/"><b><i>evmole-js</i></b></a> (<a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a>)</td>
+  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall-rs</i></b></a></td>
   <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
  </tr>
@@ -207,7 +220,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>6.3s (10.3s)</td>
+  <td>1.2s · 6.3s · 10.3s</td>
   <td>693.4s</td>
   <td>1.2s</td>
  </tr>
@@ -221,7 +234,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>176.0s (308.1s)</td>
+  <td>17.5s · 177.0s · 307.7s</td>
   <td>8.8s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
@@ -234,7 +247,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>7.4s (13.3s)</td>
+  <td>1.1s · 7.4s · 13.4s</td>
   <td>10.2s</td>
   <td>1.0s</td>
  </tr>
@@ -242,7 +255,7 @@ See [examples](./examples) for more
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole [master](https://github.com/cdump/evmole/commit/63eea8a2efdcf348c1260b76b3fa344cac434015); whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
+<i>versions: evmole [master](https://github.com/cdump/evmole/commit/39f91e04aaea56beb90197c7868547ceae11a4a6); whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
 
 ## How it works
 
