@@ -121,14 +121,13 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 v = ArgDynamic(offset=cd.offset, val=v)
                 vm.stack.push(v)
 
-            case (Op.SHL, _, bytes() as ot, ArgDynamicLength() as arg) if int.from_bytes(ot, 'big') == 5:
-                args[arg.offset] = 'uint256[]'
+            case (Op.SHL, _, bytes() as ot, ArgDynamicLength() as arg):
+                if int.from_bytes(ot, 'big') == 5:
+                    args[arg.offset] = 'uint256[]'
 
-            # fmt: off
-            case (Op.MUL, _, ArgDynamicLength() as arg, bytes() as ot) | \
-                 (Op.MUL, _, bytes() as ot, ArgDynamicLength() as arg) if int.from_bytes(ot, 'big') == 32:
-            # fmt: on
-                args[arg.offset] = 'uint256[]'
+            case (Op.MUL, _, ArgDynamicLength() as arg, bytes() as ot) | (Op.MUL, _, bytes() as ot, ArgDynamicLength() as arg):
+                if int.from_bytes(ot, 'big') == 32:
+                    args[arg.offset] = 'uint256[]'
 
             case (Op.AND, _, Arg() as arg, bytes() as ot) | (Op.AND, _, bytes() as ot, Arg() as arg):
                 v = int.from_bytes(ot, 'big')

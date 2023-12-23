@@ -26,20 +26,15 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
             break
 
         match ret:
-            # fmt: off
-            case ((Op.XOR | Op.EQ as op, _, bytes() as s1, Signature())) | \
-                 ((Op.XOR | Op.EQ as op, _, Signature(), bytes() as s1)
-                ):
-            #fmt: on
+            case (
+                  ((Op.XOR | Op.EQ as op, _, bytes() as s1, Signature()))
+                | ((Op.XOR | Op.EQ as op, _, Signature(), bytes() as s1))
+            ):
                 selectors.append(s1[-4:])
                 vm.stack.pop()
                 vm.stack.push_uint(1 if op == Op.XOR else 0)
 
-            # fmt: off
-            case (Op.SUB, _, Signature(), bytes() as s1) | \
-                 (Op.SUB, _, bytes() as s1, Signature()
-                ):
-            #fmt: on
+            case (Op.SUB, _, Signature(), bytes() as s1) | (Op.SUB, _, bytes() as s1, Signature()):
                 selectors.append(s1[-4:])
 
             case (Op.LT | Op.GT, _, Signature(), _) | (Op.LT | Op.GT, _, _, Signature()):
@@ -50,13 +45,12 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 v = vm.stack.pop_uint()
                 vm.stack.push_uint(1 if v == 0 else 0)
 
-            # fmt: off
-            case (Op.SHR, _, _, CallData())  | \
-                 (Op.AND, _, Signature(), _) | \
-                 (Op.AND, _, _, Signature()) | \
-                 (Op.DIV, _, CallData(), _
-                ):
-            # fmt: on
+            case (
+                  (Op.SHR, _, _, CallData())
+                | (Op.AND, _, Signature(), _)
+                | (Op.AND, _, _, Signature())
+                | (Op.DIV, _, CallData(), _)
+            ):
                 v = vm.stack.peek()
                 if v[-4:] == vm.calldata[:4]:
                     v = vm.stack.pop()
