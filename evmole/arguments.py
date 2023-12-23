@@ -104,7 +104,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
 
             case (Op.CALLDATALOAD, _, bytes() as offset):
                 off = int.from_bytes(offset, 'big')
-                if off >= 4:
+                if off >= 4 and off < 2**32:
                     vm.stack.pop()
                     vm.stack.push(Arg(offset=off))
                     args[off] = ''
@@ -157,8 +157,9 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 args[arg.offset] = 'bool[]' if arg.dynamic else 'bool'
 
             case (Op.SIGNEXTEND, _, s0, Arg() as arg):
-                t = f'int{(s0+1)*8}'
-                args[arg.offset] = f'{t}[]' if arg.dynamic else t
+                if s0 < 32:
+                    t = f'int{(s0+1)*8}'
+                    args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
             case (Op.BYTE, _, _, Arg() as arg):
                 if args[arg.offset] == '':

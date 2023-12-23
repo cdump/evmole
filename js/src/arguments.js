@@ -105,7 +105,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
             vm.stack.push(new Arg(arg.offset, true))
           } else {
             const off = uint8ArrayToBigInt(arg)
-            if (off >= 4n) {
+            if (off >= 4n && off < 2n**32n) {
               vm.stack.pop()
               vm.stack.push(new Arg(Number(off)))
               args[off] = ''
@@ -206,7 +206,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
       case Op.SIGNEXTEND:
         {
           const arg = ret[3]
-          if (arg instanceof Arg) {
+          if (arg instanceof Arg && ret[2] < 32n) {
             const t = `int${(Number(ret[2]) + 1) * 8}`
             args[arg.offset] = arg.dynamic ? `${t}[]` : t
           }
