@@ -20,37 +20,36 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python -
+        echo "$HOME/.poetry/bin" >> $GITHUB_PATH
 
-    - name: Install NodeJS
+    - name: Install Node
       uses: actions/setup-node@v4
       with:
         node-version: 20
         registry-url: 'https://registry.npmjs.org/'
 
-    - name: Install python poetry
-      run: |
-        curl -sSL https://install.python-poetry.org | python -
-        echo "$HOME/.poetry/bin" >> $GITHUB_PATH
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
 
-    - name: Python - check and build
-      id: buildpy
+    - name: Build
+      id: build
       run: |
-        poetry install
-        poetry run ruff evmole
         poetry build
-        echo "wheel_name=evmole-${GITHUB_REF#refs/tags/}-py3-none-any.whl" >> $GITHUB_OUTPUT
-
-
-    - name: NodeJS - check and build
-      id: buildjs
-      run: |
-        cd js/
-        npm ci
+        echo "py_wheel_name=evmole-${GITHUB_REF#refs/tags/}-py3-none-any.whl" >> $GITHUB_OUTPUT
+        # js:
+        cp ./README.md js/README.md
+        pushd js/
         npm run build
         npm pack
-        echo "tarball_name=evmole-${GITHUB_REF#refs/tags/}.tgz" >> $GITHUB_OUTPUT
+        echo "js_tarball_name=evmole-${GITHUB_REF#refs/tags/}.tgz" >> $GITHUB_OUTPUT
+        popd
+        # rust:
+        cp ./README.md rust/README.md
 
-    - name: Generate Release Notes
+    - name: Release Notes
       run: |
         echo '## Changes since previous release:' > changelog.md
         git log --oneline $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- [%h](https://github.com/cdump/evmole/commit/%H) %s" >> changelog.md
@@ -63,13 +62,15 @@ jobs:
           prerelease: false
           body_path: changelog.md
           files: |
-            dist/${{ steps.buildpy.outputs.wheel_name }}
-            js/${{ steps.buildjs.outputs.tarball_name }}
+            dist/${{ steps.build.outputs.py_wheel_name }}
+            js/${{ steps.build.outputs.js_tarball_name }}
 
-    - name: Publish to NPM and PyPI
+    - name: Publish
       env:
-        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
+        POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
       run: |
         poetry publish
-        cd js && npm publish
+        pushd rust && cargo publish --allow-dirty && popd
+        pushd js && npm publish && popd
