@@ -1,6 +1,6 @@
 {
   "name": "evmole",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Extracts function selectors and arguments from EVM bytecode",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
