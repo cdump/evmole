@@ -255,7 +255,7 @@ See [examples](./examples) for more
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.3.0; whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
+<i>versions: evmole v0.3.1; whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
 
 ## How it works
 
