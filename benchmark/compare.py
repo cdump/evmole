@@ -2,6 +2,7 @@ import argparse
 import json
 import pathlib
 
+
 def load_data(btype: str, dname: str, providers: list[str], results_dir: str) -> tuple[list, list]:
     data = []
     times = []
@@ -33,7 +34,6 @@ def process_selectors(dname: str, providers: list[str], results_dir: str):
 
 
 def markdown_selectors(providers: list[str], all_results: list):
-    # :1st_place_medal: :rocket: :zap:
     print('<table>')
     print(' <tr>')
     print('  <td>Dataset</td>')

@@ -79,7 +79,7 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="5"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
-  <td>1 :1st_place_medal:</td>
+  <td>1 🥇</td>
   <td>38</td>
   <td>75</td>
   <td>18</td>
@@ -87,7 +87,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>FN <sub>contracts</sub></i></td>
-  <td>0 :1st_place_medal:</td>
+  <td>0 🥇</td>
   <td>8</td>
   <td>40</td>
   <td>103</td>
@@ -95,16 +95,16 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>FP <sub>functions</sub></i></td>
-  <td>192 :2nd_place_medal:</td>
-  <td>38 :1st_place_medal:</td>
+  <td>192 🥈</td>
+  <td>38 🥇</td>
   <td>720</td>
   <td>600</td>
   <td>749</td>
  </tr>
  <tr>
   <td><i>FN <sub>functions</sub></i></td>
-  <td>0 :1st_place_medal:</td>
-  <td>8 :2nd_place_medal:</td>
+  <td>0 🥇</td>
+  <td>8 🥈</td>
   <td>191</td>
   <td>116</td>
   <td>12</td>
@@ -121,7 +121,7 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="5"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
-  <td>1 :1st_place_medal:</td>
+  <td>1 🥇</td>
   <td>251</td>
   <td>693</td>
   <td rowspan="5">waiting fixes</td>
@@ -129,7 +129,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>FN <sub>contracts</sub></i></td>
-  <td>9 :1st_place_medal:</td>
+  <td>9 🥇</td>
   <td>31</td>
   <td>2903</td>
   <!-- -->
@@ -137,14 +137,14 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>FP <sub>functions</sub></i></td>
-  <td>3 :1st_place_medal:</td>
+  <td>3 🥇</td>
   <td>261</td>
   <td>10798</td>
   <td>14652</td>
  </tr>
  <tr>
   <td><i>FN <sub>functions</sub></i></td>
-  <td>10 :1st_place_medal:</td>
+  <td>10 🥇</td>
   <td>32</td>
   <td>3538</td>
   <td>96</td>
@@ -160,7 +160,7 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="5"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
-  <td>0 :1st_place_medal:</td>
+  <td>0 🥇</td>
   <td>178</td>
   <td>19</td>
   <td>0</td>
@@ -168,7 +168,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>FN <sub>contracts</sub></i></td>
-  <td>0 :1st_place_medal:</td>
+  <td>0 🥇</td>
   <td>780</td>
   <td>300</td>
   <td>780</td>
@@ -176,7 +176,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>FP <sub>functions</sub></i></td>
-  <td>0 :1st_place_medal:</td>
+  <td>0 🥇</td>
   <td>181</td>
   <td>19</td>
   <td>0</td>
@@ -184,7 +184,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>FN <sub>functions</sub></i></td>
-  <td>0 :1st_place_medal:</td>
+  <td>0 🥇</td>
   <td>21244</td>
   <td>8273</td>
   <td>21244</td>
@@ -214,7 +214,7 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>15.0%, 3664 :1st_place_medal:</td>
+  <td>15.0%, 3664 🥇</td>
   <td>42.6%, 10407</td>
   <td>58.3%, 14242</td>
  </tr>
@@ -228,7 +228,7 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>5.4%, 63124 :1st_place_medal:</td>
+  <td>5.4%, 63124 🥇</td>
   <td rowspan="2">waiting fixes</td>
   <td>54.9%, 643213</td>
  </tr>
@@ -241,7 +241,7 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>52.4%, 11123 :1st_place_medal:</td>
+  <td>52.4%, 11123 🥇</td>
   <td>100.0%, 21244</td>
   <td>56.8%, 12077</td>
  </tr>
