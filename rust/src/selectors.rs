@@ -87,12 +87,13 @@ fn process(mut vm: Vm<Label>, selectors: &mut Vec<Selector>, gas_limit: u32) -> 
     let mut gas_used = 0;
     while !vm.stopped {
         // println!("{:?}\n", vm);
-        let ret = vm.step();
-        if let Err(_e) = ret {
-            // eprintln!("{}", _e);
-            break;
-        }
-        let ret = ret.unwrap();
+        let ret = match vm.step() {
+            Ok(v) => v,
+            Err(_e) => {
+                // eprintln!("{}", _e);
+                break;
+            }
+        };
         gas_used += ret.gas_used;
         if gas_used > gas_limit {
             break;

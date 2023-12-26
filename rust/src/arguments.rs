@@ -194,12 +194,13 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
     };
     while !vm.stopped {
         // println!("{:?}\n", vm);
-        let ret = vm.step();
-        if let Err(_e) = ret {
-            // eprintln!("{}", _e);
-            break;
-        }
-        let ret = ret.unwrap();
+        let ret = match vm.step() {
+            Ok(v) => v,
+            Err(_e) => {
+                // eprintln!("{}", _e);
+                break;
+            }
+        };
         gas_used += ret.gas_used;
         if gas_used > real_gas_limit {
             break;
