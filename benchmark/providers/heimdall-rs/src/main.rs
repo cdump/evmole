@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::{env, fs};
 
-use heimdall_core::decompile::DecompilerArgsBuilder;
 use heimdall_core::decompile::out::abi::ABIStructure;
-
+use heimdall_core::decompile::DecompilerArgsBuilder;
 
 #[derive(Debug, serde::Deserialize)]
 struct Input {
@@ -13,7 +12,7 @@ struct Input {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<_> = env::args().collect();
     if args.len() < 4 {
         eprintln!("Usage: ./main MODE INPUT_DIR OUTPUT_FILE [SELECTORS_FILE]");
         std::process::exit(1);
@@ -22,13 +21,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let indir = &args[2];
     let outfile = &args[3];
 
-    let selectors: HashMap<String, Vec<String>> = match mode.as_str() {
-        "arguments" => {
-            let selectors_file = &args[4];
-            let file_content = fs::read_to_string(selectors_file)?;
-            serde_json::from_str(&file_content).unwrap()
-        },
-        _ => HashMap::new(),
+    let selectors: HashMap<String, Vec<String>> = if mode == "arguments" {
+        let file_content = fs::read_to_string(&args[4])?;
+        serde_json::from_str(&file_content)?
+    } else {
+        HashMap::new()
     };
 
     let mut ret_selectors: HashMap<String, Vec<String>> = HashMap::new();
@@ -37,9 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for entry in fs::read_dir(indir)? {
         let entry = entry?;
         let path = entry.path();
+        let fname = entry.file_name().to_str().unwrap().to_string();
         let hex_code: String = {
             let file_content = fs::read_to_string(path)?;
-            let v: Input = serde_json::from_str(&file_content).unwrap();
+            let v: Input = serde_json::from_str(&file_content)?;
             v.code
         };
 
@@ -48,49 +46,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .skip_resolving(true)
             .build()?;
 
-        let fname = entry.file_name().into_string().expect("fname");
         // println!("processing {}", fname);
 
-        // waiting for the fix: https://github.com/Jon-Becker/heimdall-rs/issues/167#issuecomment-1848273143
-        if fname == "0x940259178FbF021e625510919BC2FF0B944E5613.json" {
-            if mode == "arguments" {
-                let r: HashMap<String, String> = selectors[&fname].iter().map(|s| (s.to_string(), "not_found".to_string())).collect();
-                ret_arguments.insert(fname, r);
-            } else {
-                ret_selectors.insert(fname, Vec::new());
-            }
-            continue
-        }
+        //if fname == "0x940259178FbF021e625510919BC2FF0B944E5613.json" {
+        //    if mode == "arguments" {
+        //        let r: HashMap<String, String> = selectors[&fname].iter().map(|s| (s.to_string(), "not_found".to_string())).collect();
+        //        ret_arguments.insert(fname, r);
+        //    } else {
+        //        ret_selectors.insert(fname, Vec::new());
+        //    }
+        //    continue
+        //}
 
         let result = heimdall_core::decompile::decompile(dargs).await?;
         let abi = result.abi.unwrap();
 
         if mode == "arguments" {
-            let args: HashMap<String, String> = abi.iter().filter_map(|e| match e {
-                ABIStructure::Function(v) => {
-                    let selector = v.name.strip_prefix("Unresolved_").expect("stripprefix").to_string();
-                    let a: Vec<String> = v.inputs.iter().map(|v| v.type_.to_string()).collect();
-                    let args = a.join(",");
-                    Some((selector, args))
-                }
-                _ => None,
-            }).collect();
+            let args: HashMap<String, String> = abi
+                .iter()
+                .filter_map(|e| match e {
+                    ABIStructure::Function(v) => {
+                        let selector = v.name.strip_prefix("Unresolved_").unwrap().to_string();
+                        let a: Vec<_> = v.inputs.iter().map(|v| v.type_.to_string()).collect();
+                        let args = a.join(",");
+                        Some((selector, args))
+                    }
+                    _ => None,
+                })
+                .collect();
 
-            let r: HashMap<String, String> = selectors[&fname].iter().map(|s| {
-                match args.get(s) {
+            let r: HashMap<String, String> = selectors[&fname]
+                .iter()
+                .map(|s| match args.get(s) {
                     Some(v) => (s.to_string(), v.to_string()),
                     None => (s.to_string(), "not_found".to_string()),
-                }
-            }).collect();
+                })
+                .collect();
             ret_arguments.insert(fname, r);
         } else {
-            let r: Vec<String> = abi.iter().filter_map(|e| match e {
-                ABIStructure::Function(v) => Some(v.name.strip_prefix("Unresolved_").expect("stripprefix").to_string()),
-                _ => None,
-            }).collect();
+            let r: Vec<String> = abi
+                .iter()
+                .filter_map(|e| match e {
+                    ABIStructure::Function(v) => {
+                        Some(v.name.strip_prefix("Unresolved_").unwrap().to_string())
+                    }
+                    _ => None,
+                })
+                .collect();
             ret_selectors.insert(fname, r);
         }
-        // break
     }
 
     let mut file = fs::File::create(outfile)?;
