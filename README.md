@@ -79,8 +79,8 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="5"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
-  <td>1 🥇</td>
-  <td>38</td>
+  <td>1 🥈</td>
+  <td>0 🥇</td>
   <td>75</td>
   <td>18</td>
   <td>95</td>
@@ -90,13 +90,13 @@ See [examples](./examples) for more
   <td>0 🥇</td>
   <td>8</td>
   <td>40</td>
-  <td>103</td>
+  <td>102</td>
   <td>9</td>
  </tr>
  <tr>
   <td><i>FP <sub>functions</sub></i></td>
   <td>192 🥈</td>
-  <td>38 🥇</td>
+  <td>0 🥇</td>
   <td>720</td>
   <td>600</td>
   <td>749</td>
@@ -106,23 +106,23 @@ See [examples](./examples) for more
   <td>0 🥇</td>
   <td>8 🥈</td>
   <td>191</td>
-  <td>116</td>
+  <td>113</td>
   <td>12</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.1s · 1.9s · 1.9s</td>
-  <td>3.5s</td>
-  <td>1.1s</td>
-  <td>691.7s</td>
-  <td>1.8s</td>
+  <td>0.6s · 1.4s · 1.5s</td>
+  <td>2.6s</td>
+  <td>0.7s</td>
+  <td>598.6s</td>
+  <td>1.4s</td>
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
   <td rowspan="5"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
   <td>1 🥇</td>
-  <td>251</td>
+  <td>43</td>
   <td>693</td>
   <td rowspan="5">waiting fixes</td>
   <td>4136</td>
@@ -138,7 +138,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>FP <sub>functions</sub></i></td>
   <td>3 🥇</td>
-  <td>261</td>
+  <td>51</td>
   <td>10798</td>
   <td>14652</td>
  </tr>
@@ -151,17 +151,17 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9.8s · 17.4s · 26.7s</td>
-  <td>67.1s</td>
-  <td>11.9s</td>
-  <td>34.4s</td>
+  <td>7.3s · 17.4s · 25.7s</td>
+  <td>46.8s</td>
+  <td>10.2s</td>
+  <td>33.9s</td>
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
   <td rowspan="5"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
   <td>0 🥇</td>
-  <td>178</td>
+  <td>30</td>
   <td>19</td>
   <td>0</td>
   <td>185</td>
@@ -177,7 +177,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>FP <sub>functions</sub></i></td>
   <td>0 🥇</td>
-  <td>181</td>
+  <td>30</td>
   <td>19</td>
   <td>0</td>
   <td>197</td>
@@ -192,11 +192,11 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.0s · 1.3s · 1.4s</td>
-  <td>2.4s</td>
+  <td>0.5s · 0.8s · 1.0s</td>
+  <td>1.9s</td>
+  <td>0.5s</td>
+  <td>15.5s</td>
   <td>1.0s</td>
-  <td>9.9s</td>
-  <td>1.3s</td>
  </tr>
 </table>
 
@@ -215,14 +215,14 @@ See [examples](./examples) for more
   <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>15.0%, 3664 🥇</td>
-  <td>42.6%, 10407</td>
+  <td>42.6%, 10414</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.2s · 6.3s · 10.3s</td>
-  <td>693.4s</td>
-  <td>1.2s</td>
+  <td>0.8s · 6.0s · 9.6s</td>
+  <td>602.9s</td>
+  <td>0.6s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
@@ -234,8 +234,9 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>17.5s · 177.0s · 307.7s</td>
-  <td>8.8s</td>
+  <td>17.2s · 179.2s · 300.9s</td>
+  <!-- -->
+  <td>8.1s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
@@ -247,15 +248,15 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.1s · 7.4s · 13.4s</td>
-  <td>10.2s</td>
-  <td>1.0s</td>
+  <td>0.8s · 7.0s · 12.9s</td>
+  <td>15.6s</td>
+  <td>0.6s</td>
  </tr>
 </table>
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.3.1; whatsabi v0.9.1; evm-hound-rs v0.1.4; heimdall-rs v0.7.1</i>
+<i>versions: evmole v0.3.1; whatsabi v0.10.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
 
 ## How it works
 
