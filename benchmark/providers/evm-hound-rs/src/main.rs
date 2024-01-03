@@ -26,21 +26,21 @@ fn main() -> std::io::Result<()> {
     for entry in fs::read_dir(indir)? {
         let entry = entry?;
         let path = entry.path();
+        let fname = entry.file_name().to_str().unwrap().to_string();
 
         let code: Vec<u8> = {
             let file_content = fs::read_to_string(path)?;
-            let v: Input = serde_json::from_str(&file_content).unwrap();
-            let x = v.code.strip_prefix("0x").expect("trim prefix");
-            hex::decode(x).expect("hex decode")
+            let v: Input = serde_json::from_str(&file_content)?;
+            let x = v.code.strip_prefix("0x").unwrap();
+            hex::decode(x).unwrap()
         };
 
         let string_selectors: Vec<_> = evm_hound::selectors_from_bytecode(&code)
             .into_iter()
-            .map(|v| hex::encode(&v))
+            .map(hex::encode)
             .collect();
 
-        let key = entry.file_name().into_string().expect("a");
-        ret.insert(key, string_selectors);
+        ret.insert(fname, string_selectors);
     }
 
     let mut file = fs::File::create(outfile)?;
