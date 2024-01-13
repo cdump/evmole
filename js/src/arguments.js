@@ -105,7 +105,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
             vm.stack.push(new Arg(arg.offset, true))
           } else {
             const off = uint8ArrayToBigInt(arg)
-            if (off >= 4n && off < 2n**32n) {
+            if (off >= 4n && off < 2n ** 32n) {
               vm.stack.pop()
               vm.stack.push(new Arg(Number(off)))
               args[off] = ''

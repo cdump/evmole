@@ -82,8 +82,8 @@ function process(vm, gas_limit) {
               vm.stack.push(new Signature(v))
             }
           } else if (ret[2] instanceof CallData || ret[3] instanceof CallData) {
-              const v = vm.stack.pop()
-              vm.stack.push(new CallData(v))
+            const v = vm.stack.pop()
+            vm.stack.push(new CallData(v))
           }
         }
         break

@@ -47,7 +47,6 @@ class Vm:
     def __copy__(self):
         obj = Vm(code=self.code, calldata=self.calldata)
         obj.pc = self.pc
-        obj.memory._seq = self.memory._seq
         obj.memory._data = self.memory._data[:]
         obj.stack._data = self.stack._data[:]
         obj.stopped = self.stopped

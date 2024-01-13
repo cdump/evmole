@@ -45,7 +45,6 @@ export class Vm {
     c.stack = new Stack()
     c.stack._data = [...this.stack._data]
     c.memory = new Memory()
-    c.memory._seq = this.memory._seq
     c.memory._data = [...this.memory._data]
     c.stopped = this.stopped
     c.calldata = this.calldata

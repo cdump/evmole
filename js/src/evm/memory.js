@@ -1,32 +1,34 @@
 export default class Memory {
   constructor() {
-    this._seq = 0
     this._data = []
   }
 
   toString() {
     let r = `${this._data.length} elems:\n`
-    r += this._data.map(([off,seq,val]) => `  - ${off},${seq}: ${val.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${val.constructor.name}`).join('\n')
+    r += this._data.map(([off,val]) => `  - ${off}: ${val.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${val.constructor.name}`).join('\n')
     return r
   }
 
   store(offset, value) {
-    this._data.push([offset, this._seq, value])
-    this._seq += 1
+    this._data.push([offset, value])
   }
 
   load(offset) {
-    const res = new Array(32).fill([0, 0, undefined])
+    const ret = new Uint8Array(32)
+    const used = new Set()
+
     for (let idx = 0; idx < 32; idx++) {
       const i = idx + offset
-      for (const [off, seq, val] of this._data) {
-        if (seq >= res[idx][0] && i >= off && i < off + val.length) {
-          res[idx] = [seq, val[i - off], val]
+      for (let d = this._data.length - 1; d >= 0; d--) {
+        const [off, val] = this._data[d]
+        if (i >= off && i < off + val.length) {
+          ret[idx] = val[i - off]
+          used.add(val)
+          break
         }
       }
     }
-    const ret = new Uint8Array(res.map((v) => v[1]))
-    const used = new Set(res.map((v) => v[2]))
+
     return [ret, used]
   }
 }
