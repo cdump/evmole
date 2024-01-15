@@ -1,64 +1,37 @@
+from dataclasses import dataclass
+
+from .evm.element import Element
 from .evm.opcodes import Op
 from .evm.stack import StackIndexError
-from .evm.vm import CallData, UnsupportedOpError, Vm
+from .evm.vm import UnsupportedOpError, Vm
 from .utils import to_bytes
 
 
-class Arg(bytes):
+@dataclass(frozen=True)
+class Arg:
     offset: int
-    dynamic: bool
-
-    def __new__(cls, *, offset: int, dynamic: bool = False, val: bytes = b'\x00' * 32):
-        v = super().__new__(cls, val)
-        v.dynamic = dynamic
-        v.offset = offset
-        return v
-
-    def __repr__(self):
-        return f'arg({self.offset},{self.dynamic})'
+    dynamic: bool = False
 
 
-class ArgDynamicLength(bytes):
+@dataclass(frozen=True)
+class ArgDynamic:
     offset: int
 
-    def __new__(cls, *, offset: int):
-        v = super().__new__(cls, (1).to_bytes(32, 'big'))
-        v.offset = offset
-        return v
 
-    def __repr__(self):
-        return f'dlen({self.offset})'
-
-
-class ArgDynamic(bytes):
+@dataclass(frozen=True)
+class ArgDynamicLength:
     offset: int
 
-    def __new__(cls, *, offset: int, val: bytes):
-        v = super().__new__(cls, val)
-        v.offset = offset
-        return v
 
-    def __repr__(self):
-        return f'darg({self.offset})'
-
-
-class IsZeroResult(bytes):
+@dataclass(frozen=True)
+class IsZeroResult:
     offset: int
-    dynamic: bool
-
-    def __new__(cls, *, offset: int, dynamic: bool, val: bytes):
-        v = super().__new__(cls, val)
-        v.offset = offset
-        v.dynamic = dynamic
-        return v
-
-    def __repr__(self):
-        return f'zarg({self.offset})'
+    dynamic: bool = False
 
 
 def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int = int(1e4)) -> str:
     bytes_selector = to_bytes(selector)
-    vm = Vm(code=to_bytes(code), calldata=CallData(bytes_selector))
+    vm = Vm(code=to_bytes(code), calldata=Element(data=bytes_selector, label='calldata'))
     gas_used = 0
     inside_function = False
     args: dict[int, str] = {}
@@ -81,9 +54,9 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
 
         if inside_function is False:
             if ret[0] in {Op.EQ, Op.XOR, Op.SUB}:
-                p = int.from_bytes(vm.stack.peek(), 'big')
+                p = int.from_bytes(vm.stack.peek().data, 'big')
                 if p == (1 if ret[0] == Op.EQ else 0):
-                    inside_function = bytes(ret[2]).endswith(bytes_selector)
+                    inside_function = ret[2].data.endswith(bytes_selector)
             continue
 
         match ret:
@@ -91,46 +64,41 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 vm.stack.pop()
                 vm.stack.push_uint(8192)
 
-            case (Op.CALLDATALOAD, _, Arg() as arg):
+            case (Op.CALLDATALOAD, _, Element(Arg() as arg)):
                 args[arg.offset] = 'bytes'
                 vm.stack.pop()
-                v = ArgDynamicLength(offset=arg.offset)
-                vm.stack.push(v)
+                vm.stack.push(Element(data=(1).to_bytes(32, 'big'), label=ArgDynamicLength(offset=arg.offset)))
 
-            case (Op.CALLDATALOAD, _, ArgDynamic() as arg):
-                vm.stack.pop()
-                v = Arg(offset=arg.offset, dynamic=True)
-                vm.stack.push(v)
+            case (Op.CALLDATALOAD, _, Element(ArgDynamic() as arg)):
+                vm.stack.peek().label = Arg(offset=arg.offset, dynamic=True)
 
-            case (Op.CALLDATALOAD, _, bytes() as offset):
-                off = int.from_bytes(offset, 'big')
+            case (Op.CALLDATALOAD, _, Element() as offset):
+                off = int.from_bytes(offset.data, 'big')
                 if off >= 4 and off < 2**32:
-                    vm.stack.pop()
-                    vm.stack.push(Arg(offset=off))
+                    vm.stack.peek().label = Arg(offset=off)
                     args[off] = ''
 
-            case (Op.ADD, _, Arg() as cd, bytes() as ot) | (Op.ADD, _, bytes() as ot, Arg() as cd):
-                v = vm.stack.pop()
-                if int.from_bytes(ot, 'big') == 4:
-                    vm.stack.push(Arg(offset=cd.offset, val=v))
-                else:
-                    vm.stack.push(ArgDynamic(offset=cd.offset, val=v))
+            case (Op.ADD, _, Element(Arg() as arg), Element() as ot) | (Op.ADD, _, Element() as ot, Element(Arg() as arg)):
+                vm.stack.peek().label = (
+                    Arg(offset=arg.offset) if int.from_bytes(ot.data, 'big') == 4 else ArgDynamic(offset=arg.offset)
+                )
 
-            case (Op.ADD, _, ArgDynamic() as cd, _) | (Op.ADD, _, _, ArgDynamic() as cd):
-                v = vm.stack.pop()
-                v = ArgDynamic(offset=cd.offset, val=v)
-                vm.stack.push(v)
+            case (Op.ADD, _, Element(ArgDynamic() as arg), _) | (Op.ADD, _, _, Element(ArgDynamic() as arg)):
+                vm.stack.peek().label = ArgDynamic(offset=arg.offset)
 
-            case (Op.SHL, _, bytes() as ot, ArgDynamicLength() as arg):
-                if int.from_bytes(ot, 'big') == 5:
+            case (Op.SHL, _, Element() as ot, Element(ArgDynamicLength() as arg)):
+                if int.from_bytes(ot.data, 'big') == 5:
                     args[arg.offset] = 'uint256[]'
 
-            case (Op.MUL, _, ArgDynamicLength() as arg, bytes() as ot) | (Op.MUL, _, bytes() as ot, ArgDynamicLength() as arg):
-                if int.from_bytes(ot, 'big') == 32:
+            case (
+                (Op.MUL, _, Element(ArgDynamicLength() as arg), Element() as ot)
+                | (Op.MUL, _, Element() as ot, Element(ArgDynamicLength() as arg))
+            ):
+                if int.from_bytes(ot.data, 'big') == 32:
                     args[arg.offset] = 'uint256[]'
 
-            case (Op.AND, _, Arg() as arg, bytes() as ot) | (Op.AND, _, bytes() as ot, Arg() as arg):
-                v = int.from_bytes(ot, 'big')
+            case (Op.AND, _, Element(Arg() as arg), Element() as ot) | (Op.AND, _, Element() as ot, Element(Arg() as arg)):
+                v = int.from_bytes(ot.data, 'big')
                 if v == 0:
                     pass
                 elif (v & (v + 1)) == 0:
@@ -141,26 +109,25 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                         args[arg.offset] = f'{t}[]' if arg.dynamic else t
                 else:
                     # 0xffff0000
-                    v = int.from_bytes(ot, 'little')
+                    v = int.from_bytes(ot.data, 'little')
                     if (v & (v + 1)) == 0:
                         bl = v.bit_length()
                         if bl % 8 == 0:
                             t = f'bytes{bl // 8}'
                             args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
-            case (Op.ISZERO, _, Arg() as arg):
-                v = vm.stack.pop()
-                vm.stack.push(IsZeroResult(offset=arg.offset, dynamic=arg.dynamic, val=v))
+            case (Op.ISZERO, _, Element(Arg() as arg)):
+                vm.stack.peek().label = IsZeroResult(offset=arg.offset, dynamic=arg.dynamic)
 
-            case (Op.ISZERO, _, IsZeroResult() as arg):
+            case (Op.ISZERO, _, Element(IsZeroResult() as arg)):
                 args[arg.offset] = 'bool[]' if arg.dynamic else 'bool'
 
-            case (Op.SIGNEXTEND, _, s0, Arg() as arg):
+            case (Op.SIGNEXTEND, _, s0, Element(Arg() as arg)):
                 if s0 < 32:
                     t = f'int{(s0+1)*8}'
                     args[arg.offset] = f'{t}[]' if arg.dynamic else t
 
-            case (Op.BYTE, _, _, Arg() as arg):
+            case (Op.BYTE, _, _, Element(Arg() as arg)):
                 if args[arg.offset] == '':
                     args[arg.offset] = 'bytes32'
 

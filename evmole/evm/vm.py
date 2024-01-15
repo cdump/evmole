@@ -1,5 +1,6 @@
 from typing import Any
 
+from .element import Element
 from .memory import Memory
 from .opcodes import Op, OpCode
 from .opcodes import name as opcode2name
@@ -19,14 +20,8 @@ class UnsupportedOpError(Exception):
         return f'{self.__class__.__name__}({opcode2name(self.op)})'
 
 
-class CallData(bytes):
-    def load(self, offset: int, size: int = 32):
-        val = self[offset : min(offset + size, len(self))]
-        return CallData(val.ljust(size, b'\x00'))
-
-
 class Vm:
-    def __init__(self, *, code: bytes, calldata: CallData):
+    def __init__(self, *, code: bytes, calldata: Element):
         self.code = code
         self.pc = 0
         self.stack = Stack()
@@ -70,7 +65,7 @@ class Vm:
             case op if op >= Op.PUSH0 and op <= Op.PUSH32:
                 n = op - Op.PUSH0
                 args = self.code[(self.pc + 1) : (self.pc + 1 + n)].rjust(32, b'\x00')
-                self.stack.push(args)
+                self.stack.push(Element(data=args))
                 self.pc += n
                 return (2 if n == 0 else 3,)
 
@@ -117,8 +112,8 @@ class Vm:
                 raws0 = self.stack.pop()
                 raws1 = self.stack.pop()
 
-                s0 = int.from_bytes(raws0, 'big', signed=False)
-                s1 = int.from_bytes(raws1, 'big', signed=False)
+                s0 = int.from_bytes(raws0.data, 'big', signed=False)
+                s1 = int.from_bytes(raws1.data, 'big', signed=False)
 
                 gas_used = 3
                 match op:
@@ -152,7 +147,7 @@ class Vm:
                     case Op.SHL:
                         res = 0 if s0 >= 256 else (s1 << s0) & E256M1
                     case Op.BYTE:
-                        res = 0 if s0 >= 32 else raws1[s0]
+                        res = 0 if s0 >= 32 else raws1.data[s0]
                     case _:
                         raise Exception(f'BUG: op {op} not handled in match')
 
@@ -163,8 +158,8 @@ class Vm:
                 raws0 = self.stack.pop()
                 raws1 = self.stack.pop()
 
-                s0 = int.from_bytes(raws0, 'big', signed=True)
-                s1 = int.from_bytes(raws1, 'big', signed=True)
+                s0 = int.from_bytes(raws0.data, 'big', signed=True)
+                s1 = int.from_bytes(raws1.data, 'big', signed=True)
                 if op == Op.SLT:
                     res = 1 if s0 < s1 else 0
                 else:
@@ -174,7 +169,7 @@ class Vm:
 
             case Op.ISZERO:
                 raws0 = self.stack.pop()
-                s0 = int.from_bytes(raws0, 'big', signed=False)
+                s0 = int.from_bytes(raws0.data, 'big', signed=False)
                 res = 0 if s0 else 1
                 self.stack.push_uint(res)
                 return (3, raws0)
@@ -189,7 +184,7 @@ class Vm:
 
             case Op.CALLDATALOAD:
                 raws0 = self.stack.pop()
-                offset = int.from_bytes(raws0, 'big', signed=False)
+                offset = int.from_bytes(raws0.data, 'big', signed=False)
                 self.stack.push(self.calldata.load(offset))
                 return (3, raws0)
 
@@ -210,7 +205,7 @@ class Vm:
             case Op.MLOAD:
                 offset = self.stack.pop_uint()
                 val, used = self.memory.load(offset)
-                self.stack.push(val)
+                self.stack.push(Element(data=val))
                 return (4, used)
 
             case Op.NOT:
@@ -221,7 +216,7 @@ class Vm:
             case Op.SIGNEXTEND:
                 s0 = self.stack.pop_uint()
                 raws1 = self.stack.pop()
-                s1 = int.from_bytes(raws1, 'big', signed=False)
+                s1 = int.from_bytes(raws1.data, 'big', signed=False)
                 if s0 <= 31:
                     sign_bit = 1 << (s0 * 8 + 7)
                     if s1 & sign_bit:
