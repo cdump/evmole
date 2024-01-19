@@ -1,6 +1,7 @@
 import Op from './opcodes.js'
 import Stack from './stack.js'
 import Memory from './memory.js'
+import Element from './element.js'
 import { toBigInt, modExp, bigIntBitLength } from '../utils.js'
 
 const E256 = 2n ** 256n
@@ -8,14 +9,6 @@ const E256M1 = E256 - 1n
 const E255M1 = 2n ** 255n - 1n
 
 export class UnsupportedOpError extends Error {}
-
-export class CallData extends Uint8Array {
-  load(offset, size = 32) {
-    const v = new CallData(size)
-    v.set(this.subarray(offset, offset + size))
-    return v
-  }
-}
 
 export class Vm {
   constructor(code, calldata, clone = false) {
@@ -74,7 +67,7 @@ export class Vm {
         const args = this.code.subarray(this.pc + 1, this.pc + 1 + n)
         const v = new Uint8Array(32)
         v.set(args, v.length - args.length)
-        this.stack.push(v)
+        this.stack.push(new Element(v))
         this.pc += n
         return [3]
       } else {
@@ -134,8 +127,8 @@ export class Vm {
         const raws0 = this.stack.pop()
         const raws1 = this.stack.pop()
 
-        const s0 = toBigInt(raws0)
-        const s1 = toBigInt(raws1)
+        const s0 = toBigInt(raws0.data)
+        const s1 = toBigInt(raws1.data)
 
         let res
         let gas_used = 3
@@ -183,7 +176,7 @@ export class Vm {
             res = s0 >= 256n ? 0n : (s1 << s0) & E256M1
             break
           case Op.BYTE:
-            res = s0 >= 32n ? 0n : BigInt(raws1[s0])
+            res = s0 >= 32n ? 0n : BigInt(raws1.data[s0])
             break
         }
         this.stack.push_uint(res)
@@ -210,7 +203,7 @@ export class Vm {
 
       case Op.ISZERO: {
         const raw = this.stack.pop()
-        const v = toBigInt(raw)
+        const v = toBigInt(raw.data)
         this.stack.push_uint(v === 0n ? 1n : 0n)
         return [3, raw]
       }
@@ -225,7 +218,7 @@ export class Vm {
 
       case Op.CALLDATALOAD: {
         const raws0 = this.stack.pop()
-        const offset = Number(toBigInt(raws0))
+        const offset = Number(toBigInt(raws0.data))
         this.stack.push(this.calldata.load(offset))
         return [3, raws0]
       }
@@ -244,7 +237,7 @@ export class Vm {
       case Op.MLOAD: {
         const offset = Number(this.stack.pop_uint())
         const [val, used] = this.memory.load(offset)
-        this.stack.push(val)
+        this.stack.push(new Element(val))
         return [4, used]
       }
 
@@ -257,7 +250,7 @@ export class Vm {
       case Op.SIGNEXTEND: {
         const s0 = this.stack.pop_uint()
         const raws1 = this.stack.pop()
-        const s1 = toBigInt(raws1)
+        const s1 = toBigInt(raws1.data)
         let res = s1
         if (s0 <= 31) {
           const sign_bit = 1n << (s0 * 8n + 7n)

@@ -5,7 +5,7 @@ export default class Memory {
 
   toString() {
     let r = `${this._data.length} elems:\n`
-    r += this._data.map(([off,val]) => `  - ${off}: ${val.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${val.constructor.name}`).join('\n')
+    r += this._data.map(([off, val]) => `  - ${off}: ${val.toString()}`).join('\n')
     return r
   }
 
@@ -21,9 +21,9 @@ export default class Memory {
       const i = idx + offset
       for (let d = this._data.length - 1; d >= 0; d--) {
         const [off, val] = this._data[d]
-        if (i >= off && i < off + val.length) {
-          ret[idx] = val[i - off]
-          used.add(val)
+        if (i >= off && i < off + val.data.length) {
+          ret[idx] = val.data[i - off]
+          used.add(val.label)
           break
         }
       }

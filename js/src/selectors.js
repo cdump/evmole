@@ -1,9 +1,8 @@
 import Op from './evm/opcodes.js'
-import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
+import { Vm, UnsupportedOpError } from './evm/vm.js'
 import { StackIndexError } from './evm/stack.js'
+import Element from './evm/element.js'
 import { toUint8Array, uint8ArrayToBigInt } from './utils.js'
-
-class Signature extends Uint8Array {}
 
 function process(vm, gas_limit) {
   let selectors = []
@@ -32,28 +31,28 @@ function process(vm, gas_limit) {
     switch (op) {
       case Op.EQ:
       case Op.XOR:
-        if (ret[2] instanceof Signature) {
-          selectors.push(uint8ArrayToBigInt(ret[3]))
+        if (ret[2].label === 'signature') {
+          selectors.push(uint8ArrayToBigInt(ret[3].data))
           vm.stack.pop()
           vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
-        } else if (ret[3] instanceof Signature) {
-          selectors.push(uint8ArrayToBigInt(ret[2]))
+        } else if (ret[3].label === 'signature') {
+          selectors.push(uint8ArrayToBigInt(ret[2].data))
           vm.stack.pop()
           vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
         }
         break
 
       case Op.SUB:
-        if (ret[2] instanceof Signature) {
-          selectors.push(uint8ArrayToBigInt(ret[3]))
-        } else if (ret[3] instanceof Signature) {
-          selectors.push(uint8ArrayToBigInt(ret[2]))
+        if (ret[2].label === 'signature') {
+          selectors.push(uint8ArrayToBigInt(ret[3].data))
+        } else if (ret[3].label === 'signature') {
+          selectors.push(uint8ArrayToBigInt(ret[2].data))
         }
         break
 
       case Op.LT:
       case Op.GT:
-        if (ret[2] instanceof Signature || ret[3] instanceof Signature) {
+        if (ret[2].label === 'signature' || ret[3].label === 'signature') {
           const cloned_vm = vm.clone()
           const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / 2))
           selectors.push(...s)
@@ -65,10 +64,14 @@ function process(vm, gas_limit) {
 
       case Op.SHR:
         {
-          if (ret[3] instanceof CallData) {
-            if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
-              const v = vm.stack.pop()
-              vm.stack.push(new Signature(v))
+          if (ret[3].label === 'calldata') {
+            if (
+              vm.stack
+                .peek()
+                .data.slice(-4)
+                .every((v, i) => v === vm.calldata.data[i])
+            ) {
+              vm.stack.peek().label = 'signature'
             }
           }
         }
@@ -76,31 +79,38 @@ function process(vm, gas_limit) {
 
       case Op.AND:
         {
-          if (ret[2] instanceof Signature || ret[3] instanceof Signature) {
-            if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
-              const v = vm.stack.pop()
-              vm.stack.push(new Signature(v))
+          if (ret[2].label === 'signature' || ret[3].label === 'signature') {
+            if (
+              vm.stack
+                .peek()
+                .data.slice(-4)
+                .every((v, i) => v === vm.calldata.data[i])
+            ) {
+              vm.stack.peek().label = 'signature'
             }
-          } else if (ret[2] instanceof CallData || ret[3] instanceof CallData) {
-            const v = vm.stack.pop()
-            vm.stack.push(new CallData(v))
+          } else if (ret[2].label === 'calldata' || ret[3].label === 'calldata') {
+            vm.stack.peek().label = 'calldata'
           }
         }
         break
 
       case Op.DIV:
         {
-          if (ret[2] instanceof CallData) {
-            if (vm.stack.peek().slice(-4).every((v, i) => v === vm.calldata[i])) {
-              const v = vm.stack.pop()
-              vm.stack.push(new Signature(v))
+          if (ret[2].label === 'calldata') {
+            if (
+              vm.stack
+                .peek()
+                .data.slice(-4)
+                .every((v, i) => v === vm.calldata.data[i])
+            ) {
+              vm.stack.peek().label = 'signature'
             }
           }
         }
         break
 
       case Op.ISZERO:
-        if (ret[2] instanceof Signature) {
+        if (ret[2].label === 'signature') {
           selectors.push(0n)
         }
         break
@@ -108,15 +118,12 @@ function process(vm, gas_limit) {
       case Op.MLOAD:
         {
           const used = ret[2]
-          for (const u of used) {
-            if (u instanceof CallData) {
-              const p = vm.stack.pop()
-              if (p.slice(-4).every((v, i) => v === vm.calldata[i])) {
-                vm.stack.push(new Signature(p))
-              } else {
-                vm.stack.push(new CallData(p))
-              }
-              break
+          if (used.has('calldata')) {
+            const p = vm.stack.peek()
+            if (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
+              p.label = 'signature'
+            } else {
+              p.label = 'calldata'
             }
           }
         }
@@ -128,7 +135,7 @@ function process(vm, gas_limit) {
 
 export function functionSelectors(code, gas_limit = 5e5) {
   const code_arr = toUint8Array(code)
-  const vm = new Vm(code_arr, new CallData([0xaa, 0xbb, 0xcc, 0xdd]))
+  const vm = new Vm(code_arr, new Element(new Uint8Array([0xaa, 0xbb, 0xcc, 0xdd]), 'calldata'))
   const [selectors] = process(vm, gas_limit)
   return selectors.map((x) => x.toString(16).padStart(8, '0'))
 }

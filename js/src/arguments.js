@@ -1,51 +1,51 @@
 import Op from './evm/opcodes.js'
-import { CallData, Vm, UnsupportedOpError } from './evm/vm.js'
+import { Vm, UnsupportedOpError } from './evm/vm.js'
 import { StackIndexError } from './evm/stack.js'
-import {
-  bigIntToUint8Array,
-  uint8ArrayToBigInt,
-  bigIntBitLength,
-  toUint8Array,
-} from './utils.js'
+import Element from './evm/element.js'
+import { bigIntToUint8Array, uint8ArrayToBigInt, bigIntBitLength, toUint8Array } from './utils.js'
 
-class Arg extends Uint8Array {
-  constructor(offset, dynamic = false, val) {
-    const v = super(val !== undefined ? val : new Uint8Array(32))
-    v.offset = offset
-    v.dynamic = dynamic
-    return v
+class Arg {
+  constructor(offset, dynamic = false) {
+    this.offset = offset
+    this.dynamic = dynamic
+  }
+  toString() {
+    return `Arg(${this.offset},${this.dynamic})`
   }
 }
 
-class ArgDynamicLength extends Uint8Array {
+class ArgDynamicLength {
   constructor(offset) {
-    const v = super(bigIntToUint8Array(1n))
-    v.offset = offset
-    return v
+    this.offset = offset
+  }
+  toString() {
+    return `ArgDynamicLength(${this.offset})`
   }
 }
 
-class ArgDynamic extends Uint8Array {
-  constructor(offset, val) {
-    const v = super(val)
-    v.offset = offset
-    return v
+class ArgDynamic {
+  constructor(offset) {
+    this.offset = offset
+  }
+  toString() {
+    return `ArgDynamic(${this.offset})`
   }
 }
 
-class IsZeroResult extends Uint8Array {
-  constructor(offset, dynamic, val) {
-    const v = super(val)
-    v.offset = offset
-    v.dynamic = dynamic
-    return v
+class IsZeroResult {
+  constructor(offset, dynamic) {
+    this.offset = offset
+    this.dynamic = dynamic
+  }
+  toString() {
+    return `IsZeroResult(${this.offset},${this.dynamic})`
   }
 }
 
 export function functionArguments(code, selector, gas_limit = 1e4) {
   const code_arr = toUint8Array(code)
   const selector_arr = toUint8Array(selector)
-  const vm = new Vm(code_arr, new CallData(selector_arr))
+  const vm = new Vm(code_arr, new Element(selector_arr, 'calldata'))
 
   let gas_used = 0
   let inside_function = false
@@ -77,9 +77,9 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
     if (inside_function == false) {
       if (op === Op.EQ || op == Op.XOR || op == Op.SUB) {
-        const p = vm.stack.peek()[31]
+        const p = vm.stack.peek().data[31]
         if (p === (op === Op.EQ ? 1 : 0)) {
-          const a = ret[2].slice(-4)
+          const a = ret[2].data.slice(-4)
           inside_function = selector_arr.every((v, i) => v === a[i])
         }
       }
@@ -95,19 +95,17 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       case Op.CALLDATALOAD:
         {
-          const arg = ret[2]
-          if (arg instanceof Arg) {
-            args[arg.offset] = 'bytes'
+          const v = ret[2]
+          if (v.label instanceof Arg) {
+            args[v.label.offset] = 'bytes'
             vm.stack.pop()
-            vm.stack.push(new ArgDynamicLength(arg.offset))
-          } else if (arg instanceof ArgDynamic) {
-            vm.stack.pop()
-            vm.stack.push(new Arg(arg.offset, true))
+            vm.stack.push(new Element(bigIntToUint8Array(1n), new ArgDynamicLength(v.label.offset)))
+          } else if (v.label instanceof ArgDynamic) {
+            vm.stack.peek().label = new Arg(v.label.offset, true)
           } else {
-            const off = uint8ArrayToBigInt(arg)
+            const off = uint8ArrayToBigInt(v.data)
             if (off >= 4n && off < 2n ** 32n) {
-              vm.stack.pop()
-              vm.stack.push(new Arg(Number(off)))
+              vm.stack.peek().label = new Arg(Number(off))
               args[off] = ''
             }
           }
@@ -117,25 +115,25 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
       case Op.ADD:
         {
           const [r2, r3] = [ret[2], ret[3]]
-          if (r2 instanceof Arg || r3 instanceof Arg) {
-            const [arg, ot] = r2 instanceof Arg ? [r2, r3] : [r3, r2]
-            const v = vm.stack.pop()
+          if (r2.label instanceof Arg || r3.label instanceof Arg) {
+            const [v, ot] = r2.label instanceof Arg ? [r2.label, r3.data] : [r3.label, r2.data]
+
+            const p = vm.stack.peek()
             if (uint8ArrayToBigInt(ot) === 4n) {
-              vm.stack.push(new Arg(arg.offset, false, v))
+              p.label = new Arg(v.offset, false)
             } else {
-              vm.stack.push(new ArgDynamic(arg.offset, v))
+              p.label = new ArgDynamic(v.offset)
             }
-          } else if (r2 instanceof ArgDynamic || r3 instanceof ArgDynamic) {
-            const v = vm.stack.pop()
-            const arg = r2 instanceof ArgDynamic ? r2 : r3
-            vm.stack.push(new ArgDynamic(arg.offset, v))
+          } else if (r2.label instanceof ArgDynamic || r3.label instanceof ArgDynamic) {
+            const arg = r2.label instanceof ArgDynamic ? r2.label : r3.label
+            vm.stack.peek().label = new ArgDynamic(arg.offset)
           }
         }
         break
 
       case Op.SHL:
         {
-          const [r2, arg] = [uint8ArrayToBigInt(ret[2]), ret[3]]
+          const [r2, arg] = [uint8ArrayToBigInt(ret[2].data), ret[3].label]
           if (r2 == 5n && arg instanceof ArgDynamicLength) {
             args[arg.offset] = 'uint256[]'
           }
@@ -144,18 +142,10 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       case Op.MUL:
         {
-          if (
-            ret[3] instanceof ArgDynamicLength &&
-            uint8ArrayToBigInt(ret[2]) == 32n
-          ) {
-            args[ret[3].offset] = 'uint256[]'
-          }
-
-          if (
-            ret[2] instanceof ArgDynamicLength &&
-            uint8ArrayToBigInt(ret[3]) == 32n
-          ) {
-            args[ret[2].offset] = 'uint256[]'
+          if (ret[3].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[2].data) == 32n) {
+            args[ret[3].label.offset] = 'uint256[]'
+          } else if (ret[2].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[3].data) == 32n) {
+            args[ret[2].label.offset] = 'uint256[]'
           }
         }
         break
@@ -163,8 +153,8 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
       case Op.AND:
         {
           const [r2, r3] = [ret[2], ret[3]]
-          if (r2 instanceof Arg || r3 instanceof Arg) {
-            const [arg, ot] = r2 instanceof Arg ? [r2, r3] : [r3, r2]
+          if (r2.label instanceof Arg || r3.label instanceof Arg) {
+            const [arg, ot] = r2.label instanceof Arg ? [r2.label, r3.data] : [r3.label, r2.data]
 
             const v = uint8ArrayToBigInt(ot)
             if (v === 0n) {
@@ -193,32 +183,31 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       case Op.ISZERO:
         {
-          const arg = ret[2]
-          if (arg instanceof Arg) {
-            const v = vm.stack.pop()
-            vm.stack.push(new IsZeroResult(arg.offset, arg.dynamic, v))
-          } else if (arg instanceof IsZeroResult) {
-            args[arg.offset] = arg.dynamic ? 'bool[]' : 'bool'
+          const v = ret[2].label
+          if (v instanceof Arg) {
+            vm.stack.peek().label = new IsZeroResult(v.offset, v.dynamic)
+          } else if (v instanceof IsZeroResult) {
+            args[v.offset] = v.dynamic ? 'bool[]' : 'bool'
           }
         }
         break
 
       case Op.SIGNEXTEND:
         {
-          const arg = ret[3]
-          if (arg instanceof Arg && ret[2] < 32n) {
+          const v = ret[3].label
+          if (v instanceof Arg && ret[2] < 32n) {
             const t = `int${(Number(ret[2]) + 1) * 8}`
-            args[arg.offset] = arg.dynamic ? `${t}[]` : t
+            args[v.offset] = v.dynamic ? `${t}[]` : t
           }
         }
         break
 
       case Op.BYTE:
         {
-          const arg = ret[3]
-          if (arg instanceof Arg) {
-            if (args[arg.offset] === '') {
-              args[arg.offset] = 'bytes32'
+          const v = ret[3].label
+          if (v instanceof Arg) {
+            if (args[v.offset] === '') {
+              args[v.offset] = 'bytes32'
             }
           }
         }

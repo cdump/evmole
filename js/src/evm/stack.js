@@ -1,4 +1,5 @@
 import { bigIntToUint8Array, uint8ArrayToBigInt } from '../utils.js'
+import Element from './element.js'
 
 export class StackIndexError extends Error {}
 
@@ -9,7 +10,7 @@ export default class Stack {
 
   toString() {
     let r = `${this._data.length} elems:\n`
-    r += this._data.map((el) => `  - ${el.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${el.constructor.name}`).join('\n')
+    r += this._data.map((el) => `  - ${el.toString()}`).join('\n')
     return r
   }
 
@@ -51,10 +52,10 @@ export default class Stack {
   }
 
   push_uint(val) {
-    this.push(bigIntToUint8Array(val))
+    this.push(new Element(bigIntToUint8Array(val)))
   }
 
   pop_uint() {
-    return uint8ArrayToBigInt(this.pop())
+    return uint8ArrayToBigInt(this.pop().data)
   }
 }
