@@ -145,3 +145,14 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
     );
     selectors
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_code() {
+        let s = function_selectors(&[], 0);
+        assert_eq!(s.len(), 0);
+    }
+}

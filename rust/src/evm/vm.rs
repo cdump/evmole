@@ -57,7 +57,7 @@ where
             f,
             "Vm:\n .pc = {:x} | {}\n .stack = {:?}\n .memory = {:?}",
             self.pc,
-            op::name(self.code[self.pc]),
+            if !self.stopped { op::name(self.code[self.pc]) } else { "" },
             self.stack,
             self.memory
         )
@@ -74,7 +74,7 @@ where
             pc: 0,
             stack: Stack::new(),
             memory: Memory::new(),
-            stopped: false,
+            stopped: code.is_empty(),
             calldata,
         }
     }
