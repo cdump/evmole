@@ -26,14 +26,14 @@ class Vm:
         self.pc = 0
         self.stack = Stack()
         self.memory = Memory()
-        self.stopped = False
+        self.stopped = len(code) == 0
         self.calldata = calldata
 
     def __str__(self):
         return '\n'.join(
             (
                 'Vm:',
-                f' .pc = {hex(self.pc)} | {opcode2name(self.current_op())}',
+                f' .pc = {hex(self.pc)} | {opcode2name(self.current_op()) if not self.stopped else ""}',
                 f' .stack = {self.stack}',
                 f' .memory = {self.memory}',
             )
