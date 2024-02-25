@@ -230,7 +230,7 @@ class Vm:
                 return (5, s0, raws1)
 
             case Op.ADDRESS:
-                self.stack.push_uint(1)
+                self.stack.push_uint(0)
                 return (2,)
 
             case Op.CALLDATACOPY:
@@ -242,6 +242,15 @@ class Vm:
                 value = self.calldata.load(src_off, size)
                 self.memory.store(mem_off, value)
                 return (4,)
+
+            case Op.ORIGIN | Op.CALLER:
+                self.stack.push_uint(0)
+                return (2,)
+
+            case Op.SLOAD:
+                self.stack.pop()
+                self.stack.push_uint(0)
+                return (100,)
 
             case _:
                 raise UnsupportedOpError(op)

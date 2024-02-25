@@ -362,7 +362,7 @@ where
 
             op::ADDRESS => {
                 self.stack.push(Element {
-                    data: VAL_1_B,
+                    data: VAL_0_B,
                     label: None,
                 });
                 Ok(StepResult::new(op, 2))
@@ -388,6 +388,23 @@ where
                     self.memory.store(mem_off32, data, value.label);
                     Ok(StepResult::new(op, 4))
                 }
+            }
+
+            op::ORIGIN | op::CALLER => {
+                self.stack.push(Element {
+                    data: VAL_0_B,
+                    label: None,
+                });
+                Ok(StepResult::new(op, 2))
+            }
+
+            op::SLOAD => {
+                let _ = self.stack.pop();
+                self.stack.push(Element {
+                    data: VAL_0_B,
+                    label: None,
+                });
+                Ok(StepResult::new(op, 100))
             }
 
             _ => Err(UnsupportedOpError { op }.into()),

@@ -265,7 +265,7 @@ export class Vm {
       }
 
       case Op.ADDRESS: {
-        this.stack.push_uint(1n)
+        this.stack.push_uint(0n)
         return [2]
       }
 
@@ -279,6 +279,18 @@ export class Vm {
         const value = this.calldata.load(src_off, size)
         this.memory.store(mem_off, value)
         return [4]
+      }
+
+      case Op.ORIGIN:
+      case Op.CALLER: {
+        this.stack.push_uint(0n)
+        return [2]
+      }
+
+      case Op.SLOAD: {
+        this.stack.pop()
+        this.stack.push_uint(0n)
+        return [100]
       }
 
       default:
