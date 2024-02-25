@@ -44,7 +44,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 break
 
             if inside_function:
-                # print(vm, '\n')
+                # print(vm, '\n', sep='')
                 # print(ret)
                 pass
         except (StackIndexError, UnsupportedOpError) as ex:

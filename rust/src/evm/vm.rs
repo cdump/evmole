@@ -55,7 +55,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Vm:\n .pc = {:x} | {}\n .stack = {:?}\n .memory = {:?}",
+            "Vm:\n .pc = 0x{:x} | {}\n .stack = {:?}\n .memory = {:?}",
             self.pc,
             if !self.stopped { op::name(self.code[self.pc]) } else { "" },
             self.stack,

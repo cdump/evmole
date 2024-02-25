@@ -9,7 +9,7 @@ export default class Element {
   }
 
   toString() {
-    return `${this.data.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${this.label !== undefined ? this.label : ''}`
+    return `${this.data.reduce((acc, v) => acc + v.toString(16).padStart(2, '0'), '')} | ${this.label !== undefined ? this.label : 'None'}`
   }
 
   load(offset, size = 32) {

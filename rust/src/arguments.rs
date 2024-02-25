@@ -219,6 +219,7 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
             }
             continue;
         }
+        // println!("{:?}\n", vm);
 
         if analyze(&mut vm, &mut args, ret).is_err() {
             break;
