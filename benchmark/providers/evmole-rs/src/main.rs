@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::io::Write;
-use std::{env, fs, process};
+use std::fs;
+
+use clap::Parser;
 
 use hex::FromHex;
 
@@ -9,30 +11,53 @@ struct Input {
     code: String,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<_> = env::args().collect();
-    if args.len() < 4 {
-        eprintln!("Usage: ./main MODE INPUT_DIR OUTPUT_FILE [SELECTORS_FILE]");
-        process::exit(1);
-    }
-    let mode = &args[1];
-    let indir = &args[2];
-    let outfile = &args[3];
+#[derive(Parser, Debug)]
+struct Args {
+    mode: String,
 
-    let selectors: HashMap<String, Vec<String>> = if mode == "arguments" {
-        let file_content = fs::read_to_string(&args[4])?;
+    input_dir: String,
+
+    output_file: String,
+
+    selectors_file: Option<String>,
+
+    #[arg(long)]
+    filter_filename: Option<String>,
+
+    #[arg(long)]
+    filter_selector: Option<String>,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cfg = Args::parse();
+
+    let selectors: HashMap<String, Vec<String>> = if cfg.mode == "arguments" {
+        let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
         serde_json::from_str(&file_content)?
     } else {
         HashMap::new()
     };
 
+    let only_selector = if let Some(s) = cfg.filter_selector {
+        vec![s]
+    } else {
+        vec![]
+    };
+
     let mut ret_selectors: HashMap<String, Vec<String>> = HashMap::new();
     let mut ret_arguments: HashMap<String, HashMap<String, String>> = HashMap::new();
 
-    for entry in fs::read_dir(indir)? {
+    for entry in fs::read_dir(cfg.input_dir)? {
         let entry = entry?;
         let path = entry.path();
         let fname = entry.file_name().to_str().unwrap().to_string();
+
+        if let Some(ref v) = cfg.filter_filename {
+            if !fname.contains(v) {
+                continue
+            }
+        }
+
         let hex_code: String = {
             let file_content = fs::read_to_string(path)?;
             let v: Input = serde_json::from_str(&file_content)?;
@@ -42,8 +67,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // println!("processing {}", fname);
 
-        if mode == "arguments" {
-            let r: HashMap<String, String> = selectors[&fname]
+        if cfg.mode == "arguments" {
+            let fsel = if !only_selector.is_empty() {
+                &only_selector
+            } else {
+                &selectors[&fname]
+            };
+
+            let r: HashMap<String, String> = fsel
                 .iter()
                 .map(|s| {
                     let selector = <[u8; 4]>::from_hex(s).unwrap();
@@ -61,8 +92,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let mut file = fs::File::create(outfile)?;
-    if mode == "arguments" {
+    let mut file = fs::File::create(cfg.output_file)?;
+    if cfg.mode == "arguments" {
         let _ = serde_json::to_writer(&mut file, &ret_arguments);
     } else {
         let _ = serde_json::to_writer(&mut file, &ret_selectors);
