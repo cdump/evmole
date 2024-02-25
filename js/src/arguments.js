@@ -42,6 +42,34 @@ class IsZeroResult {
   }
 }
 
+class ArgsResult {
+  constructor() {
+    this.args = {}
+  }
+  set(offset, atype) {
+    this.args[offset] = atype
+  }
+
+  setIf(offset, if_val, atype) {
+    const v = this.args[offset]
+    if (v !== undefined) {
+      if (v === if_val) {
+        this.args[offset] = atype
+      }
+    } else if (atype === '') {
+      this.args[offset] = atype
+    }
+  }
+
+  joinToString() {
+    const collator = new Intl.Collator([], { numeric: true })
+    return Object.entries(this.args)
+      .sort((a, b) => collator.compare(a, b))
+      .map((v) => (v[1] !== '' ? v[1] : 'uint256'))
+      .join(',')
+  }
+}
+
 export function functionArguments(code, selector, gas_limit = 1e4) {
   const code_arr = toUint8Array(code)
   const selector_arr = toUint8Array(selector)
@@ -49,7 +77,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
   let gas_used = 0
   let inside_function = false
-  let args = {}
+  let args = new ArgsResult()
 
   while (!vm.stopped) {
     // console.log(vm.toString());
@@ -97,16 +125,19 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
         {
           const v = ret[2]
           if (v.label instanceof Arg) {
-            args[v.label.offset] = 'bytes'
+            args.set(v.label.offset, 'bytes')
             vm.stack.pop()
             vm.stack.push(new Element(bigIntToUint8Array(1n), new ArgDynamicLength(v.label.offset)))
           } else if (v.label instanceof ArgDynamic) {
-            vm.stack.peek().label = new Arg(v.label.offset, true)
+            vm.stack.pop()
+            vm.stack.push(new Element(bigIntToUint8Array(0n), new Arg(v.label.offset, true)))
           } else {
             const off = uint8ArrayToBigInt(v.data)
             if (off >= 4n && off < 2n ** 32n) {
-              vm.stack.peek().label = new Arg(Number(off))
-              args[off] = ''
+              vm.stack.pop()
+              vm.stack.push(new Element(bigIntToUint8Array(0n), new Arg(Number(off))))
+
+              args.setIf(off, '', '')
             }
           }
         }
@@ -135,17 +166,21 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
         {
           const [r2, arg] = [uint8ArrayToBigInt(ret[2].data), ret[3].label]
           if (r2 == 5n && arg instanceof ArgDynamicLength) {
-            args[arg.offset] = 'uint256[]'
+            args.set(arg.offset, 'uint256[]')
           }
         }
         break
 
       case Op.MUL:
         {
-          if (ret[3].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[2].data) == 32n) {
-            args[ret[3].label.offset] = 'uint256[]'
-          } else if (ret[2].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[3].data) == 32n) {
-            args[ret[2].label.offset] = 'uint256[]'
+          if (ret[2].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[3].data) == 32n) {
+            args.set(ret[2].label.offset, 'uint256[]')
+          } else if (ret[3].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[2].data) == 32n) {
+            args.set(ret[3].label.offset, 'uint256[]')
+          } else if (ret[2].label instanceof Arg) {
+            args.setIf(ret[2].label.offset, 'bool', '')
+          } else if (ret[3].label instanceof Arg) {
+            args.setIf(ret[3].label.offset, 'bool', '')
           }
         }
         break
@@ -164,7 +199,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
               const bl = bigIntBitLength(v)
               if (bl % 8 === 0) {
                 const t = bl === 160 ? 'address' : `uint${bl}`
-                args[arg.offset] = arg.dynamic ? `${t}[]` : t
+                args.set(arg.offset, arg.dynamic ? `${t}[]` : t)
               }
             } else {
               // 0xffff0000
@@ -173,7 +208,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
                 const bl = bigIntBitLength(v)
                 if (bl % 8 == 0) {
                   const t = `bytes${bl / 8}`
-                  args[arg.offset] = arg.dynamic ? `${t}[]` : t
+                  args.set(arg.offset, arg.dynamic ? `${t}[]` : t)
                 }
               }
             }
@@ -187,7 +222,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
           if (v instanceof Arg) {
             vm.stack.peek().label = new IsZeroResult(v.offset, v.dynamic)
           } else if (v instanceof IsZeroResult) {
-            args[v.offset] = v.dynamic ? 'bool[]' : 'bool'
+            args.set(v.offset, v.dynamic ? 'bool[]' : 'bool')
           }
         }
         break
@@ -197,7 +232,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
           const v = ret[3].label
           if (v instanceof Arg && ret[2] < 32n) {
             const t = `int${(Number(ret[2]) + 1) * 8}`
-            args[v.offset] = v.dynamic ? `${t}[]` : t
+            args.set(v.offset, v.dynamic ? `${t}[]` : t)
           }
         }
         break
@@ -206,18 +241,12 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
         {
           const v = ret[3].label
           if (v instanceof Arg) {
-            if (args[v.offset] === '') {
-              args[v.offset] = 'bytes32'
-            }
+            args.setIf(v.offset, '', 'bytes32')
           }
         }
         break
     }
   }
 
-  var collator = new Intl.Collator([], { numeric: true })
-  return Object.entries(args)
-    .sort((a, b) => collator.compare(a, b))
-    .map((v) => (v[1] !== '' ? v[1] : 'uint256'))
-    .join(',')
+  return args.joinToString()
 }

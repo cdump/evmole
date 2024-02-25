@@ -21,9 +21,44 @@ enum Label {
     IsZeroResult(u32, bool),
 }
 
+struct ArgsResult {
+    pub args: BTreeMap<u32, String>,
+}
+impl ArgsResult {
+    pub fn new() -> ArgsResult {
+        ArgsResult {
+            args: BTreeMap::new(),
+        }
+    }
+
+    pub fn set(&mut self, offset: u32, atype: &str) {
+        self.args.insert(offset, atype.to_string());
+    }
+
+    pub fn set_if(&mut self, offset: u32, if_val: &str, atype: &str) {
+        if let Some(v) = self.args.get_mut(&offset) {
+            if v == if_val {
+                *v = atype.to_string();
+            }
+        } else if atype.is_empty() {
+            self.args.insert(offset, atype.to_string());
+        }
+    }
+
+    pub fn join_to_string(&self) -> String {
+        let a: Vec<_> = self
+            .args
+            .values()
+            .map(|v| if !v.is_empty() { v } else { "uint256" })
+            .collect();
+
+        a.join(",")
+    }
+}
+
 fn analyze(
     vm: &mut Vm<Label>,
-    args: &mut BTreeMap<u32, String>,
+    args: &mut ArgsResult,
     ret: StepResult<Label>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ret {
@@ -35,7 +70,7 @@ fn analyze(
 
         StepResult{op: op::CALLDATALOAD, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
         {
-            args.insert(off, "bytes".to_string());
+            args.set(off, "bytes");
             let v = vm.stack.peek_mut()?;
             *v = Element{data: VAL_1_B, label: Some(Label::ArgDynamicLength(off))};
         }
@@ -54,9 +89,15 @@ fn analyze(
                 if off >= 4 {
                     let v = vm.stack.peek_mut()?;
                     *v = Element{data: [0; 32], label: Some(Label::Arg(off, false))};
-                    args.insert(off, "".to_string());
+                    args.set_if(off, "", "");
                 }
             }
+        }
+
+          StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), sa: Some(_), ..}
+        | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), fa: Some(_), ..} =>
+        {
+            args.set_if(off, "bool", "");
         }
 
           StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), sa: Some(ot), ..}
@@ -80,7 +121,7 @@ fn analyze(
         StepResult{op: op::SHL, fa: Some(ot), sa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), ..} =>
         {
           if ot.data == VAL_5_B {
-            args.insert(off, "uint256[]".to_string());
+            args.set(off, "uint256[]");
           }
         }
 
@@ -88,7 +129,7 @@ fn analyze(
         | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), fa: Some(ot), ..} =>
         {
             if ot.data == VAL_32_B {
-              args.insert(off, "uint256[]".to_string());
+              args.set(off, "uint256[]");
             }
         }
 
@@ -103,7 +144,7 @@ fn analyze(
                 let bl = v.bit_len();
                 if bl % 8 == 0 {
                     let t = if bl == 160 { "address".to_string() } else { format!("uint{bl}") };
-                    args.insert(off, if dynamic { t + "[]" } else { t });
+                    args.set(off, &if dynamic { t + "[]" } else { t });
                 }
             } else {
                 // 0xffff0000
@@ -112,7 +153,7 @@ fn analyze(
                     let bl = v.bit_len();
                     if bl % 8 == 0 {
                         let t = format!("bytes{}", bl / 8);
-                        args.insert(off, if dynamic { t + "[]" } else { t });
+                        args.set(off, &if dynamic { t + "[]" } else { t });
                     }
                 }
             }
@@ -126,7 +167,7 @@ fn analyze(
 
         StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::IsZeroResult(off, dynamic)), ..}), ..} =>
         {
-            args.insert(off, (if dynamic { "bool[]" } else { "bool" }).to_string());
+            args.set(off, if dynamic { "bool[]" } else { "bool" });
         }
 
         StepResult{op: op::SIGNEXTEND, fa: Some(s0), sa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), ..} =>
@@ -134,17 +175,13 @@ fn analyze(
             if s0.data < VAL_32_B {
                 let s0: u8 = s0.data[31];
                 let t = format!("int{}{}", (s0+1)*8, if dynamic { "[]" } else { "" });
-                args.insert(off, t);
+                args.set(off, &t);
             }
         }
 
         StepResult{op: op::BYTE, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
         {
-            if let Some(v) = args.get_mut(&off) {
-                if v.is_empty() {
-                    *v = "bytes32".to_string();
-                }
-            }
+            args.set_if(off, "", "bytes32");
         }
 
         _ => {}
@@ -184,7 +221,7 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
             label: Some(Label::CallData),
         },
     );
-    let mut args: BTreeMap<u32, String> = BTreeMap::new();
+    let mut args = ArgsResult::new();
     let mut gas_used = 0;
     let mut inside_function = false;
     let real_gas_limit = if gas_limit == 0 {
@@ -226,10 +263,5 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
         }
     }
 
-    let a: Vec<_> = args
-        .values()
-        .map(|v| if !v.is_empty() { v } else { "uint256" })
-        .collect();
-
-    a.join(",")
+    args.join_to_string()
 }
