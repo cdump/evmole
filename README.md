@@ -111,11 +111,11 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.6s · 1.4s · 1.5s</td>
-  <td>2.6s</td>
+  <td>0.7s · 1.5s · 2.0s</td>
+  <td>3.0s</td>
   <td>0.7s</td>
-  <td>598.6s</td>
-  <td>1.4s</td>
+  <td>727.2s</td>
+  <td>1.9s</td>
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
@@ -140,6 +140,7 @@ See [examples](./examples) for more
   <td>3 🥇</td>
   <td>51</td>
   <td>10798</td>
+  <!-- -->
   <td>14652</td>
  </tr>
  <tr>
@@ -147,16 +148,18 @@ See [examples](./examples) for more
   <td>10 🥇</td>
   <td>32</td>
   <td>3538</td>
+  <!-- -->
   <td>96</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>7.3s · 17.4s · 25.7s</td>
-  <td>46.8s</td>
-  <td>10.2s</td>
-  <td>33.9s</td>
+  <td>9.8s · 19.6s · 36.4s</td>
+  <td>52.3s</td>
+  <td>11.5s</td>
+  <!-- -->
+  <td>46.3s</td>
  </tr>
- <tr><td colspan="7"></td></tr>
+ <tr><td colspan="8"></td></tr>
  <tr>
   <td rowspan="5"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
@@ -192,11 +195,11 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s · 0.8s · 1.0s</td>
-  <td>1.9s</td>
-  <td>0.5s</td>
-  <td>15.5s</td>
-  <td>1.0s</td>
+  <td>0.6s · 0.9s · 1.4s</td>
+  <td>2.3s</td>
+  <td>0.6s</td>
+  <td>17.0s</td>
+  <td>1.2s</td>
  </tr>
 </table>
 
@@ -214,49 +217,49 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>15.0%, 3664 🥇</td>
-  <td>42.6%, 10414</td>
+  <td>15.0%, 3652 🥇</td>
+  <td>42.7%, 10438</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.8s · 6.0s · 9.6s</td>
-  <td>602.9s</td>
-  <td>0.6s</td>
+  <td>1.1s · 7.5s · 15.7s</td>
+  <td>731.4s</td>
+  <td>0.8s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>5.4%, 63124 🥇</td>
+  <td>5.1%, 59484 🥇</td>
   <td rowspan="2">waiting fixes</td>
   <td>54.9%, 643213</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>17.2s · 179.2s · 300.9s</td>
+  <td>22.6s · 247.0s · 584.7s</td>
   <!-- -->
-  <td>8.1s</td>
+  <td>9.5s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>52.4%, 11123 🥇</td>
+  <td>50.9%, 10805 🥇</td>
   <td>100.0%, 21244</td>
   <td>56.8%, 12077</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.8s · 7.0s · 12.9s</td>
-  <td>15.6s</td>
-  <td>0.6s</td>
+  <td>0.9s · 7.3s · 13.9s</td>
+  <td>16.8s</td>
+  <td>0.7s</td>
  </tr>
 </table>
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.3.1; whatsabi v0.10.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
+<i>versions: evmole v0.3.3; whatsabi v0.11.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
 
 ## How it works
 
