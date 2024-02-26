@@ -5,9 +5,9 @@ class Element:
     __match_args__ = ('label',)
 
     data: bytes
-    label: Any|None
+    label: Any | None
 
-    def __init__(self, data: bytes, label: Any|None = None):
+    def __init__(self, data: bytes, label: Any | None = None):
         self.data = data
         self.label = label
 
