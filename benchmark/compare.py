@@ -46,7 +46,7 @@ def markdown_selectors(providers: list[str], all_results: list):
         cnt_contracts = len(dataset_result['results'])
         cnt_funcs = sum(len(x['ground_truth']) for x in dataset_result['results'])
         print(' <tr>')
-        print(f'  <td rowspan="5"><b>{dataset_name}</b><br><sub>{cnt_contracts} contracts<br><br>{cnt_funcs} functions</sub></td>')
+        print(f'  <td rowspan="5"><b>{dataset_name}</b><br><sub>{cnt_contracts}<br>contracts<br><br>{cnt_funcs}<br>functions</sub></td>')
         print('  <td><i>FP <sub>contracts</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fp_contracts = sum(len(x['data'][idx][0]) > 0 for x in dataset_result['results'])
@@ -92,7 +92,7 @@ def markdown_arguments(providers: list[str], all_results: list):
         cnt_contracts = len(dataset_result['results'])
         cnt_funcs = sum(len(x['func']) for x in dataset_result['results'])
         print(' <tr>')
-        print(f'  <td rowspan="2"><b>{dataset_name}</b><br><sub>{cnt_contracts} contracts<br><br>{cnt_funcs} functions</sub></td>')
+        print(f'  <td rowspan="2"><b>{dataset_name}</b><br><sub>{cnt_contracts}<br>contracts<br><br>{cnt_funcs}<br>functions</sub></td>')
         print('  <td><i>Errors</i></td>')
         for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
             bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
