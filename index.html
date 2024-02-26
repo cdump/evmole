@@ -7,7 +7,7 @@
   <script src="//cdn.jsdelivr.net/npm/vue@3.3.8/dist/vue.global.prod.js"></script>
   <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/element-plus@2.4.2/dist/index.css" />
   <script src="//cdn.jsdelivr.net/npm/element-plus@2.4.2/dist/index.full.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/evmole@0.3.2"></script>
+  <script src="//cdn.jsdelivr.net/npm/evmole@0.3.3"></script>
 <style>
 body {
   font-family: Monospace;
@@ -58,7 +58,7 @@ p, h1 {
       <h1>EVMole demo</h1>
 
       <p>
-        Function Selector & Arguments Extractor: <a href="https://github.com/cdump/evmole" target="_blank">cdump/evmole</a> (v0.3.2)
+        Function Selector & Arguments Extractor: <a href="https://github.com/cdump/evmole" target="_blank">cdump/evmole</a> (v0.3.3)
       </p>
 
       <p>
@@ -175,13 +175,17 @@ createApp({
       location.hash = `${address}/${addressForm.rpc}`;
 
       bytecode_loading.value = true;
+      code.value = '';
       selectors.value = [];
       code.value = await load_code(addressForm.rpc, address);
       bytecode_loading.value = false;
     };
 
     watch(code, async (val) => {
-      const s = evmole.functionSelectors(code.value).map((v) => `0x${v}`);
+      if (val == '') {
+        return;
+      }
+      const s = evmole.functionSelectors(code.value).map((v) => `0x${v}`).sort();
       selectors.value = s;
 
       const args = Object.fromEntries(s.map((s) => [s, evmole.functionArguments(code.value, s)]));
