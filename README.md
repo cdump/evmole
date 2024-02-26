@@ -59,6 +59,25 @@ print( function_arguments(code, '2125b65b') )
 # Output(str): 'uint32,address,uint224'
 ```
 
+### Foundry
+<a href="https://getfoundry.sh/">Foundy's cast</a> uses the Rust implementation of EVMole
+```sh
+
+$ cast selectors $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
+0x06fdde03	
+0x095ea7b3	address,uint256
+0x18160ddd	
+0x23b872dd	address,address,uint256
+...
+
+$ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
+0x06fdde03	                       	name()
+0x095ea7b3	address,uint256        	approve(address,uint256)
+0x18160ddd	                       	totalSupply()
+0x23b872dd	address,address,uint256	transferFrom(address,address,uint256)
+...
+```
+
 See [examples](./examples) for more
 
 ## Benchmark
