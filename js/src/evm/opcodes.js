@@ -59,6 +59,8 @@ export default class Op {
   static CHAINID = 0x46
   static SELFBALANCE = 0x47
   static BASEFEE = 0x48
+  static BLOBHASH = 0x49
+  static BLOBBASEFEE = 0x4a
 
   static POP = 0x50
   static MLOAD = 0x51
@@ -72,6 +74,9 @@ export default class Op {
   static MSIZE = 0x59
   static GAS = 0x5a
   static JUMPDEST = 0x5b
+  static TLOAD = 0x5c
+  static TSTORE = 0x5d
+  static MCOPY = 0x5e
   static PUSH0 = 0x5f
 
   static PUSH1 = 0x60

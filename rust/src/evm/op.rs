@@ -3,7 +3,7 @@
 pub type OpCode = u8;
 
 #[rustfmt::skip]
-const NAMES: [&str; 256] = ["STOP","ADD","MUL","SUB","DIV","SDIV","MOD","SMOD","ADDMOD","MULMOD","EXP","SIGNEXTEND","?","?","?","?","LT","GT","SLT","SGT","EQ","ISZERO","AND","OR","XOR","NOT","BYTE","SHL","SHR","SAR","?","?","KECCAK256","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","ADDRESS","BALANCE","ORIGIN","CALLER","CALLVALUE","CALLDATALOAD","CALLDATASIZE","CALLDATACOPY","CODESIZE","CODECOPY","GASPRICE","EXTCODESIZE","EXTCODECOPY","RETURNDATASIZE","RETURNDATACOPY","EXTCODEHASH","BLOCKHASH","COINBASE","TIMESTAMP","NUMBER","DIFFICULTY","GASLIMIT","CHAINID","SELFBALANCE","BASEFEE","?","?","?","?","?","?","?","POP","MLOAD","MSTORE","MSTORE8","SLOAD","SSTORE","JUMP","JUMPI","PC","MSIZE","GAS","JUMPDEST","?","?","?","PUSH0","PUSH1","PUSH2","PUSH3","PUSH4","PUSH5","PUSH6","PUSH7","PUSH8","PUSH9","PUSH10","PUSH11","PUSH12","PUSH13","PUSH14","PUSH15","PUSH16","PUSH17","PUSH18","PUSH19","PUSH20","PUSH21","PUSH22","PUSH23","PUSH24","PUSH25","PUSH26","PUSH27","PUSH28","PUSH29","PUSH30","PUSH31","PUSH32","DUP1","DUP2","DUP3","DUP4","DUP5","DUP6","DUP7","DUP8","DUP9","DUP10","DUP11","DUP12","DUP13","DUP14","DUP15","DUP16","SWAP1","SWAP2","SWAP3","SWAP4","SWAP5","SWAP6","SWAP7","SWAP8","SWAP9","SWAP10","SWAP11","SWAP12","SWAP13","SWAP14","SWAP15","SWAP16","LOG0","LOG1","LOG2","LOG3","LOG4","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","CREATE","CALL","CALLCODE","RETURN","DELEGATECALL","CREATE2","?","?","?","?","STATICCALL","?","?","REVERT","INVALID","SELFDESTRUCT"];
+const NAMES: [&str; 256] = ["STOP","ADD","MUL","SUB","DIV","SDIV","MOD","SMOD","ADDMOD","MULMOD","EXP","SIGNEXTEND","?","?","?","?","LT","GT","SLT","SGT","EQ","ISZERO","AND","OR","XOR","NOT","BYTE","SHL","SHR","SAR","?","?","KECCAK256","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","ADDRESS","BALANCE","ORIGIN","CALLER","CALLVALUE","CALLDATALOAD","CALLDATASIZE","CALLDATACOPY","CODESIZE","CODECOPY","GASPRICE","EXTCODESIZE","EXTCODECOPY","RETURNDATASIZE","RETURNDATACOPY","EXTCODEHASH","BLOCKHASH","COINBASE","TIMESTAMP","NUMBER","DIFFICULTY","GASLIMIT","CHAINID","SELFBALANCE","BASEFEE","BLOBHASH","BLOBBASEFEE","?","?","?","?","?","POP","MLOAD","MSTORE","MSTORE8","SLOAD","SSTORE","JUMP","JUMPI","PC","MSIZE","GAS","JUMPDEST","TLOAD","TSTORE","MCOPY","PUSH0","PUSH1","PUSH2","PUSH3","PUSH4","PUSH5","PUSH6","PUSH7","PUSH8","PUSH9","PUSH10","PUSH11","PUSH12","PUSH13","PUSH14","PUSH15","PUSH16","PUSH17","PUSH18","PUSH19","PUSH20","PUSH21","PUSH22","PUSH23","PUSH24","PUSH25","PUSH26","PUSH27","PUSH28","PUSH29","PUSH30","PUSH31","PUSH32","DUP1","DUP2","DUP3","DUP4","DUP5","DUP6","DUP7","DUP8","DUP9","DUP10","DUP11","DUP12","DUP13","DUP14","DUP15","DUP16","SWAP1","SWAP2","SWAP3","SWAP4","SWAP5","SWAP6","SWAP7","SWAP8","SWAP9","SWAP10","SWAP11","SWAP12","SWAP13","SWAP14","SWAP15","SWAP16","LOG0","LOG1","LOG2","LOG3","LOG4","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","CREATE","CALL","CALLCODE","RETURN","DELEGATECALL","CREATE2","?","?","?","?","STATICCALL","?","?","REVERT","INVALID","SELFDESTRUCT"];
 
 pub fn name(op: OpCode) -> &'static str {
     NAMES[op as usize]
@@ -65,6 +65,8 @@ pub const GASLIMIT: OpCode = 0x45;
 pub const CHAINID: OpCode = 0x46;
 pub const SELFBALANCE: OpCode = 0x47;
 pub const BASEFEE: OpCode = 0x48;
+pub const BLOBHASH: OpCode = 0x49;
+pub const BLOBBASEFEE: OpCode = 0x4A;
 
 pub const POP: OpCode = 0x50;
 pub const MLOAD: OpCode = 0x51;
@@ -78,6 +80,9 @@ pub const PC: OpCode = 0x58;
 pub const MSIZE: OpCode = 0x59;
 pub const GAS: OpCode = 0x5A;
 pub const JUMPDEST: OpCode = 0x5B;
+pub const TLOAD: OpCode = 0x5C;
+pub const TSTORE: OpCode = 0x5D;
+pub const MCOPY: OpCode = 0x5E;
 pub const PUSH0: OpCode = 0x5F;
 
 pub const PUSH1: OpCode = 0x60;

@@ -60,6 +60,8 @@ class Op:
     CHAINID = 0x46
     SELFBALANCE = 0x47
     BASEFEE = 0x48
+    BLOBHASH = 0x49
+    BLOBBASEFEE = 0x4A
 
     POP = 0x50
     MLOAD = 0x51
@@ -73,6 +75,9 @@ class Op:
     MSIZE = 0x59
     GAS = 0x5A
     JUMPDEST = 0x5B
+    TLOAD = 0x5C
+    TSTORE = 0x5D
+    MCOPY = 0x5E
     PUSH0 = 0x5F
 
     PUSH1 = 0x60
