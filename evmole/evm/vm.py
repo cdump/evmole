@@ -100,8 +100,8 @@ class Vm:
             case Op.JUMPDEST:
                 return (1,)
 
-            case Op.REVERT:
-                # skip 2 stack pop()s
+            case Op.REVERT | Op.STOP | Op.RETURN:
+                # skip stack pop()s
                 self.stopped = True
                 return (4,)
 
@@ -122,6 +122,9 @@ class Vm:
 
             case Op.DIV:
                 return self._bop(lambda raws0, s0, raws1, s1: (5, 0 if s1 == 0 else s0 // s1))
+
+            case Op.MOD:
+                return self._bop(lambda raws0, s0, raws1, s1: (5, 0 if s1 == 0 else s0 % s1))
 
             case Op.MUL:
                 return self._bop(lambda raws0, s0, raws1, s1: (5, (s0 * s1) & E256M1))
@@ -191,6 +194,17 @@ class Vm:
                 self.stack.swap(op - Op.SWAP1 + 1)
                 return (3,)
 
+            case Op.MSIZE:
+                self.stack.push_uint(self.memory.size())
+                return (2,)
+
+            case Op.MSTORE8:
+                offset = self.stack.pop_uint()
+                value = self.stack.pop()
+                el = Element(data=value.data[31:32], label=value.label)
+                self.memory.store(offset, el)
+                return (3,)
+
             case Op.MSTORE:
                 offset = self.stack.pop_uint()
                 value = self.stack.pop()
@@ -224,7 +238,7 @@ class Vm:
                 self.stack.push_uint(res)
                 return (5, s0, raws1)
 
-            case Op.ADDRESS:
+            case Op.ADDRESS | Op.ORIGIN | Op.CALLER:
                 self.stack.push_uint(0)
                 return (2,)
 
@@ -238,14 +252,45 @@ class Vm:
                 self.memory.store(mem_off, value)
                 return (4,)
 
-            case Op.ORIGIN | Op.CALLER:
+            case Op.SLOAD:
+                slot = self.stack.pop()
                 self.stack.push_uint(0)
+                return (100, slot)
+
+            case Op.SSTORE:
+                slot = self.stack.pop()
+                sval = self.stack.pop()
+                return (100, slot, sval)
+
+            case Op.BALANCE:
+                self.stack.pop()
+                self.stack.push_uint(1)
+                return (100,)
+
+            case Op.SELFBALANCE:
+                self.stack.push_uint(1)
+                return (5,)
+
+            case Op.GAS:
+                self.stack.push_uint(1_000_000)
                 return (2,)
 
-            case Op.SLOAD:
+            case Op.CALL | Op.DELEGATECALL | Op.STATICCALL:
                 self.stack.pop()
-                self.stack.push_uint(0)
-                return (100,)
+                p1 = self.stack.pop()
+                p2 = self.stack.pop()
+                self.stack.pop()
+                self.stack.pop()
+                self.stack.pop()
+
+                if op == Op.CALL:
+                    self.stack.pop()
+
+                self.stack.push_uint(0)  # failure
+
+                if op == Op.CALL:
+                    return (100, p1, p2)
+                return (100, p1)
 
             case _:
                 raise UnsupportedOpError(op)
