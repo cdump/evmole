@@ -5,7 +5,7 @@ import sys
 def extract_selectors(code: bytes) -> list[str]:
     ret = []
     for i in range(len(code) - 5):
-        # PUSH2/PUSH3
+        # PUSH3/PUSH4
         if (code[i] == 0x62 or code[i] == 0x63):
             off = code[i] - 0x62
 
