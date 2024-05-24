@@ -47,7 +47,7 @@ $(UNPACK_TARGETS):
 $(RUN_TARGETS): datasets/$$(notdir $$@)
 	$(info [*] Running $@...)
 	/bin/time -f '%e' \
-		$(DOCKER) run --cpus=$(DOCKER_CPUS) --rm \
+		$(DOCKER) run --network=none --cpus=$(DOCKER_CPUS) --rm \
 		-v $(DATASET)/$(notdir $@):/dataset \
 		-v $(RES):/mnt \
 		-it $(DOCKER_PREFIX)-$(basename $(subst /,,$(dir $@))) \
