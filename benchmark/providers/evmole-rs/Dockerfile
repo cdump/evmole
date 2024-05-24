@@ -1,5 +1,10 @@
+# syntax=docker/dockerfile:1
+
 FROM rust:1.76
 WORKDIR /app
 COPY . .
-RUN cargo install --path .
-ENTRYPOINT ["main"]
+RUN --mount=type=cache,target=./.cargo \
+    --mount=type=cache,target=./target \
+    CARGO_HOME=/app/.cargo \
+    cargo install --locked --root=. --path .
+ENTRYPOINT ["./bin/main"]
