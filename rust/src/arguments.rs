@@ -230,7 +230,6 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
         gas_limit
     };
     while !vm.stopped {
-        // println!("{:?}\n", vm);
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
@@ -256,6 +255,7 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
             }
             continue;
         }
+        // println!("args: {}", args.join_to_string());
         // println!("{:?}\n", vm);
 
         if analyze(&mut vm, &mut args, ret).is_err() {

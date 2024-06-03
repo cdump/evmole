@@ -57,7 +57,11 @@ where
             f,
             "Vm:\n .pc = 0x{:x} | {}\n .stack = {:?}\n .memory = {:?}",
             self.pc,
-            if !self.stopped { op::name(self.code[self.pc]) } else { "" },
+            if !self.stopped {
+                op::name(self.code[self.pc])
+            } else {
+                ""
+            },
             self.stack,
             self.memory
         )
@@ -99,7 +103,7 @@ where
             op::PUSH0..=op::PUSH32 => {
                 let n = (op - op::PUSH0) as usize;
                 if self.pc + 1 + n > self.code.len() {
-                    return Err(UnsupportedOpError { op }.into())
+                    return Err(UnsupportedOpError { op }.into());
                 }
                 let mut args: [u8; 32] = [0; 32];
                 args[(32 - n)..].copy_from_slice(&self.code[self.pc + 1..self.pc + 1 + n]);
