@@ -15,9 +15,9 @@ export default class Memory {
 
   size() {
     if (this._data.length === 0) {
-      return 0;
+      return 0
     }
-    return Math.max(...this._data.map(([off, val]) => off + val.data.length));
+    return Math.max(...this._data.map(([off, val]) => off + val.data.length))
   }
 
   load(offset) {

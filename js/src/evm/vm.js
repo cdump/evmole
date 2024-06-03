@@ -60,6 +60,19 @@ export class Vm {
     return [op, ...ret]
   }
 
+  #bop(cb) {
+    const raws0 = this.stack.pop()
+    const raws1 = this.stack.pop()
+
+    const s0 = toBigInt(raws0.data)
+    const s1 = toBigInt(raws1.data)
+
+    const [gas_used, res] = cb(raws0, s0, raws1, s1)
+
+    this.stack.push_uint(res)
+    return [gas_used, raws0, raws1]
+  }
+
   #exec_opcode(op) {
     if (op >= Op.PUSH0 && op <= Op.PUSH32) {
       const n = op - Op.PUSH0
@@ -111,95 +124,65 @@ export class Vm {
         return [4]
 
       case Op.EQ:
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 == s1 ? 1n : 0n])
+
       case Op.LT:
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 < s1 ? 1n : 0n])
+
       case Op.GT:
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 > s1 ? 1n : 0n])
+
       case Op.SUB:
+        return this.#bop((raws0, s0, raws1, s1) => [3, (s0 - s1) & E256M1])
+
       case Op.ADD:
+        return this.#bop((raws0, s0, raws1, s1) => [3, (s0 + s1) & E256M1])
+
       case Op.DIV:
+        return this.#bop((raws0, s0, raws1, s1) => [5, s1 != 0n ? s0 / s1 : 0n])
+
       case Op.MUL:
+        return this.#bop((raws0, s0, raws1, s1) => [5, (s0 * s1) & E256M1])
+
       case Op.EXP:
+        return this.#bop((raws0, s0, raws1, s1) => [
+          50 * (1 + Math.floor(bigIntBitLength(s1) / 8)), // ~approx
+          modExp(s0, s1, E256),
+        ])
+
       case Op.XOR:
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 ^ s1])
+
       case Op.AND:
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 & s1])
+
       case Op.OR:
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 | s1])
+
       case Op.SHR:
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 >= 256n ? 0n : (s1 >> s0) & E256M1])
+
       case Op.SHL:
-      case Op.BYTE: {
-        const raws0 = this.stack.pop()
-        const raws1 = this.stack.pop()
-
-        const s0 = toBigInt(raws0.data)
-        const s1 = toBigInt(raws1.data)
-
-        let res
-        let gas_used = 3
-        switch (op) {
-          case Op.EQ:
-            res = s0 == s1 ? 1n : 0n
-            break
-          case Op.LT:
-            res = s0 < s1 ? 1n : 0n
-            break
-          case Op.GT:
-            res = s0 > s1 ? 1n : 0n
-            break
-          case Op.SUB:
-            res = (s0 - s1) & E256M1
-            break
-          case Op.ADD:
-            res = (s0 + s1) & E256M1
-            break
-          case Op.DIV:
-            res = s1 != 0n ? s0 / s1 : 0n
-            gas_used = 5
-            break
-          case Op.MUL:
-            res = (s0 * s1) & E256M1
-            gas_used = 5
-            break
-          case Op.EXP:
-            res = modExp(s0, s1, E256)
-            gas_used = 50 * (1 + Math.floor(bigIntBitLength(s1) / 8)) // ~approx
-            break
-          case Op.XOR:
-            res = s0 ^ s1
-            break
-          case Op.AND:
-            res = s0 & s1
-            break
-          case Op.OR:
-            res = s0 | s1
-            break
-          case Op.SHR:
-            res = s0 >= 256n ? 0n : (s1 >> s0) & E256M1
-            break
-          case Op.SHL:
-            res = s0 >= 256n ? 0n : (s1 << s0) & E256M1
-            break
-          case Op.BYTE:
-            res = s0 >= 32n ? 0n : BigInt(raws1.data[s0])
-            break
-        }
-        this.stack.push_uint(res)
-        return [gas_used, raws0, raws1]
-      }
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 >= 256n ? 0n : (s1 << s0) & E256M1])
 
       case Op.SLT:
-      case Op.SGT: {
-        let s0 = this.stack.pop_uint()
-        let s1 = this.stack.pop_uint()
+        return this.#bop((raws0, s0, raws1, s1) => {
+          // unsigned to signed
+          const a = s0 <= E255M1 ? s0 : s0 - E256
+          const b = s1 <= E255M1 ? s1 : s1 - E256
+          return [3, a < b ? 1n : 0n]
+        })
 
-        // unsigned to signed
-        s0 = s0 <= E255M1 ? s0 : s0 - E256
-        s1 = s1 <= E255M1 ? s1 : s1 - E256
-        let res
-        if (op === Op.SLT) {
-          res = s0 < s1 ? 1n : 0n
-        } else {
-          res = s0 > s1 ? 1n : 0n
-        }
-        this.stack.push_uint(res)
-        return [3]
-      }
+      case Op.SGT:
+        return this.#bop((raws0, s0, raws1, s1) => {
+          // unsigned to signed
+          const a = s0 <= E255M1 ? s0 : s0 - E256
+          const b = s1 <= E255M1 ? s1 : s1 - E256
+          return [3, a > b ? 1n : 0n]
+        })
+
+      case Op.BYTE:
+        return this.#bop((raws0, s0, raws1) => [3, s0 >= 32n ? 0n : BigInt(raws1.data[s0])])
 
       case Op.ISZERO: {
         const raw = this.stack.pop()

@@ -60,6 +60,18 @@ class Vm:
             self.stopped = True
         return (op, *ret)
 
+    def _bop(self, cb):
+        raws0 = self.stack.pop()
+        raws1 = self.stack.pop()
+
+        s0 = int.from_bytes(raws0.data, 'big', signed=False)
+        s1 = int.from_bytes(raws1.data, 'big', signed=False)
+
+        gas_used, res = cb(raws0, s0, raws1, s1)
+
+        self.stack.push_uint(res)
+        return (gas_used, raws0, raws1)
+
     def _exec_opcode(self, op: OpCode) -> tuple[int, *tuple[Any, ...]]:
         match op:
             case op if op >= Op.PUSH0 and op <= Op.PUSH32:
@@ -93,66 +105,49 @@ class Vm:
                 self.stopped = True
                 return (4,)
 
-            case op if op in {
-                Op.EQ,
-                Op.LT,
-                Op.GT,
-                Op.SUB,
-                Op.ADD,
-                Op.DIV,
-                Op.MUL,
-                Op.EXP,
-                Op.XOR,
-                Op.AND,
-                Op.OR,
-                Op.SHR,
-                Op.SHL,
-                Op.BYTE,
-            }:
-                raws0 = self.stack.pop()
-                raws1 = self.stack.pop()
+            case Op.EQ:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, 1 if s0 == s1 else 0))
 
-                s0 = int.from_bytes(raws0.data, 'big', signed=False)
-                s1 = int.from_bytes(raws1.data, 'big', signed=False)
+            case Op.LT:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, 1 if s0 < s1 else 0))
 
-                gas_used = 3
-                match op:
-                    case Op.EQ:
-                        res = 1 if s0 == s1 else 0
-                    case Op.LT:
-                        res = 1 if s0 < s1 else 0
-                    case Op.GT:
-                        res = 1 if s0 > s1 else 0
-                    case Op.SUB:
-                        res = (s0 - s1) & E256M1
-                    case Op.ADD:
-                        res = (s0 + s1) & E256M1
-                    case Op.DIV:
-                        res = 0 if s1 == 0 else s0 // s1
-                        gas_used = 5
-                    case Op.MUL:
-                        res = (s0 * s1) & E256M1
-                        gas_used = 5
-                    case Op.EXP:
-                        res = pow(s0, s1, E256)
-                        gas_used = 50 * (1 + (s1.bit_length() // 8))  # ~approx
-                    case Op.XOR:
-                        res = s0 ^ s1
-                    case Op.AND:
-                        res = s0 & s1
-                    case Op.OR:
-                        res = s0 | s1
-                    case Op.SHR:
-                        res = 0 if s0 >= 256 else (s1 >> s0) & E256M1
-                    case Op.SHL:
-                        res = 0 if s0 >= 256 else (s1 << s0) & E256M1
-                    case Op.BYTE:
-                        res = 0 if s0 >= 32 else raws1.data[s0]
-                    case _:
-                        raise Exception(f'BUG: op {op} not handled in match')
+            case Op.GT:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, 1 if s0 > s1 else 0))
 
-                self.stack.push_uint(res)
-                return (gas_used, raws0, raws1)
+            case Op.SUB:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, (s0 - s1) & E256M1))
+
+            case Op.ADD:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, (s0 + s1) & E256M1))
+
+            case Op.DIV:
+                return self._bop(lambda raws0, s0, raws1, s1: (5, 0 if s1 == 0 else s0 // s1))
+
+            case Op.MUL:
+                return self._bop(lambda raws0, s0, raws1, s1: (5, (s0 * s1) & E256M1))
+
+            case Op.EXP:
+                return self._bop(
+                    lambda raws0, s0, raws1, s1: (50 * (1 + (s1.bit_length() // 8)), pow(s0, s1, E256))
+                )  # ~approx gas
+
+            case Op.XOR:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, s0 ^ s1))
+
+            case Op.AND:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, s0 & s1))
+
+            case Op.OR:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, s0 | s1))
+
+            case Op.SHR:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, 0 if s0 >= 256 else (s1 >> s0) & E256M1))
+
+            case Op.SHL:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, 0 if s0 >= 256 else (s1 << s0) & E256M1))
+
+            case Op.BYTE:
+                return self._bop(lambda raws0, s0, raws1, s1: (3, 0 if s0 >= 32 else raws1.data[s0]))
 
             case op if op in {Op.SLT, Op.SGT}:
                 raws0 = self.stack.pop()

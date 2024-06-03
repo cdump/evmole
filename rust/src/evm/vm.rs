@@ -98,6 +98,27 @@ where
         Ok(ret)
     }
 
+    #[allow(clippy::type_complexity)]
+    fn bop(
+        &mut self,
+        op: op::OpCode,
+        f: fn(&Element<T>, U256, &Element<T>, U256) -> (u32, U256),
+    ) -> Result<StepResult<T>, Box<dyn error::Error>> {
+        let raws0 = self.stack.pop()?;
+        let raws1 = self.stack.pop()?;
+
+        let s0: U256 = (&raws0).into();
+        let s1: U256 = (&raws1).into();
+
+        let (gas_used, res) = f(&raws0, s0, &raws1, s1);
+
+        self.stack.push_uint(res);
+        let mut ret = StepResult::new(op, gas_used);
+        ret.fa = Some(raws0);
+        ret.sa = Some(raws1);
+        Ok(ret)
+    }
+
     fn exec_opcode(&mut self, op: op::OpCode) -> Result<StepResult<T>, Box<dyn error::Error>> {
         match op {
             op::PUSH0..=op::PUSH32 => {
@@ -150,120 +171,75 @@ where
                 Ok(StepResult::new(op, 4))
             }
 
-            op::EQ
-            | op::LT
-            | op::GT
-            | op::SUB
-            | op::ADD
-            | op::DIV
-            | op::MUL
-            | op::EXP
-            | op::XOR
-            | op::AND
-            | op::OR
-            | op::SHR
-            | op::SHL
-            | op::BYTE
-            | op::SLT
-            | op::SGT => {
-                let raws0 = self.stack.pop()?;
-                let raws1 = self.stack.pop()?;
+            op::EQ => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 == s1 { VAL_1 } else { U256::ZERO })
+            }),
 
-                let s0: U256 = (&raws0).into();
-                let s1: U256 = (&raws1).into();
+            op::LT => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 < s1 { VAL_1 } else { U256::ZERO })
+            }),
 
-                let mut gas_used: u32 = 3;
-                let res: U256 = match op {
-                    op::EQ => {
-                        if s0 == s1 {
-                            VAL_1
-                        } else {
-                            U256::ZERO
-                        }
+            op::GT => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 > s1 { VAL_1 } else { U256::ZERO })
+            }),
+
+            op::SUB => self.bop(op, |_, s0, _, s1| (3, s0 - s1)),
+
+            op::ADD => self.bop(op, |_, s0, _, s1| (3, s0 + s1)),
+
+            op::DIV => self.bop(op, |_, s0, _, s1| {
+                (5, if s1.is_zero() { U256::ZERO } else { s0 / s1 })
+            }),
+
+            op::MUL => self.bop(op, |_, s0, _, s1| (5, s0 * s1)),
+
+            op::EXP => self.bop(op, |_, s0, _, s1| {
+                (
+                    50 * (1 + s1.bit_len() / 8) as u32, /*approx*/
+                    s0.pow(s1),
+                )
+            }),
+
+            op::XOR => self.bop(op, |_, s0, _, s1| (3, s0 ^ s1)),
+
+            op::AND => self.bop(op, |_, s0, _, s1| (3, s0 & s1)),
+
+            op::OR => self.bop(op, |_, s0, _, s1| (3, s0 | s1)),
+
+            op::SHR => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 >= VAL_256 { U256::ZERO } else { s1 >> s0 })
+            }),
+
+            op::SHL => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 >= VAL_256 { U256::ZERO } else { s1 << s0 })
+            }),
+
+            op::SLT => self.bop(op, |_, s0, _, s1| {
+                (3, {
+                    let sign0 = s0.bit(255);
+                    let sign1 = s1.bit(255);
+                    U256::from(if sign0 == sign1 { s0 < s1 } else { sign0 })
+                })
+            }),
+
+            op::SGT => self.bop(op, |_, s0, _, s1| {
+                (3, {
+                    let sign0 = s0.bit(255);
+                    let sign1 = s1.bit(255);
+                    U256::from(if sign0 == sign1 { s0 > s1 } else { !sign0 })
+                })
+            }),
+
+            op::BYTE => self.bop(op, |_, s0, raws1, _| {
+                (3, {
+                    if s0 >= VAL_32 {
+                        U256::ZERO
+                    } else {
+                        let i: usize = s0.to();
+                        U256::from(raws1.data[i])
                     }
-                    op::LT => {
-                        if s0 < s1 {
-                            VAL_1
-                        } else {
-                            U256::ZERO
-                        }
-                    }
-                    op::GT => {
-                        if s0 > s1 {
-                            VAL_1
-                        } else {
-                            U256::ZERO
-                        }
-                    }
-                    op::SUB => s0 - s1,
-                    op::ADD => s0 + s1,
-                    op::DIV => {
-                        gas_used = 5;
-                        if s1.is_zero() {
-                            U256::ZERO
-                        } else {
-                            s0 / s1
-                        }
-                    }
-                    op::MUL => {
-                        gas_used = 5;
-                        s0 * s1
-                    }
-                    op::EXP => {
-                        gas_used = 50 * (1 + s1.bit_len() / 8) as u32; // ~approx
-                        s0.pow(s1)
-                    }
-                    op::XOR => s0 ^ s1,
-                    op::AND => s0 & s1,
-                    op::OR => s0 | s1,
-                    op::SHR => {
-                        if s0 >= VAL_256 {
-                            U256::ZERO
-                        } else {
-                            s1 >> s0
-                        }
-                    }
-                    op::SHL => {
-                        if s0 >= VAL_256 {
-                            U256::ZERO
-                        } else {
-                            s1 << s0
-                        }
-                    }
-                    op::SLT | op::SGT => {
-                        let sign0 = s0.bit(255);
-                        let sign1 = s1.bit(255);
-                        U256::from(if op == op::SLT {
-                            if sign0 == sign1 {
-                                s0 < s1
-                            } else {
-                                sign0
-                            }
-                        } else if sign0 == sign1 {
-                            // op::SGT
-                            s0 > s1
-                        } else {
-                            !sign0
-                        })
-                    }
-                    op::BYTE => {
-                        if s0 >= VAL_32 {
-                            U256::ZERO
-                        } else {
-                            let i: usize = s0.to();
-                            U256::from(raws1.data[i])
-                        }
-                    }
-                    _ => {
-                        panic!("bug");
-                    }
-                };
-                self.stack.push_uint(res);
-                let mut ret = StepResult::new(op, gas_used);
-                ret.fa = Some(raws0);
-                ret.sa = Some(raws1);
-                Ok(ret)
-            }
+                })
+            }),
 
             op::ISZERO => {
                 let raws0 = self.stack.pop()?;
@@ -339,30 +315,22 @@ where
                 Ok(StepResult::new(op, 3))
             }
 
-            op::SIGNEXTEND => {
-                let raws0 = self.stack.pop()?;
-                let raws1 = self.stack.pop()?;
-
-                let s0: U256 = (&raws0).into();
-                let s1: U256 = (&raws1).into();
-
-                self.stack.push_uint(if s0 < VAL_32 {
-                    let sign_bit_idx = (raws0.data[31] * 8 + 7) as usize;
-                    let mask = (VAL_1 << sign_bit_idx) - VAL_1;
-                    if s1.bit(sign_bit_idx) {
-                        s1 | !mask
+            op::SIGNEXTEND => self.bop(op, |raws0, s0, _, s1| {
+                (
+                    5,
+                    if s0 < VAL_32 {
+                        let sign_bit_idx = (raws0.data[31] * 8 + 7) as usize;
+                        let mask = (VAL_1 << sign_bit_idx) - VAL_1;
+                        if s1.bit(sign_bit_idx) {
+                            s1 | !mask
+                        } else {
+                            s1 & mask
+                        }
                     } else {
-                        s1 & mask
-                    }
-                } else {
-                    s1
-                });
-
-                let mut ret = StepResult::new(op, 5);
-                ret.fa = Some(raws0);
-                ret.sa = Some(raws1);
-                Ok(ret)
-            }
+                        s1
+                    },
+                )
+            }),
 
             op::ADDRESS => {
                 self.stack.push(Element {
