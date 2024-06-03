@@ -1,6 +1,7 @@
 import argparse
 import json
 import pathlib
+import re
 
 
 def load_data(btype: str, dname: str, providers: list[str], results_dir: str) -> tuple[list, list]:
@@ -158,9 +159,9 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
                 continue
             print('  errors:')
             for x in dataset_result['results']:
-                want = x['ground_truth']
-                fp = x['data'][provider_idx][0]
-                fn = x['data'][provider_idx][1]
+                want = sorted(x['ground_truth'])
+                fp = sorted(x['data'][provider_idx][0])
+                fn = sorted(x['data'][provider_idx][1])
                 if len(fp) > 0 or len(fn) > 0:
                     print('   ', x['addr'])
                     print(f'      want: {want}')
@@ -168,18 +169,54 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
                     print(f'      FN  : {fn}')
         print('')
 
+def normalize_args(args: str, rules: set[str]) -> str:
+    if rules is None:
+        return args
 
-def process_arguments(dname: str, providers: list[str], results_dir: str):
+    # uint8[3] => uint8,uint8,uint8
+    if 'fixed-size-array' in rules:
+        args = re.sub(
+            r'([a-z0-9]+)\[(\d+)\]',
+            lambda m: ','.join([m.group(1)] * int(m.group(2))),
+            args
+        )
+
+    # (bool,address)[],(uint32,uint8) => (bool,address)[],uint32,uint8
+    if 'tuples' in rules:
+        def f(s):
+            s = list(s)
+            stack = []
+            for i, char in enumerate(s):
+                if char == '(':
+                    stack.append(i)
+                elif char == ')':
+                    assert stack, 'Unbalanced parentheses'
+                    start = stack.pop()
+                    if len(s) == i+1 or s[i+1] != '[':
+                        s[start] = ' '
+                        s[i] = ' '
+
+            return ''.join(c for c in s if c != ' ')
+        args = f(args)
+
+    # string -> bytes
+    if 'string-bytes' in rules:
+        args = args.replace('string', 'bytes')
+    return args
+
+def process_arguments(dname: str, providers: list[str], results_dir: str, normalize_rules: set[str]):
     pdata, ptimes = load_data('arguments', dname, providers, results_dir)
     ret = []
     for fname, gt in pdata[0].items():
         func = []
         for sel, args in gt.items():
             data = []
+            norm_args = normalize_args(args, normalize_rules)
             for i in range(1, len(providers)): # skip ground_truth provider
                 d = pdata[i][fname]
                 dargs = d[sel]
-                if dargs == args:
+                norm_dargs = normalize_args(dargs, normalize_rules)
+                if norm_dargs == norm_args:
                     data.append([1])
                 else:
                     data.append([0, dargs])
@@ -229,6 +266,7 @@ if __name__ == '__main__':
     parser.add_argument('--web-listen', type=str, default='', help='start webserver to serve results, example: "127.0.0.1:8080"')
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
     parser.add_argument('--show-errors', nargs='?', default=False, const=True, help='show errors')
+    parser.add_argument('--normalize-args', nargs='+', required=False, choices=['fixed-size-array', 'tuples', 'string-bytes'], help='normalize arguments rules')
     cfg = parser.parse_args()
     if cfg.providers is None:
         if cfg.mode == 'selectors':
@@ -243,7 +281,7 @@ if __name__ == '__main__':
 
     if cfg.mode == 'arguments':
         assert cfg.web_listen == '', 'web-listen for arguments not implemented yet'
-        results = [process_arguments(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
+        results = [process_arguments(d, cfg.providers, cfg.results_dir, cfg.normalize_args) for d in cfg.datasets]
         if cfg.markdown:
             markdown_arguments(cfg.providers, results)
         else:
