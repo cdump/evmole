@@ -40,10 +40,10 @@ pub struct Vm<'a, T>
 where
     T: Clone + std::fmt::Debug,
 {
-    code: &'a [u8],
-    pc: usize,
+    pub code: &'a [u8],
+    pub pc: usize,
     pub stack: Stack<T>,
-    memory: Memory<T>,
+    pub memory: Memory<T>,
     pub stopped: bool,
     pub calldata: Element<T>, // don't have calldata.len > 32
 }
