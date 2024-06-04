@@ -165,8 +165,8 @@ where
 
             op::JUMPDEST => Ok(StepResult::new(op, 1)),
 
-            op::REVERT => {
-                // skip 2 stack pop()s
+            op::REVERT | op::STOP | op::RETURN => {
+                // skip stack pop()s
                 self.stopped = true;
                 Ok(StepResult::new(op, 4))
             }
@@ -189,6 +189,10 @@ where
 
             op::DIV => self.bop(op, |_, s0, _, s1| {
                 (5, if s1.is_zero() { U256::ZERO } else { s0 / s1 })
+            }),
+
+            op::MOD => self.bop(op, |_, s0, _, s1| {
+                (5, if s1.is_zero() { U256::ZERO } else { s0 % s1 })
             }),
 
             op::MUL => self.bop(op, |_, s0, _, s1| (5, s0 * s1)),
@@ -257,7 +261,7 @@ where
             }
 
             op::POP => {
-                let _ = self.stack.pop();
+                self.stack.pop()?;
                 Ok(StepResult::new(op, 2))
             }
 
@@ -285,6 +289,20 @@ where
 
             op::SWAP1..=op::SWAP16 => {
                 self.stack.swap(op - op::SWAP1 + 1)?;
+                Ok(StepResult::new(op, 3))
+            }
+
+            op::MSIZE => {
+                self.stack.push_uint(U256::from(self.memory.size()));
+                Ok(StepResult::new(op, 2))
+            }
+
+            op::MSTORE8 => {
+                let off = self.stack.pop_uint()?;
+                let val = self.stack.pop()?;
+                let off32: u32 = off.try_into()?;
+
+                self.memory.store(off32, vec!(val.data[31]), val.label);
                 Ok(StepResult::new(op, 3))
             }
 
@@ -332,7 +350,7 @@ where
                 )
             }),
 
-            op::ADDRESS => {
+            op::ADDRESS | op::ORIGIN | op::CALLER => {
                 self.stack.push(Element {
                     data: VAL_0_B,
                     label: None,
@@ -362,21 +380,71 @@ where
                 }
             }
 
-            op::ORIGIN | op::CALLER => {
+            op::SLOAD => {
+                let slot = self.stack.pop()?;
+                let mut ret = StepResult::new(op, 100);
+                ret.fa = Some(slot);
                 self.stack.push(Element {
                     data: VAL_0_B,
                     label: None,
                 });
-                Ok(StepResult::new(op, 2))
+                Ok(ret)
             }
 
-            op::SLOAD => {
-                let _ = self.stack.pop();
+            op::SSTORE => {
+                let slot = self.stack.pop()?;
+                let sval = self.stack.pop()?;
+                let mut ret = StepResult::new(op, 100);
+                ret.fa = Some(slot);
+                ret.sa = Some(sval);
+                Ok(ret)
+            }
+
+            op::BALANCE => {
+                self.stack.pop()?;
                 self.stack.push(Element {
-                    data: VAL_0_B,
+                    data: VAL_1_B,
                     label: None,
                 });
                 Ok(StepResult::new(op, 100))
+            }
+
+            op::SELFBALANCE => {
+                self.stack.push(Element {
+                    data: VAL_1_B,
+                    label: None,
+                });
+                Ok(StepResult::new(op, 5))
+            }
+
+            op::GAS => {
+                self.stack.push_uint(U256::from(1_000_000));
+                Ok(StepResult::new(op, 2))
+            }
+
+            op::CALL | op::DELEGATECALL | op::STATICCALL => {
+                self.stack.pop()?;
+                let p1 = self.stack.pop()?;
+                let p2 = self.stack.pop()?;
+                self.stack.pop()?;
+                self.stack.pop()?;
+                self.stack.pop()?;
+
+                if op == op::CALL {
+                    self.stack.pop()?;
+                }
+
+                self.stack.push(Element {
+                    data: VAL_0_B, // failure
+                    label: None,
+                });
+
+                let mut ret = StepResult::new(op, 100);
+                ret.fa = Some(p1);
+                if op == op::CALL {
+                    ret.sa = Some(p2);
+                }
+                Ok(ret)
             }
 
             _ => Err(UnsupportedOpError { op }.into()),
