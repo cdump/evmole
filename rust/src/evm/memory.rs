@@ -39,6 +39,14 @@ where
         self.data.push((offset, LabeledVec(value, label)));
     }
 
+    pub fn size(&self) -> usize {
+        self.data
+            .iter()
+            .map(|(off, data)| *off as usize + data.0.len())
+            .max()
+            .unwrap_or(0)
+    }
+
     pub fn load(&mut self, offset: u32) -> ([u8; 32], HashSet<T>) {
         let mut r: [u8; 32] = [0; 32];
         let mut used: HashSet<T> = HashSet::new();

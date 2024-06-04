@@ -12,6 +12,11 @@ class Memory:
     def store(self, offset: int, value: Element):
         self._data.append((offset, value))
 
+    def size(self) -> int:
+        if len(self._data) == 0:
+            return 0
+        return max(off + len(val.data) for off, val in self._data)
+
     def load(self, offset: int) -> tuple[bytes, set]:
         used = set()
         res = [b'\x00'] * 32

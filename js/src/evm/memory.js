@@ -13,6 +13,13 @@ export default class Memory {
     this._data.push([offset, value])
   }
 
+  size() {
+    if (this._data.length === 0) {
+      return 0;
+    }
+    return Math.max(...this._data.map(([off, val]) => off + val.data.length));
+  }
+
   load(offset) {
     const ret = new Uint8Array(32)
     const used = new Set()
