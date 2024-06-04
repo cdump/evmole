@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 const VAL_4_B: [u8; 32] = ruint::uint!(4_U256).to_be_bytes();
 const VAL_5_B: [u8; 32] = ruint::uint!(5_U256).to_be_bytes();
-const VAL_8192_B: [u8; 32] = ruint::uint!(8192_U256).to_be_bytes();
+const VAL_131072_B: [u8; 32] = ruint::uint!(131072_U256).to_be_bytes();
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Label {
@@ -65,7 +65,7 @@ fn analyze(
         StepResult{op: op::CALLDATASIZE, ..} =>
         {
             let v = vm.stack.peek_mut()?;
-            v.data = VAL_8192_B;
+            v.data = VAL_131072_B;
         }
 
         StepResult{op: op::CALLDATALOAD, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
@@ -86,7 +86,7 @@ fn analyze(
             let off256: U256 = el.into();
             let offr: Result<u32, _> = off256.try_into();
             if let Ok(off) = offr {
-                if off >= 4 {
+                if (4..131072 - 1024).contains(&off) { /* trustedForwarder */
                     let v = vm.stack.peek_mut()?;
                     *v = Element{data: [0; 32], label: Some(Label::Arg(off, false))};
                     args.set_if(off, "", "");

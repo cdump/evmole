@@ -118,7 +118,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
     switch (op) {
       case Op.CALLDATASIZE:
         vm.stack.pop()
-        vm.stack.push_uint(8192n)
+        vm.stack.push_uint(131072n)
         break
 
       case Op.CALLDATALOAD:
@@ -133,7 +133,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
             vm.stack.push(new Element(bigIntToUint8Array(0n), new Arg(v.label.offset, true)))
           } else {
             const off = uint8ArrayToBigInt(v.data)
-            if (off >= 4n && off < 2n ** 32n) {
+            if (off >= 4n && off < 131072n - 1024n) {
               vm.stack.pop()
               vm.stack.push(new Element(bigIntToUint8Array(0n), new Arg(Number(off))))
 

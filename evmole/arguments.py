@@ -83,7 +83,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
         match ret:
             case (Op.CALLDATASIZE, _):
                 vm.stack.pop()
-                vm.stack.push_uint(8192)
+                vm.stack.push_uint(131072)
 
             case (Op.CALLDATALOAD, _, Element(Arg() as arg)):
                 args.set(arg.offset, 'bytes')
@@ -96,7 +96,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
 
             case (Op.CALLDATALOAD, _, Element() as offset):
                 off = int.from_bytes(offset.data, 'big')
-                if off >= 4 and off < 2**32:
+                if off >= 4 and off < (131072 - 1024):
                     vm.stack.pop()
                     vm.stack.push(Element(data=(0).to_bytes(32, 'big'), label=Arg(offset=off)))
                     args.set_if(off, '', '')
