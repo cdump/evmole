@@ -119,7 +119,9 @@ export class Vm {
         return [1]
 
       case Op.REVERT:
-        // skip 2 stack pop()s
+      case Op.STOP:
+      case Op.RETURN:
+        // skip stack pop()s
         this.stopped = true
         return [4]
 
@@ -140,6 +142,9 @@ export class Vm {
 
       case Op.DIV:
         return this.#bop((raws0, s0, raws1, s1) => [5, s1 != 0n ? s0 / s1 : 0n])
+
+      case Op.MOD:
+        return this.#bop((raws0, s0, raws1, s1) => [5, s1 != 0n ? s0 % s1 : 0n])
 
       case Op.MUL:
         return this.#bop((raws0, s0, raws1, s1) => [5, (s0 * s1) & E256M1])
@@ -210,6 +215,21 @@ export class Vm {
         this.stack.push_uint(BigInt(this.calldata.length))
         return [2]
 
+      case Op.MSIZE:
+        this.stack.push_uint(BigInt(this.memory.size()))
+        return [2]
+
+      case Op.MSTORE8: {
+        const offset = Number(this.stack.pop_uint())
+        const v = this.stack.pop()
+        const el = new Element(
+          v.data.subarray(v.length - 1), // v[31]
+          v.label,
+        )
+        this.memory.store(offset, el)
+        return [3]
+      }
+
       case Op.MSTORE: {
         const offset = Number(this.stack.pop_uint())
         const v = this.stack.pop()
@@ -247,10 +267,11 @@ export class Vm {
         return [5, s0, raws1]
       }
 
-      case Op.ADDRESS: {
+      case Op.ADDRESS:
+      case Op.ORIGIN:
+      case Op.CALLER:
         this.stack.push_uint(0n)
         return [2]
-      }
 
       case Op.CALLDATACOPY: {
         const mem_off = Number(this.stack.pop_uint())
@@ -264,16 +285,51 @@ export class Vm {
         return [4]
       }
 
-      case Op.ORIGIN:
-      case Op.CALLER: {
+      case Op.SLOAD: {
+        const slot = this.stack.pop()
         this.stack.push_uint(0n)
-        return [2]
+        return [100, slot]
       }
 
-      case Op.SLOAD: {
+      case Op.SSTORE: {
+        const slot = this.stack.pop()
+        const sval = this.stack.pop()
+        return [100, slot, sval]
+      }
+
+      case Op.BALANCE:
         this.stack.pop()
-        this.stack.push_uint(0n)
+        this.stack.push_uint(1n)
         return [100]
+
+      case Op.SELFBALANCE:
+        this.stack.push_uint(1n)
+        return [5]
+
+      case Op.GAS:
+        this.stack.push_uint(1_000_000n)
+        return [2]
+
+      case Op.CALL:
+      case Op.DELEGATECALL:
+      case Op.STATICCALL: {
+        this.stack.pop()
+        const p1 = this.stack.pop()
+        const p2 = this.stack.pop()
+        this.stack.pop()
+        this.stack.pop()
+        this.stack.pop()
+
+        if (op === Op.CALL) {
+          this.stack.pop()
+        }
+
+        this.stack.push_uint(0n) // failure
+
+        if (op === Op.CALL) {
+          return [100, p1, p2]
+        }
+        return [100, p1]
       }
 
       default:
