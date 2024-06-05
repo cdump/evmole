@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM rust:1.76
+FROM rust:1.78
 WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=./.cargo \
