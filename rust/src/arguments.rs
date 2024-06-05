@@ -167,7 +167,26 @@ fn analyze(
 
         StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::IsZeroResult(off, dynamic)), ..}), ..} =>
         {
-            args.set(off, if dynamic { "bool[]" } else { "bool" });
+            // Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
+            let mut is_bool = true;
+            let op = vm.code[vm.pc];
+            if let op::PUSH1..=op::PUSH4 = op {
+                let n = (op - op::PUSH0) as usize;
+                if vm.code[vm.pc + n + 1] == op::JUMPI {
+                    let mut arg: [u8; 4] = [0; 4];
+                    arg[(4 - n)..].copy_from_slice(&vm.code[vm.pc + 1..vm.pc + 1 + n]);
+                    let jumpdest = u32::from_be_bytes(arg) as usize;
+                    if jumpdest + 1 < vm.code.len()
+                        && vm.code[jumpdest] == op::JUMPDEST
+                        && vm.code[jumpdest + 1] == op::DIV
+                    {
+                        is_bool = false;
+                    }
+                }
+            }
+            if is_bool {
+                args.set(off, if dynamic { "bool[]" } else { "bool" });
+            }
         }
 
         StepResult{op: op::SIGNEXTEND, fa: Some(s0), sa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), ..} =>

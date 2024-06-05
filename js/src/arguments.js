@@ -222,7 +222,21 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
           if (v instanceof Arg) {
             vm.stack.peek().label = new IsZeroResult(v.offset, v.dynamic)
           } else if (v instanceof IsZeroResult) {
-            args.set(v.offset, v.dynamic ? 'bool[]' : 'bool')
+            // Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
+            let is_bool = true
+            const op = vm.code[vm.pc]
+            if (op >= Op.PUSH1 && op <= Op.PUSH4) {
+              const n = op - Op.PUSH0
+              if (vm.code[vm.pc + n + 1] === Op.JUMPI) {
+                const jumpdest = vm.code.subarray(vm.pc + 1, vm.pc + 1 + n).reduce((acc, b) => acc * 256 + b, 0)
+                if (jumpdest + 1 < vm.code.length && vm.code[jumpdest] === Op.JUMPDEST && vm.code[jumpdest + 1] === Op.DIV) {
+                  is_bool = false
+                }
+              }
+            }
+            if (is_bool) {
+              args.set(v.offset, v.dynamic ? 'bool[]' : 'bool')
+            }
           }
         }
         break

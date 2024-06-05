@@ -146,7 +146,17 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 vm.stack.peek().label = IsZeroResult(offset=arg.offset, dynamic=arg.dynamic)
 
             case (Op.ISZERO, _, Element(IsZeroResult() as arg)):
-                args.set(arg.offset, 'bool[]' if arg.dynamic else 'bool')
+                # Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
+                is_bool = True
+                op = vm.code[vm.pc]
+                if op >= Op.PUSH1 and op <= Op.PUSH4:
+                    n = op - Op.PUSH0
+                    if vm.code[vm.pc + n + 1] == Op.JUMPI:
+                        jumpdest = int.from_bytes(vm.code[(vm.pc + 1) : (vm.pc + 1 + n)], signed=False)
+                        if jumpdest + 1 < len(vm.code) and vm.code[jumpdest] == Op.JUMPDEST and vm.code[jumpdest + 1] == Op.DIV:
+                            is_bool = False
+                if is_bool:
+                    args.set(arg.offset, 'bool[]' if arg.dynamic else 'bool')
 
             case (Op.SIGNEXTEND, _, s0, Element(Arg() as arg)):
                 if s0 < 32:
