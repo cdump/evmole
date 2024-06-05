@@ -12,9 +12,9 @@ python = "^3.11"
 aiohttp = {version = "^3.9", optional = true}
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0"
-mypy = "^1.8"
-ruff = "^0.2"
+pytest = "^8.2"
+mypy = "^1.10"
+ruff = "^0.4"
 
 [tool.poetry.extras]
 benchmark = ["aiohttp"]
