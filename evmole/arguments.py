@@ -113,15 +113,21 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                 vm.stack.peek().label = ArgDynamic(offset=arg.offset)
 
             case (Op.SHL, _, Element() as ot, Element(ArgDynamicLength() as arg)):
-                if int.from_bytes(ot.data, 'big') == 5:
+                v = int.from_bytes(ot.data, 'big')
+                if v == 5:
                     args.set(arg.offset, 'uint256[]')
+                elif v == 1:
+                    args.set(arg.offset, 'string')
 
             case (
                 (Op.MUL, _, Element(ArgDynamicLength() as arg), Element() as ot)
                 | (Op.MUL, _, Element() as ot, Element(ArgDynamicLength() as arg))
             ):
-                if int.from_bytes(ot.data, 'big') == 32:
+                v = int.from_bytes(ot.data, 'big')
+                if v == 32:
                     args.set(arg.offset, 'uint256[]')
+                elif v == 2:
+                    args.set(arg.offset, 'string')
 
             case (Op.AND, _, Element(Arg() as arg), Element() as ot) | (Op.AND, _, Element() as ot, Element(Arg() as arg)):
                 v = int.from_bytes(ot.data, 'big')

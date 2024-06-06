@@ -165,18 +165,32 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
       case Op.SHL:
         {
           const [r2, arg] = [uint8ArrayToBigInt(ret[2].data), ret[3].label]
-          if (r2 == 5n && arg instanceof ArgDynamicLength) {
-            args.set(arg.offset, 'uint256[]')
+          if (arg instanceof ArgDynamicLength) {
+            if (r2 === 5n) {
+              args.set(arg.offset, 'uint256[]')
+            } else if (r2 === 1n) {
+              args.set(arg.offset, 'string')
+            }
           }
         }
         break
 
       case Op.MUL:
         {
-          if (ret[2].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[3].data) == 32n) {
-            args.set(ret[2].label.offset, 'uint256[]')
-          } else if (ret[3].label instanceof ArgDynamicLength && uint8ArrayToBigInt(ret[2].data) == 32n) {
-            args.set(ret[3].label.offset, 'uint256[]')
+          if (ret[2].label instanceof ArgDynamicLength) {
+            const n = uint8ArrayToBigInt(ret[3].data);
+            if (n === 32n) {
+              args.set(ret[2].label.offset, 'uint256[]')
+            } else if (n === 2n) {
+              args.set(ret[2].label.offset, 'string')
+            }
+          } else if (ret[3].label instanceof ArgDynamicLength) {
+            const n = uint8ArrayToBigInt(ret[2].data);
+            if (n === 32n) {
+              args.set(ret[3].label.offset, 'uint256[]')
+            } else if (n === 2n) {
+              args.set(ret[3].label.offset, 'string')
+            }
           } else if (ret[2].label instanceof Arg) {
             args.setIf(ret[2].label.offset, 'bool', '')
           } else if (ret[3].label instanceof Arg) {

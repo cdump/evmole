@@ -8,6 +8,7 @@ use crate::{
 };
 use std::collections::BTreeMap;
 
+const VAL_2_B: [u8; 32] = ruint::uint!(2_U256).to_be_bytes();
 const VAL_4_B: [u8; 32] = ruint::uint!(4_U256).to_be_bytes();
 const VAL_5_B: [u8; 32] = ruint::uint!(5_U256).to_be_bytes();
 const VAL_131072_B: [u8; 32] = ruint::uint!(131072_U256).to_be_bytes();
@@ -120,16 +121,20 @@ fn analyze(
 
         StepResult{op: op::SHL, fa: Some(ot), sa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), ..} =>
         {
-          if ot.data == VAL_5_B {
-            args.set(off, "uint256[]");
-          }
+            if ot.data == VAL_5_B {
+                args.set(off, "uint256[]");
+            } else if ot.data == VAL_1_B {
+                args.set(off, "string");
+            }
         }
 
           StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), sa: Some(ot), ..}
         | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), fa: Some(ot), ..} =>
         {
             if ot.data == VAL_32_B {
-              args.set(off, "uint256[]");
+                args.set(off, "uint256[]");
+            } else if ot.data == VAL_2_B {
+                args.set(off, "string");
             }
         }
 
@@ -252,7 +257,7 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
-                // eprintln!("{}", _e);
+                // println!("{}", _e);
                 break;
             }
         };
