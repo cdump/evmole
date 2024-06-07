@@ -301,7 +301,7 @@ where
                 let off: u32 = self.stack.pop_uint()?.try_into()?;
                 let val = self.stack.pop()?;
 
-                self.memory.store(off, vec!(val.data[31]), val.label);
+                self.memory.store(off, vec![val.data[31]], val.label);
                 Ok(StepResult::new(op, 3))
             }
 
@@ -384,12 +384,12 @@ where
                     Err(UnsupportedOpError { op }.into())
                 } else {
                     let mut data: Vec<u8> = vec![0; size];
-                    data[0..size].copy_from_slice(&self.code[src_off..src_off+size]);
+                    data[0..size].copy_from_slice(&self.code[src_off..src_off + size]);
 
                     self.memory.store(mem_off, data, None);
                     Ok(StepResult::new(op, 3))
                 }
-            },
+            }
 
             op::SLOAD => {
                 let slot = self.stack.pop()?;

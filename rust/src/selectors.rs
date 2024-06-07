@@ -64,7 +64,7 @@ fn analyze(
                         vm_clone.stack.peek_mut()?.data = U256::from(m).to_be_bytes();
                         *gas_used += process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
                         if *gas_used > gas_limit {
-                            break
+                            break;
                         }
                     }
                     vm.stack.peek_mut()?.data = VAL_0_B;
@@ -99,13 +99,11 @@ fn analyze(
         {
             if used.contains(&Label::CallData) {
                 let v = vm.stack.peek_mut()?;
-                v.label = Some(
-                    if v.data[28..32] == vm.calldata.data[0..4] {
-                        Label::Signature
-                    } else {
-                        Label::CallData
-                    }
-                )
+                v.label = Some(if v.data[28..32] == vm.calldata.data[0..4] {
+                    Label::Signature
+                } else {
+                    Label::CallData
+                })
             }
         }
 

@@ -80,13 +80,19 @@ fn analyze(
         {
             args.set(off, "bytes");
             let v = vm.stack.peek_mut()?;
-            *v = Element{data: VAL_1_B, label: Some(Label::ArgDynamicLength(off))};
+            *v = Element {
+                data: VAL_1_B,
+                label: Some(Label::ArgDynamicLength(off)),
+            };
         }
 
         StepResult{op: op::CALLDATALOAD, fa: Some(Element{label: Some(Label::ArgDynamic(off)), ..}), ..} =>
         {
             let v = vm.stack.peek_mut()?;
-            *v = Element{data: [0; 32], label: Some(Label::Arg(off, true))};
+            *v = Element {
+                data: [0; 32],
+                label: Some(Label::Arg(off, true)),
+            };
         }
 
         StepResult{op: op::CALLDATALOAD, fa: Some(el), ..} =>
@@ -94,9 +100,13 @@ fn analyze(
             let off256: U256 = el.into();
             let offr: Result<u32, _> = off256.try_into();
             if let Ok(off) = offr {
-                if (4..131072 - 1024).contains(&off) { /* trustedForwarder */
+                if (4..131072 - 1024).contains(&off) {
+                    /* trustedForwarder */
                     let v = vm.stack.peek_mut()?;
-                    *v = Element{data: [0; 32], label: Some(Label::Arg(off, false))};
+                    *v = Element {
+                        data: [0; 32],
+                        label: Some(Label::Arg(off, false)),
+                    };
                     args.set_if(off, "", "");
                 }
             }
@@ -147,7 +157,7 @@ fn analyze(
         | StepResult{op: op::LT|op::GT|op::MUL, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
         {
             args.mark_not_bool(off);
-        },
+        }
 
           StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), sa: Some(ot), ..}
         | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), fa: Some(ot), ..} =>
@@ -155,7 +165,7 @@ fn analyze(
             let v: U256 = U256::from_be_bytes(ot.data);
             if v.is_zero() {
                 // pass
-            } else if (v & (v+VAL_1)).is_zero() {
+            } else if (v & (v + VAL_1)).is_zero() {
                 // 0x0000ffff
                 let bl = v.bit_len();
                 if bl % 8 == 0 {
@@ -165,7 +175,7 @@ fn analyze(
             } else {
                 // 0xffff0000
                 let v = U256::from_le_bytes(ot.data);
-                if (v & (v+VAL_1)).is_zero() {
+                if (v & (v + VAL_1)).is_zero() {
                     let bl = v.bit_len();
                     if bl % 8 == 0 {
                         let t = format!("bytes{}", bl / 8);
