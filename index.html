@@ -70,7 +70,7 @@ p, h1 {
       <el-form :model="addressForm" @validate="address_changed">
       <el-form-item prop="address"
           :rules="[
-            { pattern: /^0x[a-fA-F0-9]{40}$/, message: 'Address must match 0x(hex)', trigger: 'change' },
+            { pattern: /^(0x)?[a-fA-F0-9]{40}$/, message: 'Address must be hex string', trigger: 'change' },
           ]"
         >
         <el-input v-model="addressForm.address" placeholder="Address, ex: 0xdac17f958d2ee523a2206206994597c13d831ec7" style="width: 600px">
@@ -156,7 +156,7 @@ createApp({
     async function load_code(rpc, address) {
       // await new Promise(r => setTimeout(() => r(), 1000));
       // return '0x6080'
-      const req = {'method':'eth_getCode','params':[address,'latest'],'id':1,'jsonrpc':'2.0'}
+      const req = {'method':'eth_getCode','params': [address.startsWith('0x') ? address : `0x${address}`,'latest'],'id':1,'jsonrpc':'2.0'}
       const resp = await fetch(`https://1rpc.io/${rpc}`, {method: 'POST', headers: {'Content-Type': 'application/json',}, body: JSON.stringify(req)});
       const j = await resp.json();
       return j.result;
