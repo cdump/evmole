@@ -277,12 +277,24 @@ export class Vm {
         const mem_off = Number(this.stack.pop_uint())
         const src_off = Number(this.stack.pop_uint())
         const size = Number(this.stack.pop_uint())
-        if (size > 256) {
+        if (size > 512) {
           throw new UnsupportedOpError(op)
         }
         const value = this.calldata.load(src_off, size)
         this.memory.store(mem_off, value)
         return [4]
+      }
+
+      case Op.CODECOPY: {
+        const mem_off = Number(this.stack.pop_uint())
+        const src_off = Number(this.stack.pop_uint())
+        const size = Number(this.stack.pop_uint())
+        if (src_off + size > this.code.length) {
+          throw new UnsupportedOpError(op)
+        }
+        const value = this.code.subarray(src_off, src_off + size)
+        this.memory.store(mem_off, new Element(value))
+        return [3]
       }
 
       case Op.SLOAD: {

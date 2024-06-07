@@ -246,11 +246,20 @@ class Vm:
                 mem_off = self.stack.pop_uint()
                 src_off = self.stack.pop_uint()
                 size = self.stack.pop_uint()
-                if size > 256:
+                if size > 512:
                     raise UnsupportedOpError(op)
                 value = self.calldata.load(src_off, size)
                 self.memory.store(mem_off, value)
                 return (4,)
+
+            case Op.CODECOPY:
+                mem_off = self.stack.pop_uint()
+                src_off = self.stack.pop_uint()
+                size = self.stack.pop_uint()
+                if src_off + size > len(self.code):
+                    raise UnsupportedOpError(op)
+                self.memory.store(mem_off, Element(data=self.code[src_off : src_off + size]))
+                return (3,)
 
             case Op.SLOAD:
                 slot = self.stack.pop()

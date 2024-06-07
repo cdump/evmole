@@ -357,26 +357,39 @@ where
             }
 
             op::CALLDATACOPY => {
-                let mem_off = self.stack.pop_uint()?;
+                let mem_off: u32 = self.stack.pop_uint()?.try_into()?;
                 let src_off = self.stack.pop_uint()?;
-                let size = self.stack.pop_uint()?;
+                let size: usize = self.stack.pop_uint()?.try_into()?;
 
-                let size32: usize = size.try_into()?;
-                if size32 > 256 {
+                if size > 512 {
                     Err(UnsupportedOpError { op }.into())
                 } else {
-                    let mem_off32: u32 = mem_off.try_into()?; // TODO: custom error?
+                    let value = self.calldata.load(src_off, size);
+                    let mut data: Vec<u8> = vec![0; size];
 
-                    let value = self.calldata.load(src_off, size32);
-                    let mut data: Vec<u8> = vec![0; size32];
-
-                    let l = std::cmp::min(size32, 32);
+                    let l = std::cmp::min(size, 32);
                     data[0..l].copy_from_slice(&value.data[0..l]);
 
-                    self.memory.store(mem_off32, data, value.label);
+                    self.memory.store(mem_off, data, value.label);
                     Ok(StepResult::new(op, 4))
                 }
             }
+
+            op::CODECOPY => {
+                let mem_off: u32 = self.stack.pop_uint()?.try_into()?;
+                let src_off: usize = self.stack.pop_uint()?.try_into()?;
+                let size: usize = self.stack.pop_uint()?.try_into()?;
+
+                if src_off + size > self.code.len() {
+                    Err(UnsupportedOpError { op }.into())
+                } else {
+                    let mut data: Vec<u8> = vec![0; size];
+                    data[0..size].copy_from_slice(&self.code[src_off..src_off+size]);
+
+                    self.memory.store(mem_off, data, None);
+                    Ok(StepResult::new(op, 3))
+                }
+            },
 
             op::SLOAD => {
                 let slot = self.stack.pop()?;
