@@ -298,26 +298,24 @@ where
             }
 
             op::MSTORE8 => {
-                let off = self.stack.pop_uint()?;
+                let off: u32 = self.stack.pop_uint()?.try_into()?;
                 let val = self.stack.pop()?;
-                let off32: u32 = off.try_into()?;
 
-                self.memory.store(off32, vec!(val.data[31]), val.label);
+                self.memory.store(off, vec!(val.data[31]), val.label);
                 Ok(StepResult::new(op, 3))
             }
 
             op::MSTORE => {
-                let off = self.stack.pop_uint()?;
+                let off = self.stack.pop_uint()?.try_into()?;
                 let val = self.stack.pop()?;
-                let off32: u32 = off.try_into()?;
-                self.memory.store(off32, val.data.to_vec(), val.label);
+
+                self.memory.store(off, val.data.to_vec(), val.label);
                 Ok(StepResult::new(op, 3))
             }
 
             op::MLOAD => {
-                let off = self.stack.pop_uint()?;
-                let off32: u32 = off.try_into()?;
-                let (val, used) = self.memory.load(off32);
+                let off = self.stack.pop_uint()?.try_into()?;
+                let (val, used) = self.memory.load(off);
                 self.stack.push(Element {
                     data: val,
                     label: None,
