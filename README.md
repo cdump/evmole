@@ -130,7 +130,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s · 1.3s · 1.9s</td>
+  <td>0.5s · 1.5s · 2.0s</td>
   <td>2.6s</td>
   <td>0.7s</td>
   <td>719.9s</td>
@@ -172,7 +172,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9.8s · 19.1s · 37.3s</td>
+  <td>10.1s · 19.4s · 39.4s</td>
   <td>46.9s</td>
   <td>11.5s</td>
   <!-- -->
@@ -214,7 +214,7 @@ See [examples](./examples) for more
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.7s · 0.7s · 1.2s</td>
+  <td>0.4s · 0.8s · 1.2s</td>
   <td>2.0s</td>
   <td>0.4s</td>
   <td>16.4s</td>
@@ -236,13 +236,13 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>14.8%, 3616 🥇</td>
+  <td>14.7%, 3598 🥇</td>
   <td>42.7%, 10421</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.8s · 7.5s · 15.9s</td>
+  <td>0.7s · 7.3s · 14.4s</td>
   <td>724.4s</td>
   <td>0.6s</td>
  </tr>
@@ -250,13 +250,13 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>5.0%, 58705 🥇</td>
+  <td>5.0%, 58286 🥇</td>
   <td rowspan="2">waiting fixes</td>
   <td>54.9%, 643213</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>23.1s · 238.8s · 606.6s</td>
+  <td>23.0s · 243.8s · 635.6s</td>
   <!-- -->
   <td>9.6s</td>
  </tr>
@@ -264,13 +264,13 @@ See [examples](./examples) for more
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>50.7%, 10771 🥇</td>
+  <td>50.7%, 10763 🥇</td>
   <td>100.0%, 21244</td>
   <td>56.8%, 12077</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.7s · 7.2s · 14.1s</td>
+  <td>0.7s · 7.3s · 14.4s</td>
   <td>16.8s</td>
   <td>0.5s</td>
  </tr>
@@ -278,7 +278,7 @@ See [examples](./examples) for more
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.3.4; whatsabi v0.11.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
+<i>versions: evmole (4ba4c505); whatsabi v0.11.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
 
 ## How it works
 
