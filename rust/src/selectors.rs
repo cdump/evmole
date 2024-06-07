@@ -1,7 +1,7 @@
 use crate::evm::{
     op,
     vm::{StepResult, Vm},
-    Element, VAL_0_B, VAL_1_B,
+    Element, U256, VAL_0_B, VAL_1_B,
 };
 use crate::Selector;
 
@@ -9,6 +9,7 @@ use crate::Selector;
 enum Label {
     CallData,
     Signature,
+    MulSig,
 }
 
 fn analyze(
@@ -39,6 +40,36 @@ fn analyze(
             *gas_used += process(vm.clone(), selectors, (gas_limit - *gas_used) / 2);
             let v = vm.stack.peek_mut()?;
             v.data = if v.data == VAL_0_B { VAL_1_B } else { VAL_0_B };
+        }
+
+          StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
+        | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
+        {
+            vm.stack.peek_mut()?.label = Some(Label::MulSig);
+        }
+
+          StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::MulSig), ..}), ..} =>
+        {
+            vm.stack.peek_mut()?.label = Some(Label::MulSig);
+        }
+
+        // Vyper _selector_section_dense()
+        StepResult{op: op::MOD, fa: Some(Element{label: Some(Label::MulSig | Label::Signature), ..}), sa: Some(ot), ..} =>
+        {
+            let t: Result<u8, _> = U256::from_be_bytes(ot.data).try_into();
+            if let Ok(ma) = t {
+                if ma < 128 {
+                    for m in 1..ma {
+                        let mut vm_clone = vm.clone();
+                        vm_clone.stack.peek_mut()?.data = U256::from(m).to_be_bytes();
+                        *gas_used += process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
+                        if *gas_used > gas_limit {
+                            break
+                        }
+                    }
+                    vm.stack.peek_mut()?.data = VAL_0_B;
+                }
+            }
         }
 
           StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::CallData), ..}), ..}

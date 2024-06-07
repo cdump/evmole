@@ -42,6 +42,26 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 v = vm.stack.pop_uint()
                 vm.stack.push_uint(1 if v == 0 else 0)
 
+            case (Op.MUL, _, Element('signature'), _) | (Op.MUL, _, _, Element('signature')):
+                vm.stack.peek().label = 'mulsig'
+
+            case (Op.SHR, _, _, Element('mulsig')):
+                vm.stack.peek().label = 'mulsig'
+
+            # Vyper _selector_section_dense()
+            case (Op.MOD, _, Element('mulsig') | Element('signature'), Element() as s1):
+                ma = int.from_bytes(s1.data, 'big')
+                if ma < 128:
+                    for m in range(1, ma):
+                        cloned_vm = copy.copy(vm)
+                        cloned_vm.stack.peek().data = m.to_bytes(32, 'big')
+                        s, g = process(cloned_vm, (gas_limit - gas_used) // ma)
+                        selectors += s
+                        gas_used += g
+                        if gas_used > gas_limit:
+                            break
+                    vm.stack.peek().data = (0).to_bytes(32, 'big')
+
             case (
                 (Op.SHR, _, _, Element('calldata'))
                 | (Op.AND, _, Element('signature'), _)

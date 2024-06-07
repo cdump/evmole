@@ -62,6 +62,34 @@ function process(vm, gas_limit) {
         }
         break
 
+      case Op.MUL:
+        if (ret[2].label === 'signature' || ret[3].label === 'signature') {
+          vm.stack.peek().label = 'mulsig'
+        }
+        break
+
+      // Vyper _selector_section_dense()
+      case Op.MOD:
+        if (ret[2].label === 'mulsig' || ret[2].label === 'signature') {
+          const raw_ma = uint8ArrayToBigInt(ret[3].data);
+          if (raw_ma < 128n) {
+            const ma = Number(raw_ma);
+            vm.stack.pop()
+            for (let m = 1; m < ma; m++) {
+              const cloned_vm = vm.clone()
+              cloned_vm.stack.push_uint(BigInt(m))
+              const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / ma))
+              selectors.push(...s)
+              gas_used += gas
+              if (gas_used > gas_limit) {
+                break
+              }
+            }
+            vm.stack.push_uint(0n)
+          }
+        }
+        break
+
       case Op.SHR:
         {
           if (ret[3].label === 'calldata') {
@@ -73,6 +101,8 @@ function process(vm, gas_limit) {
             ) {
               vm.stack.peek().label = 'signature'
             }
+          } else if (ret[3].label === 'mulsig') {
+              vm.stack.peek().label = 'mulsig'
           }
         }
         break
