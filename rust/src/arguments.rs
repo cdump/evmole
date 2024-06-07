@@ -6,7 +6,7 @@ use crate::{
     },
     Selector,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 const VAL_2_B: [u8; 32] = ruint::uint!(2_U256).to_be_bytes();
 const VAL_4_B: [u8; 32] = ruint::uint!(4_U256).to_be_bytes();
@@ -24,11 +24,13 @@ enum Label {
 
 struct ArgsResult {
     pub args: BTreeMap<u32, String>,
+    pub not_bool: BTreeSet<u32>,
 }
 impl ArgsResult {
     pub fn new() -> ArgsResult {
         ArgsResult {
             args: BTreeMap::new(),
+            not_bool: BTreeSet::new(),
         }
     }
 
@@ -44,6 +46,11 @@ impl ArgsResult {
         } else if atype.is_empty() {
             self.args.insert(offset, atype.to_string());
         }
+    }
+
+    pub fn mark_not_bool(&mut self, offset: u32) {
+        self.not_bool.insert(offset);
+        self.set_if(offset, "bool", "");
     }
 
     pub fn join_to_string(&self) -> String {
@@ -95,12 +102,6 @@ fn analyze(
             }
         }
 
-          StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), sa: Some(_), ..}
-        | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), fa: Some(_), ..} =>
-        {
-            args.set_if(off, "bool", "");
-        }
-
           StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), sa: Some(ot), ..}
         | StepResult{op: op::ADD, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), fa: Some(ot), ..} =>
         {
@@ -110,6 +111,7 @@ fn analyze(
             } else {
                 Label::ArgDynamic(off)
             });
+            args.mark_not_bool(off);
         },
 
           StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::ArgDynamic(off)), ..}), ..}
@@ -136,7 +138,16 @@ fn analyze(
             } else if ot.data == VAL_2_B {
                 args.set(off, "string");
             }
+            if let Some(Label::Arg(ot_off, _)) = ot.label {
+                args.mark_not_bool(ot_off);
+            }
         }
+
+          StepResult{op: op::LT|op::GT|op::MUL, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..}
+        | StepResult{op: op::LT|op::GT|op::MUL, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
+        {
+            args.mark_not_bool(off);
+        },
 
           StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), sa: Some(ot), ..}
         | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), fa: Some(ot), ..} =>
@@ -190,7 +201,11 @@ fn analyze(
                 }
             }
             if is_bool {
-                args.set(off, if dynamic { "bool[]" } else { "bool" });
+                if dynamic {
+                    args.set(off, "bool[]");
+                } else if !args.not_bool.contains(&off) {
+                    args.set(off, "bool");
+                }
             }
         }
 

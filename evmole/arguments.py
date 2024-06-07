@@ -31,9 +31,11 @@ class IsZeroResult:
 
 class ArgsResult:
     args: dict[int, str]
+    not_bool: set[int]
 
     def __init__(self):
         self.args = {}
+        self.not_bool = set()
 
     def set(self, offset: int, atype: str):
         self.args[offset] = atype
@@ -45,6 +47,10 @@ class ArgsResult:
                 self.args[offset] = atype
         elif atype == '':
             self.args[offset] = atype
+
+    def mark_not_bool(self, offset):
+        self.not_bool.add(offset)
+        self.set_if(offset, 'bool', '')
 
     def join_to_string(self) -> str:
         return ','.join(v[1] if v[1] != '' else 'uint256' for v in sorted(self.args.items()))
@@ -101,13 +107,11 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                     vm.stack.push(Element(data=(0).to_bytes(32, 'big'), label=Arg(offset=off)))
                     args.set_if(off, '', '')
 
-            case (Op.MUL, _, Element(Arg() as arg), Element()) | (Op.MUL, _, Element(), Element(Arg() as arg)):
-                args.set_if(arg.offset, 'bool', '')
-
             case (Op.ADD, _, Element(Arg() as arg), Element() as ot) | (Op.ADD, _, Element() as ot, Element(Arg() as arg)):
                 vm.stack.peek().label = (
                     Arg(offset=arg.offset) if int.from_bytes(ot.data, 'big') == 4 else ArgDynamic(offset=arg.offset)
                 )
+                args.mark_not_bool(arg.offset)
 
             case (Op.ADD, _, Element(ArgDynamic() as arg), _) | (Op.ADD, _, _, Element(ArgDynamic() as arg)):
                 vm.stack.peek().label = ArgDynamic(offset=arg.offset)
@@ -128,6 +132,11 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                     args.set(arg.offset, 'uint256[]')
                 elif v == 2:
                     args.set(arg.offset, 'string')
+                if isinstance(ot.label, Arg):
+                    args.mark_not_bool(ot.label.offset)
+
+            case (Op.LT | Op.GT | Op.MUL, _, Element(Arg() as arg), _) | (Op.LT | Op.GT | Op.MUL, _, _, Element(Arg() as arg)):
+                args.mark_not_bool(arg.offset)
 
             case (Op.AND, _, Element(Arg() as arg), Element() as ot) | (Op.AND, _, Element() as ot, Element(Arg() as arg)):
                 v = int.from_bytes(ot.data, 'big')
@@ -162,7 +171,10 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                         if jumpdest + 1 < len(vm.code) and vm.code[jumpdest] == Op.JUMPDEST and vm.code[jumpdest + 1] == Op.DIV:
                             is_bool = False
                 if is_bool:
-                    args.set(arg.offset, 'bool[]' if arg.dynamic else 'bool')
+                    if arg.dynamic:
+                        args.set(arg.offset, 'bool[]')
+                    elif arg.offset not in args.not_bool:
+                        args.set(arg.offset, 'bool')
 
             case (Op.SIGNEXTEND, _, s0, Element(Arg() as arg)):
                 if s0 < 32:

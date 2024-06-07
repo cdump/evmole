@@ -45,6 +45,7 @@ class IsZeroResult {
 class ArgsResult {
   constructor() {
     this.args = {}
+    this.notBool = new Set()
   }
   set(offset, atype) {
     this.args[offset] = atype
@@ -59,6 +60,11 @@ class ArgsResult {
     } else if (atype === '') {
       this.args[offset] = atype
     }
+  }
+
+  markNotBool(offset) {
+    this.notBool.add(offset)
+    this.setIf(offset, 'bool', '')
   }
 
   joinToString() {
@@ -80,7 +86,6 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
   let args = new ArgsResult()
 
   while (!vm.stopped) {
-    // console.log(vm.toString());
     let ret
     try {
       ret = vm.step()
@@ -114,6 +119,9 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       continue
     }
+
+    // console.log('args:', args.joinToString());
+    // console.log(vm.toString());
 
     switch (op) {
       case Op.CALLDATASIZE:
@@ -155,6 +163,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
             } else {
               p.label = new ArgDynamic(v.offset)
             }
+            args.markNotBool(v.offset)
           } else if (r2.label instanceof ArgDynamic || r3.label instanceof ArgDynamic) {
             const arg = r2.label instanceof ArgDynamic ? r2.label : r3.label
             vm.stack.peek().label = new ArgDynamic(arg.offset)
@@ -177,24 +186,30 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       case Op.MUL:
         {
-          if (ret[2].label instanceof ArgDynamicLength) {
-            const n = uint8ArrayToBigInt(ret[3].data);
+          const [r2, r3] = [ret[2], ret[3]]
+          if (r2.label instanceof ArgDynamicLength || r3.label instanceof ArgDynamicLength) {
+            const [arg, ot] = r2.label instanceof ArgDynamicLength ? [r2.label, r3.data] : [r3.label, r2.data]
+            const n = uint8ArrayToBigInt(ot)
             if (n === 32n) {
-              args.set(ret[2].label.offset, 'uint256[]')
+              args.set(arg.offset, 'uint256[]')
             } else if (n === 2n) {
-              args.set(ret[2].label.offset, 'string')
+              args.set(arg.offset, 'string')
             }
-          } else if (ret[3].label instanceof ArgDynamicLength) {
-            const n = uint8ArrayToBigInt(ret[2].data);
-            if (n === 32n) {
-              args.set(ret[3].label.offset, 'uint256[]')
-            } else if (n === 2n) {
-              args.set(ret[3].label.offset, 'string')
-            }
-          } else if (ret[2].label instanceof Arg) {
-            args.setIf(ret[2].label.offset, 'bool', '')
-          } else if (ret[3].label instanceof Arg) {
-            args.setIf(ret[3].label.offset, 'bool', '')
+          }
+          if (r2.label instanceof Arg || r3.label instanceof Arg) {
+            const arg = r2.label instanceof Arg ? r2.label : r3.label
+            args.markNotBool(arg.offset)
+          }
+        }
+        break
+
+      case Op.GT:
+      case Op.LT:
+        {
+          const [r2, r3] = [ret[2], ret[3]]
+          if (r2.label instanceof Arg || r3.label instanceof Arg) {
+            const v = r2.label instanceof Arg ? r2.label : r3.label
+            args.markNotBool(v.offset)
           }
         }
         break
@@ -249,7 +264,11 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
               }
             }
             if (is_bool) {
-              args.set(v.offset, v.dynamic ? 'bool[]' : 'bool')
+              if (v.dynamic) {
+                args.set(v.offset, 'bool[]')
+              } else if (!args.notBool.has(v.offset)) {
+                args.set(v.offset, 'bool')
+              }
             }
           }
         }
