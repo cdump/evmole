@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import pathlib
 import re
 
@@ -173,11 +174,15 @@ def normalize_args(args: str, rules: set[str]) -> str:
     if rules is None:
         return args
 
-    # uint8[3] => uint8,uint8,uint8
+    # uint8[3] => uint8,uint8,uint8, also supports uint8[2][3], but not uint8[2][]
     if 'fixed-size-array' in rules:
+        def expand(m):
+            n = math.prod(int(x) for x in re.findall(r'\[(\d+)\]', m.group(2)))
+            return ','.join([m.group(1)] * n) + m.group(3)
+
         args = re.sub(
-            r'([a-z0-9]+)\[(\d+)\]',
-            lambda m: ','.join([m.group(1)] * int(m.group(2))),
+            r'([a-z0-9]+)((?:\[\d+\])+)(,|$|\))',
+            expand,
             args
         )
 
@@ -193,8 +198,11 @@ def normalize_args(args: str, rules: set[str]) -> str:
                     assert stack, 'Unbalanced parentheses'
                     start = stack.pop()
                     if len(s) == i+1 or s[i+1] != '[':
-                        s[start] = ' '
-                        s[i] = ' '
+                        val = ''.join(s[start+1:i])
+                        # dynamic types & arrays
+                        if 'bytes' not in val and 'string' not in val and '[]' not in val:
+                            s[start] = ' '
+                            s[i] = ' '
 
             return ''.join(c for c in s if c != ' ')
         args = f(args)
