@@ -107,7 +107,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>FN <sub>contracts</sub></i></td>
   <td>0 🥇</td>
-  <td>8</td>
+  <td>0 🥇</td>
   <td>40</td>
   <td>102</td>
   <td>9</td>
@@ -123,7 +123,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>FN <sub>functions</sub></i></td>
   <td>0 🥇</td>
-  <td>8 🥈</td>
+  <td>0 🥇</td>
   <td>191</td>
   <td>113</td>
   <td>12</td>
@@ -131,7 +131,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>Time</i></td>
   <td>0.5s · 1.5s · 2.0s</td>
-  <td>2.6s</td>
+  <td>2.9s</td>
   <td>0.7s</td>
   <td>719.9s</td>
   <td>1.7s</td>
@@ -149,7 +149,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>FN <sub>contracts</sub></i></td>
   <td>9 🥇</td>
-  <td>31</td>
+  <td>11</td>
   <td>2903</td>
   <!-- -->
   <td>77</td>
@@ -165,7 +165,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>FN <sub>functions</sub></i></td>
   <td>10 🥇</td>
-  <td>32</td>
+  <td>12</td>
   <td>3538</td>
   <!-- -->
   <td>96</td>
@@ -173,7 +173,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>Time</i></td>
   <td>10.1s · 19.4s · 39.4s</td>
-  <td>46.9s</td>
+  <td>55.9s</td>
   <td>11.5s</td>
   <!-- -->
   <td>47.9s</td>
@@ -215,7 +215,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>Time</i></td>
   <td>0.4s · 0.8s · 1.2s</td>
-  <td>2.0s</td>
+  <td>2.1s</td>
   <td>0.4s</td>
   <td>16.4s</td>
   <td>1.1s</td>
@@ -278,7 +278,7 @@ See [examples](./examples) for more
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole (4ba4c505); whatsabi v0.11.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
+<i>versions: evmole (4ba4c505); whatsabi v0.12.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
 
 ## How it works
 

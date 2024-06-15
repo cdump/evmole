@@ -2,6 +2,6 @@
 
 FROM node:22
 WORKDIR /app
-RUN npm install @shazow/whatsabi@0.11.0
+RUN npm install @shazow/whatsabi@0.12.0
 COPY main.mjs /app
 ENTRYPOINT ["node", "/app/main.mjs"]
