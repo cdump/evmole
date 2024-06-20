@@ -5,7 +5,7 @@ import Element from './evm/element.js'
 import { toUint8Array, uint8ArrayToBigInt } from './utils.js'
 
 function process(vm, gas_limit) {
-  let selectors = []
+  let selectors = new Set();
   let gas_used = 0
 
   while (!vm.stopped) {
@@ -32,11 +32,11 @@ function process(vm, gas_limit) {
       case Op.EQ:
       case Op.XOR:
         if (ret[2].label === 'signature') {
-          selectors.push(uint8ArrayToBigInt(ret[3].data))
+          selectors.add(uint8ArrayToBigInt(ret[3].data))
           vm.stack.pop()
           vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
         } else if (ret[3].label === 'signature') {
-          selectors.push(uint8ArrayToBigInt(ret[2].data))
+          selectors.add(uint8ArrayToBigInt(ret[2].data))
           vm.stack.pop()
           vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
         }
@@ -44,9 +44,9 @@ function process(vm, gas_limit) {
 
       case Op.SUB:
         if (ret[2].label === 'signature') {
-          selectors.push(uint8ArrayToBigInt(ret[3].data))
+          selectors.add(uint8ArrayToBigInt(ret[3].data))
         } else if (ret[3].label === 'signature') {
-          selectors.push(uint8ArrayToBigInt(ret[2].data))
+          selectors.add(uint8ArrayToBigInt(ret[2].data))
         }
         break
 
@@ -55,7 +55,7 @@ function process(vm, gas_limit) {
         if (ret[2].label === 'signature' || ret[3].label === 'signature') {
           const cloned_vm = vm.clone()
           const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / 2))
-          selectors.push(...s)
+          s.forEach(v => selectors.add(v));
           gas_used += gas
           const v = vm.stack.pop_uint()
           vm.stack.push_uint(v === 0n ? 1n : 0n)
@@ -79,7 +79,7 @@ function process(vm, gas_limit) {
               const cloned_vm = vm.clone()
               cloned_vm.stack.push_uint(BigInt(m))
               const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / ma))
-              selectors.push(...s)
+              s.forEach(v => selectors.add(v));
               gas_used += gas
               if (gas_used > gas_limit) {
                 break
@@ -141,7 +141,7 @@ function process(vm, gas_limit) {
 
       case Op.ISZERO:
         if (ret[2].label === 'signature') {
-          selectors.push(0n)
+          selectors.add(0n)
         }
         break
 
@@ -163,5 +163,5 @@ export function functionSelectors(code, gas_limit = 5e5) {
   const code_arr = toUint8Array(code)
   const vm = new Vm(code_arr, new Element(new Uint8Array([0xaa, 0xbb, 0xcc, 0xdd]), 'calldata'))
   const [selectors] = process(vm, gas_limit)
-  return selectors.map((x) => x.toString(16).padStart(8, '0'))
+  return [...selectors.values()].map((x) => x.toString(16).padStart(8, '0'))
 }

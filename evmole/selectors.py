@@ -7,8 +7,8 @@ from .evm.vm import UnsupportedOpError, Vm
 from .utils import to_bytes
 
 
-def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
-    selectors = []
+def process(vm: Vm, gas_limit: int) -> tuple[set[bytes], int]:
+    selectors: set[bytes] = set()
     gas_used = 0
 
     while not vm.stopped:
@@ -27,17 +27,17 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 ((Op.XOR | Op.EQ as op, _, Element() as s1, Element('signature')))
                 | ((Op.XOR | Op.EQ as op, _, Element('signature'), Element() as s1))
             ):
-                selectors.append(s1.data[-4:])
+                selectors.add(s1.data[-4:])
                 vm.stack.pop()
                 vm.stack.push_uint(1 if op == Op.XOR else 0)
 
             case (Op.SUB, _, Element('signature'), Element() as s1) | (Op.SUB, _, Element() as s1, Element('signature')):
-                selectors.append(s1.data[-4:])
+                selectors.add(s1.data[-4:])
 
             case (Op.LT | Op.GT, _, Element('signature'), _) | (Op.LT | Op.GT, _, _, Element('signature')):
                 cloned_vm = copy.copy(vm)
                 s, g = process(cloned_vm, (gas_limit - gas_used) // 2)
-                selectors += s
+                selectors.update(s)
                 gas_used += g
                 v = vm.stack.pop_uint()
                 vm.stack.push_uint(1 if v == 0 else 0)
@@ -56,7 +56,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                         cloned_vm = copy.copy(vm)
                         cloned_vm.stack.peek().data = m.to_bytes(32, 'big')
                         s, g = process(cloned_vm, (gas_limit - gas_used) // ma)
-                        selectors += s
+                        selectors.update(s)
                         gas_used += g
                         if gas_used > gas_limit:
                             break
@@ -76,7 +76,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 vm.stack.peek().label = 'calldata'
 
             case (Op.ISZERO, _, Element('signature')):
-                selectors.append(b'\x00\x00\x00\x00')
+                selectors.add(b'\x00\x00\x00\x00')
 
             case (Op.MLOAD, _, set() as used):
                 v = vm.stack.peek()

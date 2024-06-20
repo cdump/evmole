@@ -3,6 +3,7 @@ use crate::evm::{
     vm::{StepResult, Vm},
     Element, U256, VAL_0_B, VAL_1_B,
 };
+use std::collections::BTreeSet;
 use crate::Selector;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -14,7 +15,7 @@ enum Label {
 
 fn analyze(
     vm: &mut Vm<Label>,
-    selectors: &mut Vec<Selector>,
+    selectors: &mut BTreeSet<Selector>,
     ret: StepResult<Label>,
     gas_used: &mut u32,
     gas_limit: u32,
@@ -23,7 +24,7 @@ fn analyze(
           StepResult{op: op::XOR|op::EQ, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
         | StepResult{op: op::XOR|op::EQ, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
         {
-            selectors.push(s1.data[28..32].try_into().unwrap());
+            selectors.insert(s1.data[28..32].try_into().unwrap());
             let v = vm.stack.peek_mut()?;
             v.data = if ret.op == op::XOR { VAL_1_B } else { VAL_0_B };
         }
@@ -31,7 +32,7 @@ fn analyze(
           StepResult{op: op::SUB, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
         | StepResult{op: op::SUB, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
         {
-            selectors.push(s1.data[28..32].try_into().unwrap());
+            selectors.insert(s1.data[28..32].try_into().unwrap());
         }
 
           StepResult{op: op::LT|op::GT, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
@@ -92,7 +93,7 @@ fn analyze(
 
         StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
         {
-            selectors.push([0; 4]);
+            selectors.insert([0; 4]);
         }
 
         StepResult{op: op::MLOAD, ul: Some(used), ..} =>
@@ -108,7 +109,7 @@ fn analyze(
     Ok(())
 }
 
-fn process(mut vm: Vm<Label>, selectors: &mut Vec<Selector>, gas_limit: u32) -> u32 {
+fn process(mut vm: Vm<Label>, selectors: &mut BTreeSet<Selector>, gas_limit: u32) -> u32 {
     let mut gas_used = 0;
     while !vm.stopped {
         // println!("{:?}\n", vm);
@@ -158,7 +159,7 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
             label: Some(Label::CallData),
         },
     );
-    let mut selectors: Vec<Selector> = Vec::new();
+    let mut selectors  = BTreeSet::new();
     process(
         vm,
         &mut selectors,
@@ -168,7 +169,7 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
             gas_limit
         },
     );
-    selectors
+    selectors.into_iter().collect()
 }
 
 #[cfg(test)]
