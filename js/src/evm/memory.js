@@ -54,6 +54,6 @@ export default class Memory {
       }
     }
 
-    return [new Element(ret), used];
+    return [new Element(ret), used]
   }
 }

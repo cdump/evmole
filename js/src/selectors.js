@@ -149,7 +149,7 @@ function process(vm, gas_limit) {
         {
           const used = ret[2]
           const p = vm.stack.peek()
-          if (used.has('calldata') && (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i]))) {
+          if (used.has('calldata') && p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
             p.label = 'signature'
           }
         }

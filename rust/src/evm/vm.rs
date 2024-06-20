@@ -1,7 +1,7 @@
 use std::{collections::HashSet, error, fmt};
 
 use super::{memory::Memory, op, stack::Stack, Element, U256};
-use super::{VAL_0_B, VAL_1, VAL_1_B, VAL_256, VAL_32, VAL_32_B};
+use super::{VAL_0_B, VAL_1, VAL_1024, VAL_1M, VAL_1_B, VAL_256, VAL_32, VAL_4};
 
 #[derive(Debug)]
 pub struct UnsupportedOpError {
@@ -24,8 +24,8 @@ pub struct StepResult<T> {
 }
 
 impl<T> StepResult<T> {
-    fn new(op: op::OpCode, gas_used: u32) -> StepResult<T> {
-        StepResult {
+    fn new(op: op::OpCode, gas_used: u32) -> Self {
+        Self {
             op,
             gas_used,
             fa: None,
@@ -72,8 +72,8 @@ impl<'a, T> Vm<'a, T>
 where
     T: std::fmt::Debug + Clone + Eq + std::hash::Hash,
 {
-    pub fn new(code: &'a [u8], calldata: Element<T>) -> Vm<T> {
-        Vm {
+    pub fn new(code: &'a [u8], calldata: Element<T>) -> Self {
+        Self {
             code,
             pc: 0,
             stack: Stack::new(),
@@ -136,6 +136,16 @@ where
                 Ok(StepResult::new(op, if n == 0 { 2 } else { 3 }))
             }
 
+            op::DUP1..=op::DUP16 => {
+                self.stack.dup(op - op::DUP1 + 1)?;
+                Ok(StepResult::new(op, 3))
+            }
+
+            op::SWAP1..=op::SWAP16 => {
+                self.stack.swap(op - op::SWAP1 + 1)?;
+                Ok(StepResult::new(op, 3))
+            }
+
             op::JUMP | op::JUMPI => {
                 let s0 = self.stack.pop_uint()?;
                 if op == op::JUMPI {
@@ -158,34 +168,13 @@ where
                 }
             }
 
-            op::DUP1..=op::DUP16 => {
-                self.stack.dup(op - op::DUP1 + 1)?;
-                Ok(StepResult::new(op, 3))
-            }
-
             op::JUMPDEST => Ok(StepResult::new(op, 1)),
 
-            op::REVERT | op::STOP | op::RETURN => {
-                // skip stack pop()s
-                self.stopped = true;
-                Ok(StepResult::new(op, 4))
-            }
+            op::ADD => self.bop(op, |_, s0, _, s1| (3, s0 + s1)),
 
-            op::EQ => self.bop(op, |_, s0, _, s1| {
-                (3, if s0 == s1 { VAL_1 } else { U256::ZERO })
-            }),
-
-            op::LT => self.bop(op, |_, s0, _, s1| {
-                (3, if s0 < s1 { VAL_1 } else { U256::ZERO })
-            }),
-
-            op::GT => self.bop(op, |_, s0, _, s1| {
-                (3, if s0 > s1 { VAL_1 } else { U256::ZERO })
-            }),
+            op::MUL => self.bop(op, |_, s0, _, s1| (5, s0 * s1)),
 
             op::SUB => self.bop(op, |_, s0, _, s1| (3, s0 - s1)),
-
-            op::ADD => self.bop(op, |_, s0, _, s1| (3, s0 + s1)),
 
             op::DIV => self.bop(op, |_, s0, _, s1| {
                 (5, if s1.is_zero() { U256::ZERO } else { s0 / s1 })
@@ -195,141 +184,12 @@ where
                 (5, if s1.is_zero() { U256::ZERO } else { s0 % s1 })
             }),
 
-            op::MUL => self.bop(op, |_, s0, _, s1| (5, s0 * s1)),
-
             op::EXP => self.bop(op, |_, s0, _, s1| {
                 (
                     50 * (1 + s1.bit_len() / 8) as u32, /*approx*/
                     s0.pow(s1),
                 )
             }),
-
-            op::XOR => self.bop(op, |_, s0, _, s1| (3, s0 ^ s1)),
-
-            op::AND => self.bop(op, |_, s0, _, s1| (3, s0 & s1)),
-
-            op::OR => self.bop(op, |_, s0, _, s1| (3, s0 | s1)),
-
-            op::SHR => self.bop(op, |_, s0, _, s1| {
-                (3, if s0 >= VAL_256 { U256::ZERO } else { s1 >> s0 })
-            }),
-
-            op::SHL => self.bop(op, |_, s0, _, s1| {
-                (3, if s0 >= VAL_256 { U256::ZERO } else { s1 << s0 })
-            }),
-
-            op::SLT => self.bop(op, |_, s0, _, s1| {
-                (3, {
-                    let sign0 = s0.bit(255);
-                    let sign1 = s1.bit(255);
-                    U256::from(if sign0 == sign1 { s0 < s1 } else { sign0 })
-                })
-            }),
-
-            op::SGT => self.bop(op, |_, s0, _, s1| {
-                (3, {
-                    let sign0 = s0.bit(255);
-                    let sign1 = s1.bit(255);
-                    U256::from(if sign0 == sign1 { s0 > s1 } else { !sign0 })
-                })
-            }),
-
-            op::BYTE => self.bop(op, |_, s0, raws1, _| {
-                (3, {
-                    if s0 >= VAL_32 {
-                        U256::ZERO
-                    } else {
-                        let i: usize = s0.to();
-                        U256::from(raws1.data[i])
-                    }
-                })
-            }),
-
-            op::ISZERO => {
-                let raws0 = self.stack.pop()?;
-                self.stack.push(Element {
-                    data: if raws0.data == VAL_0_B {
-                        VAL_1_B
-                    } else {
-                        VAL_0_B
-                    },
-                    label: None,
-                });
-                let mut ret = StepResult::new(op, 3);
-                ret.fa = Some(raws0);
-                Ok(ret)
-            }
-
-            op::POP => {
-                self.stack.pop()?;
-                Ok(StepResult::new(op, 2))
-            }
-
-            op::CALLVALUE => {
-                self.stack.push_uint(U256::ZERO); // msg.value == 0
-                Ok(StepResult::new(op, 2))
-            }
-
-            op::CALLDATALOAD => {
-                let raws0 = self.stack.pop()?;
-                let offset: U256 = (&raws0).into();
-                self.stack.push(self.calldata.load(offset, 32));
-                let mut ret = StepResult::new(op, 3);
-                ret.fa = Some(raws0);
-                Ok(ret)
-            }
-
-            op::CALLDATASIZE => {
-                self.stack.push(Element {
-                    data: VAL_32_B,
-                    label: None,
-                });
-                Ok(StepResult::new(op, 2))
-            }
-
-            op::SWAP1..=op::SWAP16 => {
-                self.stack.swap(op - op::SWAP1 + 1)?;
-                Ok(StepResult::new(op, 3))
-            }
-
-            op::MSIZE => {
-                self.stack.push_uint(U256::from(self.memory.size()));
-                Ok(StepResult::new(op, 2))
-            }
-
-            op::MSTORE8 => {
-                let off: u32 = self.stack.pop_uint()?.try_into()?;
-                let val = self.stack.pop()?;
-
-                self.memory.store(off, vec![val.data[31]], val.label);
-                Ok(StepResult::new(op, 3))
-            }
-
-            op::MSTORE => {
-                let off = self.stack.pop_uint()?.try_into()?;
-                let val = self.stack.pop()?;
-
-                self.memory.store(off, val.data.to_vec(), val.label);
-                Ok(StepResult::new(op, 3))
-            }
-
-            op::MLOAD => {
-                let off = self.stack.pop_uint()?.try_into()?;
-                let (val, used) = self.memory.load(off);
-                self.stack.push(Element {
-                    data: val,
-                    label: None,
-                });
-                let mut ret = StepResult::new(op, 4);
-                ret.ul = Some(used);
-                Ok(ret)
-            }
-
-            op::NOT => {
-                let v = self.stack.pop_uint()?;
-                self.stack.push_uint(!v);
-                Ok(StepResult::new(op, 3))
-            }
 
             op::SIGNEXTEND => self.bop(op, |raws0, s0, _, s1| {
                 (
@@ -348,17 +208,132 @@ where
                 )
             }),
 
-            op::ADDRESS | op::ORIGIN | op::CALLER => {
+            op::LT => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 < s1 { VAL_1 } else { U256::ZERO })
+            }),
+
+            op::GT => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 > s1 { VAL_1 } else { U256::ZERO })
+            }),
+
+            op::SLT => self.bop(op, |_, s0, _, s1| {
+                (3, {
+                    let sign0 = s0.bit(255);
+                    let sign1 = s1.bit(255);
+                    U256::from(if sign0 == sign1 { s0 < s1 } else { sign0 })
+                })
+            }),
+
+            op::SGT => self.bop(op, |_, s0, _, s1| {
+                (3, {
+                    let sign0 = s0.bit(255);
+                    let sign1 = s1.bit(255);
+                    U256::from(if sign0 == sign1 { s0 > s1 } else { !sign0 })
+                })
+            }),
+
+            op::EQ => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 == s1 { VAL_1 } else { U256::ZERO })
+            }),
+
+            op::ISZERO => {
+                let raws0 = self.stack.pop()?;
                 self.stack.push(Element {
-                    data: VAL_0_B,
+                    data: if raws0.data == VAL_0_B {
+                        VAL_1_B
+                    } else {
+                        VAL_0_B
+                    },
                     label: None,
                 });
+                let mut ret = StepResult::new(op, 3);
+                ret.fa = Some(raws0);
+                Ok(ret)
+            }
+
+            op::AND => self.bop(op, |_, s0, _, s1| (3, s0 & s1)),
+
+            op::OR => self.bop(op, |_, s0, _, s1| (3, s0 | s1)),
+
+            op::XOR => self.bop(op, |_, s0, _, s1| (3, s0 ^ s1)),
+
+            op::NOT => {
+                let v = self.stack.pop_uint()?;
+                self.stack.push_uint(!v);
+                Ok(StepResult::new(op, 3))
+            }
+
+            op::BYTE => self.bop(op, |_, s0, raws1, _| {
+                (3, {
+                    if s0 >= VAL_32 {
+                        U256::ZERO
+                    } else {
+                        let i: usize = s0.to();
+                        U256::from(raws1.data[i])
+                    }
+                })
+            }),
+
+            op::SHL => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 >= VAL_256 { U256::ZERO } else { s1 << s0 })
+            }),
+
+            op::SHR => self.bop(op, |_, s0, _, s1| {
+                (3, if s0 >= VAL_256 { U256::ZERO } else { s1 >> s0 })
+            }),
+
+            op::KECCAK256 => {
+                self.stack.pop()?;
+                self.stack.pop()?;
+                self.stack.push_uint(VAL_1);
+                Ok(StepResult::new(op, 30))
+            }
+
+            op::ADDRESS
+            | op::ORIGIN
+            | op::CALLER
+            | op::COINBASE
+            | op::CALLVALUE
+            | op::TIMESTAMP
+            | op::NUMBER
+            | op::PREVRANDAO
+            | op::GASLIMIT
+            | op::CHAINID
+            | op::BASEFEE
+            | op::BLOBBASEFEE
+            | op::GASPRICE => {
+                self.stack.push_uint(U256::ZERO);
+                Ok(StepResult::new(op, 2))
+            }
+
+            op::BALANCE => {
+                self.stack.pop()?;
+                self.stack.push_uint(U256::ZERO);
+                Ok(StepResult::new(op, 100))
+            }
+
+            op::CALLDATALOAD => {
+                let raws0 = self.stack.pop()?;
+                let offset: U256 = (&raws0).into();
+                self.stack.push(self.calldata.load(offset, 32));
+                let mut ret = StepResult::new(op, 3);
+                ret.fa = Some(raws0);
+                Ok(ret)
+            }
+
+            op::CALLDATASIZE => {
+                self.stack.push_uint(VAL_4);
                 Ok(StepResult::new(op, 2))
             }
 
             op::CALLDATACOPY => {
-                let mem_off: u32 = self.stack.pop_uint()?.try_into()?;
-                let src_off = self.stack.pop_uint()?;
+                let raws0 = self.stack.pop()?;
+                let mem_off: U256 = (&raws0).into();
+                let mem_off32: u32 = mem_off.try_into()?;
+
+                let raws1 = self.stack.pop()?;
+                let src_off: U256 = (&raws1).into();
+
                 let size: usize = self.stack.pop_uint()?.try_into()?;
 
                 if size > 512 {
@@ -370,9 +345,18 @@ where
                     let l = std::cmp::min(size, 32);
                     data[0..l].copy_from_slice(&value.data[0..l]);
 
-                    self.memory.store(mem_off, data, value.label);
-                    Ok(StepResult::new(op, 4))
+                    self.memory.store(mem_off32, data, value.label.clone());
+
+                    let mut ret = StepResult::new(op, 4);
+                    ret.fa = Some(raws1); // calldata offset, like in CALLDATALOAD
+                    ret.sa = Some(raws0); // memory off
+                    Ok(ret)
                 }
+            }
+
+            op::CODESIZE => {
+                self.stack.push_uint(U256::from(self.code.len()));
+                Ok(StepResult::new(op, 2))
             }
 
             op::CODECOPY => {
@@ -380,25 +364,94 @@ where
                 let src_off: usize = self.stack.pop_uint()?.try_into()?;
                 let size: usize = self.stack.pop_uint()?.try_into()?;
 
-                if src_off + size > self.code.len() {
+                if size > 32768 {
                     Err(UnsupportedOpError { op }.into())
                 } else {
                     let mut data: Vec<u8> = vec![0; size];
-                    data[0..size].copy_from_slice(&self.code[src_off..src_off + size]);
 
+                    let n = std::cmp::min(size, self.code.len() - src_off);
+                    data[0..n].copy_from_slice(&self.code[src_off..src_off + n]);
                     self.memory.store(mem_off, data, None);
                     Ok(StepResult::new(op, 3))
                 }
+            }
+
+            op::EXTCODESIZE | op::EXTCODEHASH => {
+                self.stack.pop()?;
+                self.stack.push_uint(VAL_1);
+                Ok(StepResult::new(op, 100))
+            }
+
+            op::RETURNDATASIZE => {
+                self.stack.push_uint(VAL_1024);
+                Ok(StepResult::new(op, 2))
+            }
+
+            op::RETURNDATACOPY => {
+                let mem_off: u32 = self.stack.pop_uint()?.try_into()?;
+                self.stack.pop()?;
+                let size: usize = self.stack.pop_uint()?.try_into()?;
+                if size > 1024 {
+                    Err(UnsupportedOpError { op }.into())
+                } else {
+                    let data: Vec<u8> = vec![0; size];
+                    self.memory.store(mem_off, data, None);
+                    Ok(StepResult::new(op, 3))
+                }
+            }
+
+            op::BLOCKHASH => {
+                self.stack.pop()?;
+                self.stack.push_uint(VAL_1);
+                Ok(StepResult::new(op, 20))
+            }
+
+            op::SELFBALANCE => {
+                self.stack.push_uint(U256::ZERO);
+                Ok(StepResult::new(op, 5))
+            }
+
+            op::POP => {
+                self.stack.pop()?;
+                Ok(StepResult::new(op, 2))
+            }
+
+            op::MLOAD => {
+                let off: u32 = self.stack.pop_uint()?.try_into()?;
+                let (val, used) = self.memory.load(off);
+
+                self.stack.push(val);
+                let mut ret = StepResult::new(op, 4);
+                ret.ul = Some(used);
+                Ok(ret)
+            }
+
+            op::MSTORE => {
+                let off = self.stack.pop_uint()?.try_into()?;
+                let val = self.stack.pop()?;
+
+                self.memory.store(off, val.data.to_vec(), val.label);
+                Ok(StepResult::new(op, 3))
+            }
+
+            op::MSTORE8 => {
+                let off: u32 = self.stack.pop_uint()?.try_into()?;
+                let val = self.stack.pop()?;
+
+                self.memory.store(off, vec![val.data[31]], val.label);
+                Ok(StepResult::new(op, 3))
+            }
+
+            op::MSIZE => {
+                self.stack.push_uint(U256::from(self.memory.size()));
+                Ok(StepResult::new(op, 2))
             }
 
             op::SLOAD => {
                 let slot = self.stack.pop()?;
                 let mut ret = StepResult::new(op, 100);
                 ret.fa = Some(slot);
-                self.stack.push(Element {
-                    data: VAL_0_B,
-                    label: None,
-                });
+                self.stack.push_uint(U256::ZERO);
                 Ok(ret)
             }
 
@@ -411,26 +464,28 @@ where
                 Ok(ret)
             }
 
-            op::BALANCE => {
-                self.stack.pop()?;
-                self.stack.push(Element {
-                    data: VAL_1_B,
-                    label: None,
-                });
-                Ok(StepResult::new(op, 100))
-            }
-
-            op::SELFBALANCE => {
-                self.stack.push(Element {
-                    data: VAL_1_B,
-                    label: None,
-                });
-                Ok(StepResult::new(op, 5))
-            }
-
             op::GAS => {
-                self.stack.push_uint(U256::from(1_000_000));
+                self.stack.push_uint(VAL_1M);
                 Ok(StepResult::new(op, 2))
+            }
+
+            op::LOG0..=op::LOG4 => {
+                let n = (op - op::LOG0) as u32;
+                for _ in 0..n + 2 {
+                    self.stack.pop()?;
+                }
+                Ok(StepResult::new(op, 375 * (n + 1)))
+            }
+
+            op::CREATE | op::CREATE2 => {
+                self.stack.pop()?;
+                self.stack.pop()?;
+                self.stack.pop()?;
+                if op == op::CREATE2 {
+                    self.stack.pop()?;
+                }
+                self.stack.push_uint(U256::ZERO);
+                Ok(StepResult::new(op, 32000))
             }
 
             op::CALL | op::DELEGATECALL | op::STATICCALL => {
@@ -445,10 +500,7 @@ where
                     self.stack.pop()?;
                 }
 
-                self.stack.push(Element {
-                    data: VAL_0_B, // failure
-                    label: None,
-                });
+                self.stack.push_uint(U256::ZERO); // failure
 
                 let mut ret = StepResult::new(op, 100);
                 ret.fa = Some(p1);
@@ -458,6 +510,11 @@ where
                 Ok(ret)
             }
 
+            op::REVERT | op::STOP | op::RETURN | op::SELFDESTRUCT => {
+                // skip stack pop()s
+                self.stopped = true;
+                Ok(StepResult::new(op, 5))
+            }
             _ => Err(UnsupportedOpError { op }.into()),
         }
     }

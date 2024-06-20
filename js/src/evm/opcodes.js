@@ -54,7 +54,7 @@ export default class Op {
   static COINBASE = 0x41
   static TIMESTAMP = 0x42
   static NUMBER = 0x43
-  static DIFFICULTY = 0x44
+  static PREVRANDAO = 0x44
   static GASLIMIT = 0x45
   static CHAINID = 0x46
   static SELFBALANCE = 0x47
