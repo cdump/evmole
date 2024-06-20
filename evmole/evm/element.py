@@ -17,6 +17,9 @@ class Element:
     def __str__(self):
         return f'{self.data.hex()} | {self.label}'
 
+    def __eq__(self, ot):
+        return self.data == ot.data and self.label == ot.label
+
     def load(self, offset: int, size: int = 32):
         val = self.data[offset : min(offset + size, len(self.data))].ljust(size, b'\x00')
         return Element(data=val, label=self.label)

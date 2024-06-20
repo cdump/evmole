@@ -4,7 +4,7 @@ use super::{Element, U256};
 
 #[derive(Clone)]
 pub struct Stack<T> {
-    data: Vec<Element<T>>,
+    pub data: Vec<Element<T>>,
 }
 
 impl<T: fmt::Debug> fmt::Debug for Stack<T> {
@@ -40,8 +40,8 @@ impl std::error::Error for IndexError {}
 type Result<T> = std::result::Result<T, IndexError>;
 
 impl<T: Clone> Stack<T> {
-    pub fn new() -> Stack<T> {
-        Stack { data: Vec::new() }
+    pub fn new() -> Self {
+        Self { data: Vec::new() }
     }
 
     pub fn push(&mut self, val: Element<T>) {

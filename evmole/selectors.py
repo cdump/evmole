@@ -79,9 +79,9 @@ def process(vm: Vm, gas_limit: int) -> tuple[list[bytes], int]:
                 selectors.append(b'\x00\x00\x00\x00')
 
             case (Op.MLOAD, _, set() as used):
-                if 'calldata' in used:
-                    v = vm.stack.peek()
-                    v.label = 'signature' if v.data[-4:] == vm.calldata.data[:4] else 'calldata'
+                v = vm.stack.peek()
+                if 'calldata' in used and v.data[-4:] == vm.calldata.data[:4]:
+                    v.label = 'signature'
 
     return selectors, gas_used
 

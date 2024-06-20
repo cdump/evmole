@@ -1,23 +1,35 @@
+import Element from './element.js'
+
 export default class Memory {
   constructor() {
-    this._data = []
+    this.data = []
   }
 
   toString() {
-    let r = `${this._data.length} elems:\n`
-    r += this._data.map(([off, val]) => `  - ${off}: ${val.toString()}`).join('\n')
+    let r = `${this.data.length} elems:\n`
+    r += this.data.map(([off, val]) => `  - ${off}: ${val.toString()}`).join('\n')
     return r
   }
 
   store(offset, value) {
-    this._data.push([offset, value])
+    this.data.push([offset, value])
   }
 
   size() {
-    if (this._data.length === 0) {
+    if (this.data.length === 0) {
       return 0
     }
-    return Math.max(...this._data.map(([off, val]) => off + val.data.length))
+    return Math.max(...this.data.map(([off, val]) => off + val.data.length))
+  }
+
+  get(offset) {
+    for (let d = this.data.length - 1; d >= 0; d--) {
+      const [off, val] = this.data[d]
+      if (off == offset) {
+        return val
+      }
+    }
+    return undefined
   }
 
   load(offset) {
@@ -26,16 +38,22 @@ export default class Memory {
 
     for (let idx = 0; idx < 32; idx++) {
       const i = idx + offset
-      for (let d = this._data.length - 1; d >= 0; d--) {
-        const [off, val] = this._data[d]
+      for (let d = this.data.length - 1; d >= 0; d--) {
+        const [off, val] = this.data[d]
         if (i >= off && i < off + val.data.length) {
+          // early return if it's one full element
+          if (val.label !== undefined) {
+            used.add(val.label)
+          }
+          if (idx === 0 && offset === off && val.data.length === 32) {
+            return [val, used]
+          }
           ret[idx] = val.data[i - off]
-          used.add(val.label)
           break
         }
       }
     }
 
-    return [ret, used]
+    return [new Element(ret), used];
   }
 }

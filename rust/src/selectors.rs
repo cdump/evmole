@@ -97,13 +97,9 @@ fn analyze(
 
         StepResult{op: op::MLOAD, ul: Some(used), ..} =>
         {
-            if used.contains(&Label::CallData) {
-                let v = vm.stack.peek_mut()?;
-                v.label = Some(if v.data[28..32] == vm.calldata.data[0..4] {
-                    Label::Signature
-                } else {
-                    Label::CallData
-                })
+            let v = vm.stack.peek_mut()?;
+            if used.contains(&Label::CallData) && v.data[28..32] == vm.calldata.data[0..4] {
+                v.label = Some(Label::Signature);
             }
         }
 

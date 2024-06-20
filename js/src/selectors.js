@@ -148,13 +148,9 @@ function process(vm, gas_limit) {
       case Op.MLOAD:
         {
           const used = ret[2]
-          if (used.has('calldata')) {
-            const p = vm.stack.peek()
-            if (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
-              p.label = 'signature'
-            } else {
-              p.label = 'calldata'
-            }
+          const p = vm.stack.peek()
+          if (used.has('calldata') && (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i]))) {
+            p.label = 'signature'
           }
         }
         break

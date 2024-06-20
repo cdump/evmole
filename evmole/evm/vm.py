@@ -13,15 +13,15 @@ E256M1 = E256 - 1
 class UnsupportedOpError(Exception):
     op: OpCode
 
-    def __init__(self, op):
+    def __init__(self, op) -> None:
         self.op = op
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.__class__.__name__}({opcode2name(self.op)})'
 
 
 class Vm:
-    def __init__(self, *, code: bytes, calldata: Element):
+    def __init__(self, *, code: bytes, calldata: Element) -> None:
         self.code = code
         self.pc = 0
         self.stack = Stack()
@@ -29,7 +29,7 @@ class Vm:
         self.stopped = len(code) == 0
         self.calldata = calldata
 
-    def __str__(self):
+    def __str__(self) -> str:
         return '\n'.join(
             (
                 'Vm:',
@@ -42,8 +42,8 @@ class Vm:
     def __copy__(self):
         obj = Vm(code=self.code, calldata=self.calldata)
         obj.pc = self.pc
-        obj.memory._data = self.memory._data[:]
-        obj.stack._data = self.stack._data[:]
+        obj.memory.data = self.memory.data[:]
+        obj.stack.data = self.stack.data[:]
         obj.stopped = self.stopped
         return obj
 
@@ -214,7 +214,7 @@ class Vm:
             case Op.MLOAD:
                 offset = self.stack.pop_uint()
                 val, used = self.memory.load(offset)
-                self.stack.push(Element(data=val))
+                self.stack.push(val)
                 return (4, used)
 
             case Op.NOT:

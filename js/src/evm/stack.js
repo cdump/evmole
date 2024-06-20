@@ -5,21 +5,21 @@ export class StackIndexError extends Error {}
 
 export default class Stack {
   constructor() {
-    this._data = []
+    this.data = []
   }
 
   toString() {
-    let r = `${this._data.length} elems:\n`
-    r += this._data.map((el) => `  - ${el.toString()}`).join('\n')
+    let r = `${this.data.length} elems:\n`
+    r += this.data.map((el) => `  - ${el.toString()}`).join('\n')
     return r
   }
 
   push(val) {
-    this._data.push(val)
+    this.data.push(val)
   }
 
   pop() {
-    const v = this._data.pop()
+    const v = this.data.pop()
     if (v === undefined) {
       throw new StackIndexError()
     }
@@ -27,7 +27,7 @@ export default class Stack {
   }
 
   peek() {
-    const v = this._data[this._data.length - 1]
+    const v = this.data[this.data.length - 1]
     if (v === undefined) {
       throw new StackIndexError()
     }
@@ -35,20 +35,20 @@ export default class Stack {
   }
 
   dup(n) {
-    const v = this._data[this._data.length - n]
+    const v = this.data[this.data.length - n]
     if (v === undefined) {
       throw new StackIndexError()
     }
-    this._data.push(v)
+    this.data.push(v)
   }
 
   swap(n) {
-    if (this._data.length <= n) {
+    if (this.data.length <= n) {
       throw new StackIndexError()
     }
-    const tmp = this._data[this._data.length - n - 1]
-    this._data[this._data.length - n - 1] = this._data[this._data.length - 1]
-    this._data[this._data.length - 1] = tmp
+    const tmp = this.data[this.data.length - n - 1]
+    this.data[this.data.length - n - 1] = this.data[this.data.length - 1]
+    this.data[this.data.length - 1] = tmp
   }
 
   push_uint(val) {

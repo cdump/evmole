@@ -36,9 +36,9 @@ export class Vm {
     c.code = this.code
     c.pc = this.pc
     c.stack = new Stack()
-    c.stack._data = [...this.stack._data]
+    c.stack.data = [...this.stack.data]
     c.memory = new Memory()
-    c.memory._data = [...this.memory._data]
+    c.memory.data = [...this.memory.data]
     c.stopped = this.stopped
     c.calldata = this.calldata
     return c
@@ -240,7 +240,7 @@ export class Vm {
       case Op.MLOAD: {
         const offset = Number(this.stack.pop_uint())
         const [val, used] = this.memory.load(offset)
-        this.stack.push(new Element(val))
+        this.stack.push(val)
         return [4, used]
       }
 
