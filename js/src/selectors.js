@@ -29,24 +29,17 @@ function process(vm, gas_limit) {
     const op = ret[0]
 
     switch (op) {
-      case Op.EQ:
       case Op.XOR:
-        if (ret[2].label === 'signature') {
-          selectors.add(uint8ArrayToBigInt(ret[3].data))
-          vm.stack.pop()
-          vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
-        } else if (ret[3].label === 'signature') {
-          selectors.add(uint8ArrayToBigInt(ret[2].data))
-          vm.stack.pop()
-          vm.stack.push_uint(op == Op.XOR ? 1n : 0n)
-        }
-        break
-
+      case Op.EQ:
       case Op.SUB:
         if (ret[2].label === 'signature') {
           selectors.add(uint8ArrayToBigInt(ret[3].data))
+          vm.stack.pop()
+          vm.stack.push_uint(op == Op.EQ ? 0n : 1n)
         } else if (ret[3].label === 'signature') {
           selectors.add(uint8ArrayToBigInt(ret[2].data))
+          vm.stack.pop()
+          vm.stack.push_uint(op == Op.EQ ? 0n : 1n)
         }
         break
 

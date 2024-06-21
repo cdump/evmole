@@ -3,8 +3,9 @@ use crate::evm::{
     vm::{StepResult, Vm},
     Element, U256, VAL_0_B, VAL_1_B,
 };
-use std::collections::BTreeSet;
 use crate::Selector;
+
+use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Label {
@@ -21,18 +22,12 @@ fn analyze(
     gas_limit: u32,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ret {
-          StepResult{op: op::XOR|op::EQ, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
-        | StepResult{op: op::XOR|op::EQ, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
+          StepResult{op: op::XOR|op::EQ|op::SUB, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
+        | StepResult{op: op::XOR|op::EQ|op::SUB, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
         {
             selectors.insert(s1.data[28..32].try_into().unwrap());
             let v = vm.stack.peek_mut()?;
-            v.data = if ret.op == op::XOR { VAL_1_B } else { VAL_0_B };
-        }
-
-          StepResult{op: op::SUB, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
-        | StepResult{op: op::SUB, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
-        {
-            selectors.insert(s1.data[28..32].try_into().unwrap());
+            v.data = if ret.op == op::EQ { VAL_0_B } else { VAL_1_B };
         }
 
           StepResult{op: op::LT|op::GT, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
@@ -44,12 +39,8 @@ fn analyze(
         }
 
           StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
-        | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
-        {
-            vm.stack.peek_mut()?.label = Some(Label::MulSig);
-        }
-
-          StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::MulSig), ..}), ..} =>
+        | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::Signature), ..}), ..}
+        | StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::MulSig), ..}), ..} =>
         {
             vm.stack.peek_mut()?.label = Some(Label::MulSig);
         }
@@ -113,6 +104,7 @@ fn process(mut vm: Vm<Label>, selectors: &mut BTreeSet<Selector>, gas_limit: u32
     let mut gas_used = 0;
     while !vm.stopped {
         // println!("{:?}\n", vm);
+        // println!("{:?}\n", selectors.iter().map(hex::encode).collect::<Vec<String>>());
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {

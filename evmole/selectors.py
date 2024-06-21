@@ -24,15 +24,12 @@ def process(vm: Vm, gas_limit: int) -> tuple[set[bytes], int]:
 
         match ret:
             case (
-                ((Op.XOR | Op.EQ as op, _, Element() as s1, Element('signature')))
-                | ((Op.XOR | Op.EQ as op, _, Element('signature'), Element() as s1))
+                (Op.XOR | Op.EQ | Op.SUB as op, _, Element() as s1, Element('signature'))
+                | (Op.XOR | Op.EQ | Op.SUB as op, _, Element('signature'), Element() as s1)
             ):
                 selectors.add(s1.data[-4:])
                 vm.stack.pop()
-                vm.stack.push_uint(1 if op == Op.XOR else 0)
-
-            case (Op.SUB, _, Element('signature'), Element() as s1) | (Op.SUB, _, Element() as s1, Element('signature')):
-                selectors.add(s1.data[-4:])
+                vm.stack.push_uint(0 if op == Op.EQ else 1)
 
             case (Op.LT | Op.GT, _, Element('signature'), _) | (Op.LT | Op.GT, _, _, Element('signature')):
                 cloned_vm = copy.copy(vm)
@@ -42,10 +39,7 @@ def process(vm: Vm, gas_limit: int) -> tuple[set[bytes], int]:
                 v = vm.stack.pop_uint()
                 vm.stack.push_uint(1 if v == 0 else 0)
 
-            case (Op.MUL, _, Element('signature'), _) | (Op.MUL, _, _, Element('signature')):
-                vm.stack.peek().label = 'mulsig'
-
-            case (Op.SHR, _, _, Element('mulsig')):
+            case (Op.MUL, _, Element('signature'), _) | (Op.MUL, _, _, Element('signature')) | (Op.SHR, _, _, Element('mulsig')):
                 vm.stack.peek().label = 'mulsig'
 
             # Vyper _selector_section_dense()
