@@ -103,8 +103,10 @@ fn analyze(
 fn process(mut vm: Vm<Label>, selectors: &mut BTreeSet<Selector>, gas_limit: u32) -> u32 {
     let mut gas_used = 0;
     while !vm.stopped {
-        // println!("{:?}\n", vm);
-        // println!("{:?}\n", selectors.iter().map(hex::encode).collect::<Vec<String>>());
+        if cfg!(feature = "trace") {
+            println!("selectors: {:?}", selectors.iter().map(|s| format!("{:02x}{:02x}{:02x}{:02x},", s[0], s[1], s[2], s[3])).collect::<Vec<String>>());
+            println!("{:?}\n", vm);
+        }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {

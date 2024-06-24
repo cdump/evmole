@@ -261,6 +261,9 @@ fn analyze(
 /// ```
 
 pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
+    if cfg!(feature = "trace") {
+        println!("Processing selector {:02x}{:02x}{:02x}{:02x}", selector[0], selector[1], selector[2], selector[3]);
+    }
     let mut cd: [u8; 32] = [0; 32];
     cd[0..4].copy_from_slice(selector);
     let mut vm = Vm::<Label>::new(
@@ -279,6 +282,12 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
         gas_limit
     };
     while !vm.stopped {
+        if cfg!(feature = "trace") && inside_function {
+            println!("args: {}", args.join_to_string());
+            println!("not_bool: {:?}", args.not_bool);
+            println!("{:#?}", args.data);
+            println!("{:?}\n", vm);
+        }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
@@ -304,8 +313,6 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
             }
             continue;
         }
-        // println!("args: {}", args.join_to_string());
-        // println!("{:?}\n", vm);
 
         if analyze(&mut vm, &mut args, ret).is_err() {
             break;
