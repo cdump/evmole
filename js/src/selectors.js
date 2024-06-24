@@ -4,18 +4,18 @@ import { StackIndexError } from './evm/stack.js'
 import Element from './evm/element.js'
 import { toUint8Array, uint8ArrayToBigInt } from './utils.js'
 
-function process(vm, gas_limit) {
-  let selectors = new Set();
-  let gas_used = 0
+function process(vm, gasLimit) {
+  let selectors = new Set()
+  let gasUsed = 0
 
   while (!vm.stopped) {
-    // console.log(vm.toString());
+    // console.log(vm.toString())
     let ret
     try {
       ret = vm.step()
-      gas_used += ret[1]
-      if (gas_used > gas_limit) {
-        // throw `gas overflow: ${gas_used} > ${gas_limit}`
+      gasUsed += ret[1]
+      if (gasUsed > gasLimit) {
+        // throw `gas overflow: ${gasUsed} > ${gasLimit}`
         break
       }
     } catch (e) {
@@ -26,57 +26,51 @@ function process(vm, gas_limit) {
         throw e
       }
     }
-    const op = ret[0]
+
+    const [op, , r0, r1] = ret
 
     switch (op) {
       case Op.XOR:
       case Op.EQ:
       case Op.SUB:
-        if (ret[2].label === 'signature') {
-          selectors.add(uint8ArrayToBigInt(ret[3].data))
+        if (r0.label === 'signature' || r1.label === 'signature') {
+          selectors.add(uint8ArrayToBigInt(r0.label === 'signature' ? r1.data : r0.data))
           vm.stack.pop()
-          vm.stack.push_uint(op == Op.EQ ? 0n : 1n)
-        } else if (ret[3].label === 'signature') {
-          selectors.add(uint8ArrayToBigInt(ret[2].data))
-          vm.stack.pop()
-          vm.stack.push_uint(op == Op.EQ ? 0n : 1n)
+          vm.stack.push_uint(op === Op.EQ ? 0n : 1n)
         }
         break
 
       case Op.LT:
       case Op.GT:
-        if (ret[2].label === 'signature' || ret[3].label === 'signature') {
-          const cloned_vm = vm.clone()
-          const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / 2))
-          s.forEach(v => selectors.add(v));
-          gas_used += gas
+        if (r0.label === 'signature' || r1.label === 'signature') {
+          const clonedVm = vm.clone()
+          const [newSelectors, gas] = process(clonedVm, Math.trunc((gasLimit - gasUsed) / 2))
+          newSelectors.forEach((v) => selectors.add(v))
+          gasUsed += gas
           const v = vm.stack.pop_uint()
           vm.stack.push_uint(v === 0n ? 1n : 0n)
         }
         break
 
       case Op.MUL:
-        if (ret[2].label === 'signature' || ret[3].label === 'signature') {
+        if (r0.label === 'signature' || r1.label === 'signature') {
           vm.stack.peek().label = 'mulsig'
         }
         break
 
       // Vyper _selector_section_dense()
       case Op.MOD:
-        if (ret[2].label === 'mulsig' || ret[2].label === 'signature') {
-          const raw_ma = uint8ArrayToBigInt(ret[3].data)
-          if (raw_ma < 128n) {
-            const ma = Number(raw_ma)
+        if (r0.label === 'mulsig' || r0.label === 'signature') {
+          const rawMa = uint8ArrayToBigInt(r1.data)
+          if (rawMa < 128n) {
+            const ma = Number(rawMa)
             vm.stack.pop()
-            for (let m = 1; m < ma; m++) {
-              const cloned_vm = vm.clone()
-              cloned_vm.stack.push_uint(BigInt(m))
-              const [s, gas] = process(cloned_vm, Math.trunc((gas_limit - gas_used) / ma))
-              s.forEach(v => selectors.add(v));
-              gas_used += gas
-              if (gas_used > gas_limit) {
-                break
-              }
+            for (let m = 1; m < ma && gasUsed < gasLimit; m++) {
+              const clonedVm = vm.clone()
+              clonedVm.stack.push_uint(BigInt(m))
+              const [newSelectors, gas] = process(clonedVm, Math.trunc((gasLimit - gasUsed) / ma))
+              newSelectors.forEach((v) => selectors.add(v))
+              gasUsed += gas
             }
             vm.stack.push_uint(0n)
           }
@@ -84,77 +78,60 @@ function process(vm, gas_limit) {
         break
 
       case Op.SHR:
-        {
-          if (ret[3].label === 'calldata') {
-            if (
-              vm.stack
-                .peek()
-                .data.slice(-4)
-                .every((v, i) => v === vm.calldata.data[i])
-            ) {
-              vm.stack.peek().label = 'signature'
-            }
-          } else if (ret[3].label === 'mulsig') {
-            vm.stack.peek().label = 'mulsig'
+        if (r1.label === 'calldata') {
+          const p = vm.stack.peek()
+          if (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
+            p.label = 'signature'
+          } else if (r1.label === 'mulsig') {
+            p.label = 'mulsig'
           }
         }
         break
 
       case Op.AND:
         {
-          if (ret[2].label === 'signature' || ret[3].label === 'signature') {
-            if (
-              vm.stack
-                .peek()
-                .data.slice(-4)
-                .every((v, i) => v === vm.calldata.data[i])
-            ) {
-              vm.stack.peek().label = 'signature'
+          const p = vm.stack.peek()
+          if (r0.label === 'signature' || r1.label === 'signature') {
+            if (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
+              p.label = 'signature'
             }
-          } else if (ret[2].label === 'calldata' || ret[3].label === 'calldata') {
-            vm.stack.peek().label = 'calldata'
+          } else if (r0.label === 'calldata' || r1.label === 'calldata') {
+            p.label = 'calldata'
           }
         }
         break
 
       case Op.DIV:
-        {
-          if (ret[2].label === 'calldata') {
-            if (
-              vm.stack
-                .peek()
-                .data.slice(-4)
-                .every((v, i) => v === vm.calldata.data[i])
-            ) {
-              vm.stack.peek().label = 'signature'
-            }
+        if (r0.label === 'calldata') {
+          const p = vm.stack.peek()
+          if (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
+            p.label = 'signature'
           }
         }
         break
 
       case Op.ISZERO:
-        if (ret[2].label === 'signature') {
+        if (r0.label === 'signature') {
           selectors.add(0n)
         }
         break
 
       case Op.MLOAD:
         {
-          const used = ret[2]
           const p = vm.stack.peek()
-          if (used.has('calldata') && p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
+          if (r0.has('calldata') && p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
             p.label = 'signature'
           }
         }
         break
     }
   }
-  return [selectors, gas_used]
+  return [selectors, gasUsed]
 }
 
-export function functionSelectors(code, gas_limit = 5e5) {
-  const code_arr = toUint8Array(code)
-  const vm = new Vm(code_arr, new Element(new Uint8Array([0xaa, 0xbb, 0xcc, 0xdd]), 'calldata'))
-  const [selectors] = process(vm, gas_limit)
+export function functionSelectors(code, gasLimit = 5e5) {
+  const codeArr = toUint8Array(code)
+  const vm = new Vm(codeArr, new Element(new Uint8Array([0xaa, 0xbb, 0xcc, 0xdd]), 'calldata'))
+  const [selectors] = process(vm, gasLimit)
   return [...selectors.values()].map((x) => x.toString(16).padStart(8, '0'))
 }
