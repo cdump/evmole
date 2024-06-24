@@ -6,62 +6,244 @@ use crate::{
     },
     Selector,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    cmp::max,
+    collections::{BTreeMap, BTreeSet},
+};
 
-const VAL_2_B: [u8; 32] = ruint::uint!(2_U256).to_be_bytes();
-const VAL_4_B: [u8; 32] = ruint::uint!(4_U256).to_be_bytes();
-const VAL_5_B: [u8; 32] = ruint::uint!(5_U256).to_be_bytes();
+const VAL_2: U256 = ruint::uint!(2_U256);
+const VAL_31_B: [u8; 32] = ruint::uint!(31_U256).to_be_bytes();
 const VAL_131072_B: [u8; 32] = ruint::uint!(131072_U256).to_be_bytes();
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct Val {
+    offset: u32,
+    path: Vec<u32>,
+    add_val: u32,
+    and_mask: Option<U256>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 enum Label {
     CallData,
-    Arg(u32, bool),
-    ArgDynamicLength(u32),
-    ArgDynamic(u32),
-    IsZeroResult(u32, bool),
+    Arg(Val),
+    IsZeroResult(Val),
+}
+
+#[derive(PartialEq, Debug)]
+enum InfoVal {
+    // (x) - number of elements
+    Dynamic(u32), // string|bytes|tuple|array
+    Array(u32),
+}
+
+#[derive(Default, Debug)]
+struct Info {
+    tinfo: Option<InfoVal>,
+    tname: Option<(String, u8)>,
+    children: BTreeMap<u32, Info>,
+}
+
+impl Info {
+    fn new() -> Self {
+        Self {
+            tinfo: None,
+            tname: None,
+            children: BTreeMap::new(),
+        }
+    }
+
+    fn to_str(&self, is_root: bool) -> String {
+        if let Some((name, _)) = &self.tname {
+            if name == "bytes" {
+                if let Some(InfoVal::Array(0)) | Some(InfoVal::Dynamic(1)) | None = self.tinfo {
+                    return name.to_string();
+                }
+            } else if self.children.is_empty() {
+                if let Some(InfoVal::Dynamic(_)) | None = self.tinfo {
+                    return name.to_string();
+                }
+            }
+        }
+
+        let start_key = if let Some(InfoVal::Array(_)) = self.tinfo {
+            32
+        } else {
+            0
+        };
+        let mut end_key = if let Some((k, _)) = self.children.last_key_value() {
+            *k
+        } else {
+            0
+        };
+        if let Some(InfoVal::Array(n_elements) | InfoVal::Dynamic(n_elements)) = self.tinfo {
+            end_key = max(end_key, n_elements * 32);
+        }
+
+        let q: Vec<_> = (start_key..=end_key)
+            .step_by(32)
+            .map(|k| {
+                self.children
+                    .get(&k)
+                    .map_or("uint256".to_string(), |val| val.to_str(false))
+            })
+            .collect();
+
+        let c = if q.len() > 1 && !is_root {
+            format!("({})", q.join(","))
+        } else {
+            q.join(",")
+        };
+
+        match self.tinfo {
+            Some(InfoVal::Array(_)) => format!("{}[]", c),
+            Some(InfoVal::Dynamic(_)) => {
+                if end_key == 0 && self.children.is_empty() {
+                    return "bytes".to_string();
+                }
+                if end_key == 32 {
+                    if self.children.is_empty() {
+                        return "uint256[]".to_string();
+                    }
+                    if self.children.len() == 1
+                        && self.children.first_key_value().unwrap().1.tinfo.is_none()
+                    {
+                        return format!("{}[]", q[1]);
+                    }
+                }
+                c.to_string()
+            }
+            None => c,
+        }
+    }
 }
 
 struct ArgsResult {
-    pub args: BTreeMap<u32, String>,
-    pub not_bool: BTreeSet<u32>,
+    data: Info,
+    not_bool: BTreeSet<Vec<u32>>,
 }
+
 impl ArgsResult {
-    pub fn new() -> ArgsResult {
-        ArgsResult {
-            args: BTreeMap::new(),
+    fn new() -> Self {
+        Self {
+            data: Info::new(),
             not_bool: BTreeSet::new(),
         }
     }
 
-    pub fn set(&mut self, offset: u32, atype: &str) {
-        self.args.insert(offset, atype.to_string());
+    fn get_or_create(&mut self, path: &[u32]) -> &mut Info {
+        path.iter().fold(&mut self.data, |node, &key| {
+            node.children.entry(key).or_default()
+        })
     }
 
-    pub fn set_if(&mut self, offset: u32, if_val: &str, atype: &str) {
-        if let Some(v) = self.args.get_mut(&offset) {
-            if v == if_val {
-                *v = atype.to_string();
+    fn get_mut(&mut self, path: &[u32]) -> Option<&mut Info> {
+        path.iter()
+            .try_fold(&mut self.data, |node, &key| node.children.get_mut(&key))
+    }
+
+    fn mark_not_bool(&mut self, path: &[u32], offset: u32) {
+        let full_path = [path, &[offset]].concat();
+
+        if let Some(el) = self.get_mut(&full_path) {
+            if let Some((v, _)) = &mut el.tname {
+                if v == "bool" {
+                    el.tname = None;
+                }
             }
-        } else if atype.is_empty() {
-            self.args.insert(offset, atype.to_string());
+        }
+
+        self.not_bool.insert(full_path);
+    }
+
+    fn set_tname(&mut self, path: &[u32], offset: u32, tname: String, confidence: u8) {
+        let full_path = [path, &[offset]].concat();
+
+        if tname == "bool" && self.not_bool.contains(&full_path) {
+            return;
+        }
+
+        let el = self.get_or_create(&full_path);
+        if let Some((_, conf)) = el.tname {
+            if confidence <= conf {
+                return;
+            }
+        }
+        el.tname = Some((tname, confidence));
+    }
+
+    fn array_in_path(&self, path: &[u32]) -> Vec<bool> {
+        path.iter()
+            .scan(&self.data, |el, &p| {
+                *el = el.children.get(&p)?;
+                Some(matches!(el.tinfo, Some(InfoVal::Array(_))))
+            })
+            .collect()
+    }
+
+    fn set_info(&mut self, path: &[u32], tinfo: InfoVal) {
+        if path.is_empty() { // root
+            return;
+        }
+        let el = self.get_or_create(path);
+
+        if let InfoVal::Dynamic(n) = tinfo {
+            match el.tinfo {
+                Some(InfoVal::Dynamic(x)) => {
+                    if x > n {
+                        return;
+                    }
+                }
+                Some(InfoVal::Array(_)) => return,
+                None => (),
+            };
+        }
+
+        if let Some(InfoVal::Array(p)) = el.tinfo {
+            if let InfoVal::Array(n) = tinfo {
+                if n < p {
+                    return;
+                }
+            };
+        }
+        el.tinfo = Some(tinfo);
+    }
+
+    fn join_to_string(&self) -> String {
+        if self.data.children.is_empty() {
+            "".to_string()
+        } else {
+            self.data.to_str(true)
         }
     }
+}
 
-    pub fn mark_not_bool(&mut self, offset: u32) {
-        self.not_bool.insert(offset);
-        self.set_if(offset, "bool", "");
+fn and_mask_to_type(mask: U256) -> Option<String> {
+    if mask.is_zero() {
+        return None;
     }
 
-    pub fn join_to_string(&self) -> String {
-        let a: Vec<_> = self
-            .args
-            .values()
-            .map(|v| if !v.is_empty() { v } else { "uint256" })
-            .collect();
-
-        a.join(",")
+    if (mask & (mask + VAL_1)).is_zero() {
+        // 0x0000ffff
+        let bl = mask.bit_len();
+        if bl % 8 == 0 {
+            return Some(if bl == 160 {
+                "address".to_string()
+            } else {
+                format!("uint{bl}")
+            });
+        }
+    } else {
+        // 0xffff0000
+        let mask = U256::from_le_bytes(mask.to_be_bytes() as [u8; 32]);
+        if (mask & (mask + VAL_1)).is_zero() {
+            let bl = mask.bit_len();
+            if bl % 8 == 0 {
+                return Some(format!("bytes{}", bl / 8));
+            }
+        }
     }
+    None
 }
 
 fn analyze(
@@ -76,124 +258,266 @@ fn analyze(
             v.data = VAL_131072_B;
         }
 
-        StepResult{op: op::CALLDATALOAD, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
+        StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),  fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, ..})), ..}), sa, ..} =>
         {
-            args.set(off, "bytes");
-            let v = vm.stack.peek_mut()?;
-            *v = Element {
-                data: VAL_1_B,
-                label: Some(Label::ArgDynamicLength(off)),
-            };
+            if add_val >= 4 && (add_val - 4) % 32 == 0 {
+                let mut full_path = path.clone();
+                full_path.push(offset);
+
+                let mut po: u32 = 0;
+                if add_val != 4 {
+                    po += args
+                        .array_in_path(&path)
+                        .iter()
+                        .fold(0, |s, &is_arr| if is_arr { s + 32 } else { s });
+                    if po > (add_val - 4) {
+                        po = 0;
+                    }
+                }
+
+                let new_off = add_val - 4 - po;
+
+                args.set_info(&full_path, InfoVal::Dynamic(new_off / 32));
+
+                let mem_offset: u32 = if op == op::CALLDATACOPY {
+                    U256::from_be_bytes(sa.unwrap().data)
+                        .try_into()
+                        .expect("set as u32 in vm.rs")
+                } else {
+                    0
+                };
+
+                if new_off == 0 && *args.array_in_path(&full_path).last().unwrap_or(&false) {
+                    match op {
+                        op::CALLDATALOAD => vm.stack.peek_mut()?.data = VAL_1_B,
+                        op::CALLDATACOPY => {
+                            if let Some(v) = vm.memory.get_mut(mem_offset) {
+                                v.data = VAL_1_B.to_vec();
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+
+                let new_label = Some(Label::Arg(Val {
+                    offset: new_off,
+                    path: full_path,
+                    add_val: 0,
+                    and_mask: None,
+                }));
+                match op {
+                    op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
+                    op::CALLDATACOPY => {
+                        if let Some(v) = vm.memory.get_mut(mem_offset) {
+                            args.set_tname(&path, offset, "bytes".to_string(), 10);
+                            v.label = new_label;
+                        }
+                    }
+                    _ => (),
+                }
+            }
         }
 
-        StepResult{op: op::CALLDATALOAD, fa: Some(Element{label: Some(Label::ArgDynamic(off)), ..}), ..} =>
+        StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY), fa: Some(el), sa, ..} =>
         {
-            let v = vm.stack.peek_mut()?;
-            *v = Element {
-                data: [0; 32],
-                label: Some(Label::Arg(off, true)),
-            };
-        }
-
-        StepResult{op: op::CALLDATALOAD, fa: Some(el), ..} =>
-        {
-            let off256: U256 = el.into();
-            let offr: Result<u32, _> = off256.try_into();
+            let offr: Result<u32, _> = U256::from_be_bytes(el.data).try_into();
             if let Ok(off) = offr {
                 if (4..131072 - 1024).contains(&off) {
-                    /* trustedForwarder */
-                    let v = vm.stack.peek_mut()?;
-                    *v = Element {
-                        data: [0; 32],
-                        label: Some(Label::Arg(off, false)),
-                    };
-                    args.set_if(off, "", "");
-                }
-            }
-        }
+                    // -1024: cut 'trustedForwarder'
+                    args.get_or_create(&[off - 4]);
 
-          StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), sa: Some(ot), ..}
-        | StepResult{op: op::ADD, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), fa: Some(ot), ..} =>
-        {
-            let v = vm.stack.peek_mut()?;
-            v.label = Some(if ot.data == VAL_4_B {
-                Label::Arg(off, false)
-            } else {
-                Label::ArgDynamic(off)
-            });
-            args.mark_not_bool(off);
-        },
-
-          StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::ArgDynamic(off)), ..}), ..}
-        | StepResult{op: op::ADD, sa: Some(Element{label: Some(Label::ArgDynamic(off)), ..}), ..} =>
-        {
-            let v = vm.stack.peek_mut()?;
-            v.label = Some(Label::ArgDynamic(off));
-        }
-
-        StepResult{op: op::SHL, fa: Some(ot), sa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), ..} =>
-        {
-            if ot.data == VAL_5_B {
-                args.set(off, "uint256[]");
-            } else if ot.data == VAL_1_B {
-                args.set(off, "string");
-            }
-        }
-
-          StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), sa: Some(ot), ..}
-        | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::ArgDynamicLength(off)), ..}), fa: Some(ot), ..} =>
-        {
-            if ot.data == VAL_32_B {
-                args.set(off, "uint256[]");
-            } else if ot.data == VAL_2_B {
-                args.set(off, "string");
-            }
-            if let Some(Label::Arg(ot_off, _)) = ot.label {
-                args.mark_not_bool(ot_off);
-            }
-        }
-
-          StepResult{op: op::LT|op::GT|op::MUL, fa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..}
-        | StepResult{op: op::LT|op::GT|op::MUL, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
-        {
-            args.mark_not_bool(off);
-        }
-
-          StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), sa: Some(ot), ..}
-        | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), fa: Some(ot), ..} =>
-        {
-            let v: U256 = U256::from_be_bytes(ot.data);
-            if v.is_zero() {
-                // pass
-            } else if (v & (v + VAL_1)).is_zero() {
-                // 0x0000ffff
-                let bl = v.bit_len();
-                if bl % 8 == 0 {
-                    let t = if bl == 160 { "address".to_string() } else { format!("uint{bl}") };
-                    args.set(off, &if dynamic { t + "[]" } else { t });
-                }
-            } else {
-                // 0xffff0000
-                let v = U256::from_le_bytes(ot.data);
-                if (v & (v + VAL_1)).is_zero() {
-                    let bl = v.bit_len();
-                    if bl % 8 == 0 {
-                        let t = format!("bytes{}", bl / 8);
-                        args.set(off, &if dynamic { t + "[]" } else { t });
+                    let new_label = Some(Label::Arg(Val {
+                        offset: off - 4,
+                        path: Vec::new(),
+                        add_val: 0,
+                        and_mask: None,
+                    }));
+                    match op {
+                        op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
+                        op::CALLDATACOPY => {
+                            let mem_offset: u32 = U256::from_be_bytes(sa.unwrap().data)
+                                .try_into()
+                                .expect("set as u32 in vm.rs");
+                            if let Some(v) = vm.memory.get_mut(mem_offset) {
+                                v.label = new_label;
+                            }
+                        }
+                        _ => (),
                     }
                 }
             }
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), ..} =>
+        StepResult{
+            op: op::ADD,
+            fa: Some(Element{label: Some(Label::Arg(Val{offset: f_offset, path: f_path, add_val: f_add_val, and_mask: f_and_mask})), ..}),
+            sa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: s_and_mask})), ..}),
+            ..} =>
         {
-            let v = vm.stack.peek_mut()?;
-            v.label = Some(Label::IsZeroResult(off, dynamic));
+            args.mark_not_bool(&f_path, f_offset);
+            args.mark_not_bool(&s_path, s_offset);
+            vm.stack.peek_mut()?.label = Some(Label::Arg(if f_path.len() > s_path.len() {
+                Val {
+                    offset: f_offset,
+                    path: f_path,
+                    add_val: f_add_val + s_add_val,
+                    and_mask: f_and_mask,
+                }
+            } else {
+                Val {
+                    offset: s_offset,
+                    path: s_path,
+                    add_val: s_add_val + f_add_val,
+                    and_mask: s_and_mask,
+                }
+            }));
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::IsZeroResult(off, dynamic)), ..}), ..} =>
+          StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask})), data, ..}), sa: Some(ot), ..}
+        | StepResult{op: op::ADD, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask})), data, ..}), fa: Some(ot), ..} =>
+        {
+            args.mark_not_bool(&path, offset);
+            if offset == 0
+                && add_val == 0
+                && !path.is_empty()
+                && data == VAL_0_B
+                && ot.data == U256::MAX.to_be_bytes()
+            {
+                vm.stack.peek_mut()?.data = VAL_0_B; // sub(-1) as add(0xff..ff)
+            }
+            let r: Result<u32, _> = (U256::from_be_bytes(ot.data) + U256::from(add_val)).try_into();
+            if let Ok(val) = r {
+                vm.stack.peek_mut()?.label = Some(Label::Arg(Val {
+                    offset,
+                    path,
+                    add_val: val,
+                    and_mask,
+                }));
+            }
+        }
+
+          StepResult{op: op @ op::MUL, fa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), sa: Some(ot), ..}
+        | StepResult{op: op @ op::MUL, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), fa: Some(ot), ..}
+        | StepResult{op: op @ op::SHL, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), fa: Some(ot), ..} =>
+        {
+            args.mark_not_bool(&path, 0);
+            if let Some(Label::Arg(Val {
+                offset: o1,
+                path: p1,
+                ..
+            })) = ot.label
+            {
+                args.mark_not_bool(&p1, o1);
+            }
+            if !path.is_empty() {
+                let mut mult = U256::from_be_bytes(ot.data);
+                if op == op::SHL {
+                    mult = VAL_1 << mult;
+                }
+
+                match mult {
+                    VAL_1 => {
+                        if let Some((last, rest)) = path.split_last() {
+                            args.set_tname(rest, *last, "bytes".to_string(), 10);
+                        }
+                    }
+
+                    VAL_2 => {
+                        // slen*2+1 for SSTORE
+                        if let Some((last, rest)) = path.split_last() {
+                            args.set_tname(rest, *last, "string".to_string(), 20);
+                        }
+                    }
+
+                    _ => {
+                        let otr: Result<u32, _> = mult.try_into();
+                        if let Ok(m) = otr {
+                            if m % 32 == 0 && (32..3200).contains(&m) {
+                                args.set_info(&path, InfoVal::Array(m / 32));
+
+                                for el in vm.stack.data.iter_mut() {
+                                    if let Some(Label::Arg(lab)) = &el.label {
+                                        if lab.offset == 0 && lab.path == path && lab.add_val == 0 {
+                                            el.data = VAL_1_B;
+                                        }
+                                    }
+                                }
+
+                                for el in vm.memory.data.iter_mut() {
+                                    if let Some(Label::Arg(lab)) = &el.1.label {
+                                        if lab.offset == 0 && lab.path == path && lab.add_val == 0 {
+                                            el.1.data = VAL_1_B.to_vec();
+                                        }
+                                    }
+                                }
+
+                                // simulate arglen = 1
+                                vm.stack.peek_mut()?.data = ot.data; // ==mult.to_be_bytes();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 0 < arr.len || arr.len > 0
+          StepResult{op: op::LT, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, and_mask: None})), ..}), fa: Some(ot), ..}
+        | StepResult{op: op::GT, fa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, and_mask: None})), ..}), sa: Some(ot), ..} =>
+        {
+            args.mark_not_bool(&path, 0);
+            // 31 = string for storage
+            if ot.data == VAL_0_B || ot.data == VAL_31_B {
+                vm.stack.peek_mut()?.data = VAL_1_B;
+            }
+        }
+
+          StepResult{op: op::LT|op::GT|op::MUL, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..}
+        | StepResult{op: op::LT|op::GT|op::MUL, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..} =>
+        {
+            args.mark_not_bool(&path, offset);
+        }
+
+          StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}), sa: Some(ot), ..}
+        | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}), fa: Some(ot), ..} =>
+        {
+            args.mark_not_bool(&path, offset);
+            let mask = U256::from_be_bytes(ot.data);
+            if let Some(t) = and_mask_to_type(mask) {
+                args.set_tname(&path, offset, t, 5);
+                vm.stack.peek_mut()?.label = Some(Label::Arg(Val {
+                    offset,
+                    path,
+                    add_val,
+                    and_mask: Some(mask),
+                }));
+            }
+        }
+
+          StepResult{op: op::EQ,
+            fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}),
+            sa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: Some(mask)})), ..}),
+        ..} |
+          StepResult{op: op::EQ,
+            sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}),
+            fa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: Some(mask)})), ..}),
+        ..} =>
+        {
+            if (s_offset == offset) && (s_path == path) && (s_add_val == add_val) {
+                if let Some(t) = and_mask_to_type(mask) {
+                    args.set_tname(&path, offset, t, 20);
+                }
+            }
+        }
+
+        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Arg(val)), ..}), ..} =>
+        {
+            vm.stack.peek_mut()?.label = Some(Label::IsZeroResult(val));
+        }
+
+        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::IsZeroResult(val)), ..}), ..} =>
         {
             // Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
+            // for solidity < 0.6.0
             let mut is_bool = true;
             let op = vm.code[vm.pc];
             if let op::PUSH1..=op::PUSH4 = op {
@@ -210,30 +534,26 @@ fn analyze(
                     }
                 }
             }
+
             if is_bool {
-                if dynamic {
-                    args.set(off, "bool[]");
-                } else if !args.not_bool.contains(&off) {
-                    args.set(off, "bool");
-                }
+                args.set_tname(&val.path, val.offset, "bool".to_string(), 5);
             }
         }
 
-        StepResult{op: op::SIGNEXTEND, fa: Some(s0), sa: Some(Element{label: Some(Label::Arg(off, dynamic)), ..}), ..} =>
+        StepResult{op: op::SIGNEXTEND, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), fa: Some(s0), ..} =>
         {
             if s0.data < VAL_32_B {
                 let s0: u8 = s0.data[31];
-                let t = format!("int{}{}", (s0+1)*8, if dynamic { "[]" } else { "" });
-                args.set(off, &t);
+                args.set_tname(&path, offset, format!("int{}", (s0 + 1) * 8), 20);
             }
         }
 
-        StepResult{op: op::BYTE, sa: Some(Element{label: Some(Label::Arg(off, _)), ..}), ..} =>
+        StepResult{op: op::BYTE, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..} =>
         {
-            args.set_if(off, "", "bytes32");
+            args.set_tname(&path, offset, "bytes32".to_string(), 4);
         }
 
-        _ => {}
+        _ => (),
     };
     Ok(())
 }
@@ -262,7 +582,10 @@ fn analyze(
 
 pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
     if cfg!(feature = "trace") {
-        println!("Processing selector {:02x}{:02x}{:02x}{:02x}", selector[0], selector[1], selector[2], selector[3]);
+        println!(
+            "Processing selector {:02x}{:02x}{:02x}{:02x}",
+            selector[0], selector[1], selector[2], selector[3]
+        );
     }
     let mut cd: [u8; 32] = [0; 32];
     cd[0..4].copy_from_slice(selector);
@@ -277,7 +600,7 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
     let mut gas_used = 0;
     let mut inside_function = false;
     let real_gas_limit = if gas_limit == 0 {
-        1e4 as u32
+        5e4 as u32
     } else {
         gas_limit
     };

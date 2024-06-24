@@ -5,78 +5,213 @@ import Element from './evm/element.js'
 import { bigIntToUint8Array, uint8ArrayToBigInt, bigIntBitLength, toUint8Array } from './utils.js'
 
 class Arg {
-  constructor(offset, dynamic = false) {
-    this.offset = offset
-    this.dynamic = dynamic
+  offset
+  path
+  add_val
+  and_mask
+  constructor(properties) {
+    Object.preventExtensions(this)
+    Object.assign(this, properties)
   }
   toString() {
-    return `Arg(${this.offset},${this.dynamic})`
-  }
-}
-
-class ArgDynamicLength {
-  constructor(offset) {
-    this.offset = offset
-  }
-  toString() {
-    return `ArgDynamicLength(${this.offset})`
-  }
-}
-
-class ArgDynamic {
-  constructor(offset) {
-    this.offset = offset
-  }
-  toString() {
-    return `ArgDynamic(${this.offset})`
+    return `Arg(off=${this.offset},path=${this.path},add_val=${this.add_val},and_mask=${this.and_mask})`
   }
 }
 
 class IsZeroResult {
-  constructor(offset, dynamic) {
-    this.offset = offset
-    this.dynamic = dynamic
+  offset
+  path
+  add_val
+  and_mask
+  constructor(properties) {
+    Object.preventExtensions(this)
+    Object.assign(this, properties)
   }
   toString() {
-    return `IsZeroResult(${this.offset},${this.dynamic})`
+    return `IsZeroResult(off=${this.offset},path=${this.path},add_val=${this.add_val},and_mask=${this.and_mask})`
+  }
+}
+
+class InfoValDynamic {
+  n_elements
+  constructor(n) {
+    this.n_elements = n
+  }
+  toString() {
+    return `Dynamic(${this.n_elements})`
+  }
+}
+
+class InfoValArray {
+  n_elements
+  constructor(n) {
+    this.n_elements = n
+  }
+  toString() {
+    return `Array(${this.n_elements})`
+  }
+}
+
+class Info {
+  constructor() {
+    this.tinfo = null
+    this.tname = null
+    this.children = new Map()
+  }
+  toStr(isRoot = false) {
+    if (this.tname !== null) {
+      const [name] = this.tname
+      if (name === 'bytes') {
+        if (
+          this.tinfo === null ||
+          (this.tinfo instanceof InfoValArray && this.tinfo.n_elements === 0) ||
+          (this.tinfo instanceof InfoValDynamic && this.tinfo.n_elements === 1)
+        ) {
+          return name
+        }
+      } else if (this.children.size === 0) {
+        if (this.tinfo === null || this.tinfo instanceof InfoValDynamic) {
+          return name
+        }
+      }
+    }
+    let startKey = this.tinfo instanceof InfoValArray ? 32 : 0
+    let endKey = this.children.size > 0 ? Math.max(...this.children.keys()) : 0
+
+    if (this.tinfo instanceof InfoValArray || this.tinfo instanceof InfoValDynamic) {
+      endKey = Math.max(endKey, this.tinfo.n_elements * 32)
+    }
+
+    const q = []
+    for (let k = startKey; k <= endKey; k += 32) {
+      q.push(this.children.has(k) ? this.children.get(k).toStr(false) : 'uint256')
+    }
+
+    let c = q.length > 1 && !isRoot ? `(${q.join(',')})` : q.join(',')
+
+    if (this.tinfo instanceof InfoValArray) {
+      return `${c}[]`
+    }
+    if (this.tinfo instanceof InfoValDynamic) {
+      if (endKey === 0 && this.children.size === 0) {
+        return 'bytes'
+      }
+      if (endKey === 32) {
+        if (this.children.size === 0) {
+          return 'uint256[]'
+        }
+        if (this.children.size === 1 && this.children.values().next().value.tinfo === null) {
+          return `${q[1]}[]`
+        }
+      }
+    }
+    return c
   }
 }
 
 class ArgsResult {
   constructor() {
-    this.args = {}
+    this.data = new Info()
     this.notBool = new Set()
   }
-  set(offset, atype) {
-    this.args[offset] = atype
-  }
 
-  setIf(offset, if_val, atype) {
-    const v = this.args[offset]
-    if (v !== undefined) {
-      if (v === if_val) {
-        this.args[offset] = atype
+  getOrCreate(path) {
+    return path.reduce((node, key) => {
+      if (!node.children.has(key)) {
+        node.children.set(key, new Info())
       }
-    } else if (atype === '') {
-      this.args[offset] = atype
-    }
+      return node.children.get(key)
+    }, this.data)
   }
 
-  markNotBool(offset) {
-    this.notBool.add(offset)
-    this.setIf(offset, 'bool', '')
+  get(path) {
+    return path.reduce((node, key) => {
+      return node?.children.get(key)
+    }, this.data)
+  }
+
+  markNotBool(path, offset) {
+    const fullPath = [...path, offset]
+    const el = this.get(fullPath)
+    if (el && el.tname && el.tname[0] === 'bool') {
+      el.tname = null
+    }
+    this.notBool.add(fullPath.join(','))
+  }
+
+  setTname(path, offset, tname, confidence) {
+    const fullPath = offset !== null ? [...path, offset] : path
+    if (tname === 'bool' && this.notBool.has(fullPath.join(','))) {
+      return
+    }
+    const el = this.getOrCreate(fullPath)
+    if (el.tname !== null && confidence <= el.tname[1]) {
+      return
+    }
+    el.tname = [tname, confidence]
+  }
+
+  arrayInPath(path) {
+    let el = this.data
+    return path.map((p) => {
+      if (el === undefined) return false
+      el = el.children.get(p)
+      return el && el.tinfo instanceof InfoValArray
+    })
+  }
+
+  setInfo(path, tinfo) {
+    if (path.length === 0) {
+      // root
+      return
+    }
+
+    const el = this.getOrCreate(path)
+    if (tinfo instanceof InfoValDynamic) {
+      if (el.tinfo instanceof InfoValDynamic && el.tinfo.n_elements > tinfo.n_elements) {
+        return
+      }
+      if (el.tinfo instanceof InfoValArray) {
+        return
+      }
+    }
+    if (el.tinfo instanceof InfoValArray && tinfo instanceof InfoValArray) {
+      if (tinfo.n_elements < el.tinfo.n_elements) {
+        return
+      }
+    }
+    el.tinfo = tinfo
   }
 
   joinToString() {
-    const collator = new Intl.Collator([], { numeric: true })
-    return Object.entries(this.args)
-      .sort((a, b) => collator.compare(a, b))
-      .map((v) => (v[1] !== '' ? v[1] : 'uint256'))
-      .join(',')
+    return this.data.children.size === 0 ? '' : this.data.toStr(true)
   }
 }
 
-export function functionArguments(code, selector, gas_limit = 1e4) {
+function andMaskToType(mask) {
+  if (mask === 0n) {
+    return null
+  }
+  if ((mask & (mask + 1n)) === 0n) {
+    // 0x0000ffff
+    const bl = bigIntBitLength(mask)
+    if (bl % 8 === 0) {
+      return bl === 160 ? 'address' : `uint${bl}`
+    }
+  } else {
+    // 0xffff0000
+    const m = BigInt(uint8ArrayToBigInt(bigIntToUint8Array(mask).slice().reverse()))
+    if ((m & (m + 1n)) === 0n) {
+      const bl = bigIntBitLength(m)
+      if (bl % 8 == 0) {
+        return `bytes${bl / 8}`
+      }
+    }
+  }
+  return null
+}
+
+export function functionArguments(code, selector, gas_limit = 5e4) {
   const code_arr = toUint8Array(code)
   const selector_arr = toUint8Array(selector)
   const vm = new Vm(code_arr, new Element(selector_arr, 'calldata'))
@@ -88,15 +223,17 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
   while (!vm.stopped) {
     let ret
     try {
+      if (inside_function) {
+        // console.log('args:', args.joinToString());
+        // console.log('not_bool:', args.notBool);
+        // console.dir(args.data, { depth: null, colors: true })
+        // console.log(vm.toString())
+      }
       ret = vm.step()
       gas_used += ret[1]
       if (gas_used > gas_limit) {
         // throw `gas overflow: ${gas_used} > ${gas_limit}`
         break
-      }
-
-      if (inside_function) {
-        // console.log(vm.toString())
       }
     } catch (e) {
       if (e instanceof StackIndexError || e instanceof UnsupportedOpError) {
@@ -106,22 +243,20 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
         throw e
       }
     }
-    const op = ret[0]
+
+    const [op, , r0, r1] = ret
 
     if (inside_function == false) {
       if (op === Op.EQ || op == Op.XOR || op == Op.SUB) {
         const p = vm.stack.peek().data[31]
         if (p === (op === Op.EQ ? 1 : 0)) {
-          const a = ret[2].data.slice(-4)
+          const a = r0.data.slice(-4)
           inside_function = selector_arr.every((v, i) => v === a[i])
         }
       }
 
       continue
     }
-
-    // console.log('args:', args.joinToString());
-    // console.log(vm.toString());
 
     switch (op) {
       case Op.CALLDATASIZE:
@@ -130,22 +265,56 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
         break
 
       case Op.CALLDATALOAD:
+      case Op.CALLDATACOPY:
         {
-          const v = ret[2]
-          if (v.label instanceof Arg) {
-            args.set(v.label.offset, 'bytes')
-            vm.stack.pop()
-            vm.stack.push(new Element(bigIntToUint8Array(1n), new ArgDynamicLength(v.label.offset)))
-          } else if (v.label instanceof ArgDynamic) {
-            vm.stack.pop()
-            vm.stack.push(new Element(bigIntToUint8Array(0n), new Arg(v.label.offset, true)))
-          } else {
-            const off = uint8ArrayToBigInt(v.data)
-            if (off >= 4n && off < 131072n - 1024n) {
-              vm.stack.pop()
-              vm.stack.push(new Element(bigIntToUint8Array(0n), new Arg(Number(off))))
+          if (r0.label instanceof Arg) {
+            const { offset, path, add_val } = r0.label
+            if (add_val >= 4 && (add_val - 4) % 32 === 0) {
+              let po = 0
+              if (add_val != 4) {
+                const a = args.arrayInPath(path).reduce((s, v) => s + 32 * v, 0)
+                if (a <= add_val - 4) {
+                  po = a
+                }
+              }
 
-              args.setIf(off, '', '')
+              const fullPath = [...path, offset]
+              const new_off = add_val - 4 - po
+
+              args.setInfo(fullPath, new InfoValDynamic(new_off / 32))
+
+              if (new_off === 0 && args.arrayInPath(fullPath).pop() === true) {
+                const d = bigIntToUint8Array(1n)
+                if (op == Op.CALLDATALOAD) {
+                  vm.stack.peek().data = d
+                } else {
+                  const mem_off = uint8ArrayToBigInt(r1.data)
+                  vm.memory.get(mem_off).data = d
+                }
+              }
+
+              const new_label = new Arg({ offset: new_off, path: fullPath, add_val: 0, and_mask: null })
+              if (op == Op.CALLDATALOAD) {
+                vm.stack.peek().label = new_label
+              } else {
+                const mem_off = uint8ArrayToBigInt(r1.data)
+                vm.memory.get(mem_off).label = new_label
+                args.setTname(path, offset, 'bytes', 10)
+              }
+            }
+          } else {
+            const off = uint8ArrayToBigInt(r0.data)
+            if (off >= 4n && off < 131072n - 1024n) {
+              // -1024: cut 'trustedForwarder'
+              args.getOrCreate([Number(off) - 4])
+
+              const new_label = new Arg({ offset: Number(off) - 4, path: [], add_val: 0, and_mask: null })
+              if (op == Op.CALLDATALOAD) {
+                vm.stack.peek().label = new_label
+              } else {
+                const mem_off = uint8ArrayToBigInt(r1.data)
+                vm.memory.get(mem_off).label = new_label
+              }
             }
           }
         }
@@ -153,52 +322,89 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       case Op.ADD:
         {
-          const [r2, r3] = [ret[2], ret[3]]
-          if (r2.label instanceof Arg || r3.label instanceof Arg) {
-            const [v, ot] = r2.label instanceof Arg ? [r2.label, r3.data] : [r3.label, r2.data]
+          const [l0, l1] = [r0.label, r1.label]
+          if (l0 instanceof Arg && l1 instanceof Arg) {
+            args.markNotBool(l0.path, l0.offset)
+            args.markNotBool(l1.path, l1.offset)
 
-            const p = vm.stack.peek()
-            if (uint8ArrayToBigInt(ot) === 4n) {
-              p.label = new Arg(v.offset, false)
-            } else {
-              p.label = new ArgDynamic(v.offset)
+            vm.stack.peek().label =
+              l0.path.length > l1.path.length
+                ? new Arg({
+                    offset: l0.offset,
+                    path: l0.path,
+                    add_val: l0.add_val + l1.add_val,
+                    and_mask: l0.and_mask,
+                  })
+                : new Arg({
+                    offset: l1.offset,
+                    path: l1.path,
+                    add_val: l0.add_val + l1.add_val,
+                    and_mask: l1.and_mask,
+                  })
+          } else if (l0 instanceof Arg || l1 instanceof Arg) {
+            const [r, otd] = l0 instanceof Arg ? [r0, r1.data] : [r1, r0.data]
+            const rl = r.label
+
+            args.markNotBool(rl.path, rl.offset)
+
+            const ot_val = uint8ArrayToBigInt(otd)
+
+            const E256M1 = (1n << 256n) - 1n
+
+            if (rl.offset == 0 && rl.add_val == 0 && rl.path.length != 0 && uint8ArrayToBigInt(r.data) === 0n && ot_val == E256M1) {
+              vm.stack.peek().data = bigIntToUint8Array(0n)
             }
-            args.markNotBool(v.offset)
-          } else if (r2.label instanceof ArgDynamic || r3.label instanceof ArgDynamic) {
-            const arg = r2.label instanceof ArgDynamic ? r2.label : r3.label
-            vm.stack.peek().label = new ArgDynamic(arg.offset)
-          }
-        }
-        break
-
-      case Op.SHL:
-        {
-          const [r2, arg] = [uint8ArrayToBigInt(ret[2].data), ret[3].label]
-          if (arg instanceof ArgDynamicLength) {
-            if (r2 === 5n) {
-              args.set(arg.offset, 'uint256[]')
-            } else if (r2 === 1n) {
-              args.set(arg.offset, 'string')
+            const add = (ot_val + BigInt(rl.add_val)) & E256M1
+            if (add < 1n << 32n) {
+              vm.stack.peek().label = new Arg({ offset: rl.offset, path: rl.path, add_val: Number(add), and_mask: rl.and_mask })
             }
           }
         }
         break
 
       case Op.MUL:
+      case Op.SHL:
         {
-          const [r2, r3] = [ret[2], ret[3]]
-          if (r2.label instanceof ArgDynamicLength || r3.label instanceof ArgDynamicLength) {
-            const [arg, ot] = r2.label instanceof ArgDynamicLength ? [r2.label, r3.data] : [r3.label, r2.data]
-            const n = uint8ArrayToBigInt(ot)
-            if (n === 32n) {
-              args.set(arg.offset, 'uint256[]')
-            } else if (n === 2n) {
-              args.set(arg.offset, 'string')
+          const [l0, l1] = [r0.label, r1.label]
+
+          if ((op === Op.MUL && (l0 instanceof Arg || l1 instanceof Arg)) || (op === Op.SHL && l1 instanceof Arg)) {
+            const [rl, ot] = l1 instanceof Arg ? [l1, r0] : [l0, r1]
+
+            args.markNotBool(rl.path, rl.offset)
+            if (ot.label instanceof Arg) {
+              args.markNotBool(ot.label.path, ot.label.offset)
             }
-          }
-          if (r2.label instanceof Arg || r3.label instanceof Arg) {
-            const arg = r2.label instanceof Arg ? r2.label : r3.label
-            args.markNotBool(arg.offset)
+            if (rl.offset === 0 && rl.add_val === 0) {
+              if (rl.path.length != 0) {
+                let mult = uint8ArrayToBigInt(ot.data)
+                if (op === Op.SHL) {
+                  mult = 1n << mult
+                }
+                if (mult === 1n) {
+                  args.setTname(rl.path, null, 'bytes', 10)
+                } else if (mult == 2n) {
+                  args.setTname(rl.path, null, 'string', 20)
+                } else if (mult % 32n === 0n && 32n <= mult && mult <= 3200n) {
+                  args.setInfo(rl.path, new InfoValArray(Number(mult / 32n)))
+
+                  const shouldUpdate = (v) => v.offset == 0 && v.path == rl.path && v.add_val == 0
+
+                  vm.stack.data.forEach((el) => {
+                    if (el.label instanceof Arg && shouldUpdate(el.label)) {
+                      el.data = bigIntToUint8Array(1n)
+                    }
+                  })
+
+                  vm.memory.data.forEach((el) => {
+                    if (el.label instanceof Arg && shouldUpdate(el.label[1])) {
+                      el.data = bigIntToUint8Array(1n)
+                    }
+                  })
+
+                  vm.stack.peek().data = ot.data // ==bigIntToUint8Array(mult)
+                }
+              }
+            }
           }
         }
         break
@@ -206,38 +412,57 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
       case Op.GT:
       case Op.LT:
         {
-          const [r2, r3] = [ret[2], ret[3]]
-          if (r2.label instanceof Arg || r3.label instanceof Arg) {
-            const v = r2.label instanceof Arg ? r2.label : r3.label
-            args.markNotBool(v.offset)
+          const [rl, ot] = op === Op.LT ? [r1.label, r0] : [r0.label, r1]
+          if (ot.label instanceof Arg) {
+            args.markNotBool(ot.label.path, ot.label.offset)
+          }
+          if (rl instanceof Arg) {
+            args.markNotBool(rl.path, rl.offset)
+            if (rl.offset === 0 && rl.add_val === 0 && rl.and_mask === null) {
+              // 0 < arr.len || arr.len > 0
+              const v = uint8ArrayToBigInt(ot.data)
+              if (v === 0n || v === 31n) {
+                vm.stack.peek().data = bigIntToUint8Array(1n)
+              }
+            }
           }
         }
         break
 
       case Op.AND:
         {
-          const [r2, r3] = [ret[2], ret[3]]
-          if (r2.label instanceof Arg || r3.label instanceof Arg) {
-            const [arg, ot] = r2.label instanceof Arg ? [r2.label, r3.data] : [r3.label, r2.data]
+          const [l0, l1] = [r0.label, r1.label]
+          if (l0 instanceof Arg || l1 instanceof Arg) {
+            const [rl, otd] = l0 instanceof Arg ? [l0, r1.data] : [l1, r0.data]
 
-            const v = uint8ArrayToBigInt(ot)
-            if (v === 0n) {
-              // pass
-            } else if ((v & (v + 1n)) === 0n) {
-              // 0x0000ffff
-              const bl = bigIntBitLength(v)
-              if (bl % 8 === 0) {
-                const t = bl === 160 ? 'address' : `uint${bl}`
-                args.set(arg.offset, arg.dynamic ? `${t}[]` : t)
+            const { path, offset, add_val } = rl
+            args.markNotBool(path, offset)
+
+            const mask = uint8ArrayToBigInt(otd)
+            let t = andMaskToType(mask)
+            if (t !== null) {
+              args.setTname(path, offset, t, 5)
+              vm.stack.peek().label = new Arg({ offset, path, add_val, and_mask: mask })
+            }
+          }
+        }
+        break
+
+      case Op.EQ:
+        {
+          const [l0, l1] = [r0.label, r1.label]
+          if (l0 instanceof Arg && l1 instanceof Arg) {
+            if (l0.offset === l1.offset && l0.path === l1.path && l0.add_val === l1.add_val) {
+              let mask = null
+              if (l0.and_mask === null && l1.and_mask != null) {
+                mask = l1.and_mask
+              } else if (l0.and_mask != null && l1.and_mask === null) {
+                mask = l0.and_mask
               }
-            } else {
-              // 0xffff0000
-              const v = BigInt(uint8ArrayToBigInt(ot.slice().reverse()))
-              if ((v & (v + 1n)) === 0n) {
-                const bl = bigIntBitLength(v)
-                if (bl % 8 == 0) {
-                  const t = `bytes${bl / 8}`
-                  args.set(arg.offset, arg.dynamic ? `${t}[]` : t)
+              if (mask !== null) {
+                let t = andMaskToType(mask)
+                if (t !== null) {
+                  args.setTname(l0.path, l0.offset, t, 20)
                 }
               }
             }
@@ -247,10 +472,10 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       case Op.ISZERO:
         {
-          const v = ret[2].label
-          if (v instanceof Arg) {
-            vm.stack.peek().label = new IsZeroResult(v.offset, v.dynamic)
-          } else if (v instanceof IsZeroResult) {
+          const rl = r0.label
+          if (rl instanceof Arg) {
+            vm.stack.peek().label = new IsZeroResult(rl)
+          } else if (rl instanceof IsZeroResult) {
             // Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
             let is_bool = true
             const op = vm.code[vm.pc]
@@ -264,11 +489,7 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
               }
             }
             if (is_bool) {
-              if (v.dynamic) {
-                args.set(v.offset, 'bool[]')
-              } else if (!args.notBool.has(v.offset)) {
-                args.set(v.offset, 'bool')
-              }
+              args.setTname(rl.path, rl.offset, 'bool', 5)
             }
           }
         }
@@ -276,19 +497,18 @@ export function functionArguments(code, selector, gas_limit = 1e4) {
 
       case Op.SIGNEXTEND:
         {
-          const v = ret[3].label
-          if (v instanceof Arg && ret[2] < 32n) {
-            const t = `int${(Number(ret[2]) + 1) * 8}`
-            args.set(v.offset, v.dynamic ? `${t}[]` : t)
+          const rl = r1.label
+          if (rl instanceof Arg && r0 < 32n) {
+            args.setTname(rl.path, rl.offset, `int${(Number(r0) + 1) * 8}`, 20)
           }
         }
         break
 
       case Op.BYTE:
         {
-          const v = ret[3].label
-          if (v instanceof Arg) {
-            args.setIf(v.offset, '', 'bytes32')
+          const rl = r1.label
+          if (rl instanceof Arg) {
+            args.setTname(rl.path, rl.offset, 'bytes32', 4)
           }
         }
         break

@@ -104,7 +104,13 @@ fn process(mut vm: Vm<Label>, selectors: &mut BTreeSet<Selector>, gas_limit: u32
     let mut gas_used = 0;
     while !vm.stopped {
         if cfg!(feature = "trace") {
-            println!("selectors: {:?}", selectors.iter().map(|s| format!("{:02x}{:02x}{:02x}{:02x},", s[0], s[1], s[2], s[3])).collect::<Vec<String>>());
+            println!(
+                "selectors: {:?}",
+                selectors
+                    .iter()
+                    .map(|s| format!("{:02x}{:02x}{:02x}{:02x},", s[0], s[1], s[2], s[3]))
+                    .collect::<Vec<String>>()
+            );
             println!("{:?}\n", vm);
         }
         let ret = match vm.step() {
@@ -153,7 +159,7 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
             label: Some(Label::CallData),
         },
     );
-    let mut selectors  = BTreeSet::new();
+    let mut selectors = BTreeSet::new();
     process(
         vm,
         &mut selectors,
