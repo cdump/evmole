@@ -91,15 +91,17 @@ See [examples](./examples) for more
   <td></td>
   <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
   <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
-  <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evm-hound-rs</i></b></a></td>
-  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall-rs</i></b></a></td>
-  <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
+  <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
+  <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evmhound</i></b></a></td>
+  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
+  <td><a href="benchmark/providers/simple/"><b><i>smpl</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="5"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
   <td>1 🥈</td>
   <td>0 🥇</td>
+  <td>0</td>
   <td>75</td>
   <td>18</td>
   <td>95</td>
@@ -108,6 +110,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>contracts</sub></i></td>
   <td>0 🥇</td>
   <td>0 🥇</td>
+  <td>16</td>
   <td>40</td>
   <td>102</td>
   <td>9</td>
@@ -116,6 +119,7 @@ See [examples](./examples) for more
   <td><i>FP <sub>functions</sub></i></td>
   <td>192 🥈</td>
   <td>0 🥇</td>
+  <td>0</td>
   <td>720</td>
   <td>600</td>
   <td>749</td>
@@ -124,6 +128,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>functions</sub></i></td>
   <td>0 🥇</td>
   <td>0 🥇</td>
+  <td>492</td>
   <td>191</td>
   <td>113</td>
   <td>12</td>
@@ -132,24 +137,27 @@ See [examples](./examples) for more
   <td><i>Time</i></td>
   <td>0.6s · 1.6s · 2.1s</td>
   <td>2.9s</td>
+  <td>34.1s<sup>(*)</sup></td>
   <td>0.7s</td>
-  <td>719.9s</td>
+  <td>719.9s<sup>(*)</sup></td>
   <td>1.7s</td>
  </tr>
- <tr><td colspan="7"></td></tr>
+ <tr><td colspan="8"></td></tr>
  <tr>
   <td rowspan="5"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>FP <sub>contracts</sub></i></td>
   <td>1 🥇</td>
   <td>43</td>
+  <td>1</td>
   <td>693</td>
-  <td rowspan="5">waiting fixes</td>
+  <td rowspan="5">wait fixes</td>
   <td>4136</td>
  </tr>
  <tr>
   <td><i>FN <sub>contracts</sub></i></td>
   <td>9 🥇</td>
   <td>11</td>
+  <td>172</td>
   <td>2903</td>
   <!-- -->
   <td>77</td>
@@ -158,6 +166,7 @@ See [examples](./examples) for more
   <td><i>FP <sub>functions</sub></i></td>
   <td>3 🥇</td>
   <td>51</td>
+  <td>3</td>
   <td>10798</td>
   <!-- -->
   <td>14652</td>
@@ -166,14 +175,16 @@ See [examples](./examples) for more
   <td><i>FN <sub>functions</sub></i></td>
   <td>10 🥇</td>
   <td>12</td>
+  <td>4519</td>
   <td>3538</td>
   <!-- -->
   <td>96</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9.8s · 20.2s · 39.4s</td>
+  <td>9.8s · 20.2s · 39s</td>
   <td>55.9s</td>
+  <td>1558s<sup>(*)</sup></td>
   <td>11.5s</td>
   <!-- -->
   <td>47.9s</td>
@@ -184,6 +195,7 @@ See [examples](./examples) for more
   <td><i>FP <sub>contracts</sub></i></td>
   <td>0 🥇</td>
   <td>30</td>
+  <td>0</td>
   <td>19</td>
   <td>0</td>
   <td>185</td>
@@ -192,6 +204,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>contracts</sub></i></td>
   <td>0 🥇</td>
   <td>780</td>
+  <td>21</td>
   <td>300</td>
   <td>780</td>
   <td>480</td>
@@ -200,6 +213,7 @@ See [examples](./examples) for more
   <td><i>FP <sub>functions</sub></i></td>
   <td>0 🥇</td>
   <td>30</td>
+  <td>0</td>
   <td>19</td>
   <td>0</td>
   <td>197</td>
@@ -208,6 +222,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>functions</sub></i></td>
   <td>0 🥇</td>
   <td>21244</td>
+  <td>336</td>
   <td>8273</td>
   <td>21244</td>
   <td>12971</td>
@@ -216,8 +231,9 @@ See [examples](./examples) for more
   <td><i>Time</i></td>
   <td>0.4s · 0.8s · 1.2s</td>
   <td>2.1s</td>
+  <td>54.2s<sup>(*)</sup></td>
   <td>0.4s</td>
-  <td>16.4s</td>
+  <td>16.4s<sup>(*)</sup></td>
   <td>1.1s</td>
  </tr>
 </table>
@@ -243,7 +259,7 @@ See [examples](./examples) for more
  <tr>
   <td><i>Time</i></td>
   <td>1.2s · 12.6s · 30.1s</td>
-  <td>724.4s</td>
+  <td>724.4s<sup>(*)</sup></td>
   <td>0.6s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
@@ -271,14 +287,16 @@ See [examples](./examples) for more
  <tr>
   <td><i>Time</i></td>
   <td>0.8s · 8.0s · 16.9s</td>
-  <td>16.8s</td>
+  <td>16.8s<sup>(*)</sup></td>
   <td>0.5s</td>
  </tr>
 </table>
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.3.5; whatsabi v0.12.0; evm-hound-rs v0.1.4; heimdall-rs v0.7.3</i>
+<i>versions: evmole v0.3.5; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.12.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.17; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.7.3</i>
+
+<sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 
 ## How it works
 

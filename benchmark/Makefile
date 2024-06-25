@@ -1,5 +1,5 @@
 PROVIDER_BASE = etherscan
-PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs evmole-rs evmole-js evmole-py
+PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs sevm evmole-rs evmole-js evmole-py
 PROVIDERS_ARGUMENTS ?= simple evmole-rs evmole-js evmole-py
 
 DATASETS ?= largest1k random50k vyper

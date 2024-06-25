@@ -278,7 +278,7 @@ if __name__ == '__main__':
     cfg = parser.parse_args()
     if cfg.providers is None:
         if cfg.mode == 'selectors':
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'evm-hound-rs', 'simple']
+            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'simple']
         else:
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'simple']
     print('Config:')
