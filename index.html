@@ -129,7 +129,7 @@ createApp({
       const hs = h.slice(1).split('/');
       if ((hs.length == 1 || hs.length == 2)) {
         nextTick(() => {
-          if (hs[0].length == 42) {
+          if (hs[0].length == 42 || hs[0].length == 40) {
             addressForm.address = hs[0];
           }
           if (hs.length == 2) {
