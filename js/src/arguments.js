@@ -351,7 +351,13 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
 
             const E256M1 = (1n << 256n) - 1n
 
-            if (rl.offset == 0 && rl.add_val == 0 && rl.path.length != 0 && uint8ArrayToBigInt(r.data) === 0n && ot_val == E256M1) {
+            if (
+              rl.offset == 0 &&
+              rl.add_val == 0 &&
+              rl.path.length != 0 &&
+              uint8ArrayToBigInt(r.data) === 0n &&
+              ot_val == E256M1
+            ) {
               vm.stack.peek().data = bigIntToUint8Array(0n)
             }
             const add = (ot_val + BigInt(rl.add_val)) & E256M1

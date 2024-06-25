@@ -4,11 +4,14 @@ DS=$2
 
 BDIR=`pwd`/benchmark
 
+# MODE=selectors
+MODE=arguments
+
 case $1 in
     js)
         ln -s `pwd`/js ${BDIR}/providers/evmole-js 2>/dev/null || true
         node ${BDIR}/providers/evmole-js/main.mjs \
-            arguments \
+            ${MODE} \
             ${BDIR}/datasets/${2} \
             out.json \
             ${BDIR}/results/etherscan.selectors_${2}.json \
@@ -21,7 +24,7 @@ case $1 in
         cargo run \
             --manifest-path benchmark/providers/evmole-rs/Cargo.toml \
             --features "evmole/trace" \
-            arguments \
+            ${MODE} \
             ${BDIR}/datasets/${2} \
             out.json \
             ${BDIR}/results/etherscan.selectors_${2}.json \
@@ -33,7 +36,7 @@ case $1 in
         PYTHONPATH=`pwd` \
             python3.12 \
             ${BDIR}/providers/evmole-py/main.py \
-            arguments \
+            ${MODE} \
             ${BDIR}/datasets/${2} \
             out.json \
             ${BDIR}/results/etherscan.selectors_${2}.json \

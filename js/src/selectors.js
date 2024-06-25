@@ -9,6 +9,7 @@ function process(vm, gasLimit) {
   let gasUsed = 0
 
   while (!vm.stopped) {
+    // console.log('selectors', selectors)
     // console.log(vm.toString())
     let ret
     try {
@@ -82,9 +83,12 @@ function process(vm, gasLimit) {
           const p = vm.stack.peek()
           if (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
             p.label = 'signature'
-          } else if (r1.label === 'mulsig') {
+          } else {
             p.label = 'mulsig'
           }
+        } else if (r1.label === 'mulsig') {
+          const p = vm.stack.peek()
+          p.label = 'mulsig'
         }
         break
 
