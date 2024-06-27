@@ -101,7 +101,7 @@ See [examples](./examples) for more
   <td><i>FP <sub>contracts</sub></i></td>
   <td>1 🥈</td>
   <td>0 🥇</td>
-  <td>0</td>
+  <td>0 🥇</td>
   <td>75</td>
   <td>18</td>
   <td>95</td>
@@ -110,7 +110,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>contracts</sub></i></td>
   <td>0 🥇</td>
   <td>0 🥇</td>
-  <td>16</td>
+  <td>0 🥇</td>
   <td>40</td>
   <td>102</td>
   <td>9</td>
@@ -119,7 +119,7 @@ See [examples](./examples) for more
   <td><i>FP <sub>functions</sub></i></td>
   <td>192 🥈</td>
   <td>0 🥇</td>
-  <td>0</td>
+  <td>0 🥇</td>
   <td>720</td>
   <td>600</td>
   <td>749</td>
@@ -128,7 +128,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>functions</sub></i></td>
   <td>0 🥇</td>
   <td>0 🥇</td>
-  <td>492</td>
+  <td>0 🥇</td>
   <td>191</td>
   <td>113</td>
   <td>12</td>
@@ -137,7 +137,7 @@ See [examples](./examples) for more
   <td><i>Time</i></td>
   <td>0.6s · 1.6s · 2.1s</td>
   <td>2.9s</td>
-  <td>34.1s<sup>(*)</sup></td>
+  <td>34.8s<sup>(*)</sup></td>
   <td>0.7s</td>
   <td>719.9s<sup>(*)</sup></td>
   <td>1.7s</td>
@@ -157,7 +157,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>contracts</sub></i></td>
   <td>9 🥇</td>
   <td>11</td>
-  <td>172</td>
+  <td>85</td>
   <td>2903</td>
   <!-- -->
   <td>77</td>
@@ -175,7 +175,7 @@ See [examples](./examples) for more
   <td><i>FN <sub>functions</sub></i></td>
   <td>10 🥇</td>
   <td>12</td>
-  <td>4519</td>
+  <td>1759</td>
   <td>3538</td>
   <!-- -->
   <td>96</td>
@@ -184,7 +184,7 @@ See [examples](./examples) for more
   <td><i>Time</i></td>
   <td>9.8s · 20.2s · 39s</td>
   <td>55.9s</td>
-  <td>1558s<sup>(*)</sup></td>
+  <td>1343s<sup>(*)</sup></td>
   <td>11.5s</td>
   <!-- -->
   <td>47.9s</td>
@@ -231,7 +231,7 @@ See [examples](./examples) for more
   <td><i>Time</i></td>
   <td>0.4s · 0.8s · 1.2s</td>
   <td>2.1s</td>
-  <td>54.2s<sup>(*)</sup></td>
+  <td>55.1s<sup>(*)</sup></td>
   <td>0.4s</td>
   <td>16.4s<sup>(*)</sup></td>
   <td>1.1s</td>
@@ -294,7 +294,7 @@ See [examples](./examples) for more
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.3.6; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.12.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.17; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.7.3</i>
+<i>versions: evmole v0.3.6; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.12.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.18; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.7.3</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 
