@@ -546,7 +546,7 @@ fn analyze(
                     VAL_2 => {
                         // slen*2+1 for SSTORE
                         if let Some((last, rest)) = path.split_last() {
-                            args.set_tname(rest, *last, DynSolType::Bytes, 20);
+                            args.set_tname(rest, *last, DynSolType::String, 20);
                         }
                     }
 
