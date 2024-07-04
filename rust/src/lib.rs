@@ -4,6 +4,7 @@
 
 pub use arguments::function_arguments;
 pub use selectors::function_selectors;
+pub use arguments::function_arguments_typed;
 
 #[doc(hidden)]
 pub mod arguments;

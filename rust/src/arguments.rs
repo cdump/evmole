@@ -1,3 +1,7 @@
+use alloy::dyn_abi::DynSolType;
+use itertools::Itertools;
+use log::trace;
+
 use crate::{
     evm::{
         op,
@@ -40,7 +44,7 @@ enum InfoVal {
 #[derive(Default, Debug)]
 struct Info {
     tinfo: Option<InfoVal>,
-    tname: Option<(String, u8)>,
+    tname: Option<(DynSolType, u8)>,
     children: BTreeMap<u32, Info>,
 }
 
@@ -53,15 +57,15 @@ impl Info {
         }
     }
 
-    fn to_str(&self, is_root: bool) -> String {
+    fn to_alloy_type(&self, is_root: bool) -> Vec<DynSolType> {
         if let Some((name, _)) = &self.tname {
-            if name == "bytes" {
+            if matches!(name, DynSolType::Bytes) {
                 if let Some(InfoVal::Array(0)) | Some(InfoVal::Dynamic(1)) | None = self.tinfo {
-                    return name.to_string();
+                    return vec![name.clone()];
                 }
             } else if self.children.is_empty() {
                 if let Some(InfoVal::Dynamic(_)) | None = self.tinfo {
-                    return name.to_string();
+                    return vec![name.clone()];
                 }
             }
         }
@@ -85,39 +89,48 @@ impl Info {
             .map(|k| {
                 self.children
                     .get(&k)
-                    .map_or("uint256".to_string(), |val| val.to_str(false))
+                    .map_or(vec![DynSolType::Uint(256)], |val| val.to_alloy_type(false))
+                    .into_iter()
             })
+            .flatten()
             .collect();
 
         let c = if q.len() > 1 && !is_root {
-            format!("({})", q.join(","))
+            vec![DynSolType::Tuple(q.clone())]
         } else {
-            q.join(",")
+            q.clone()
         };
 
         match self.tinfo {
-            Some(InfoVal::Array(_)) => format!("{}[]", c),
+            Some(InfoVal::Array(_)) => {
+                if q.len() == 1 {
+                    vec![DynSolType::Array(Box::new(q[0].clone()))]
+                } else {
+                    vec![DynSolType::Array(Box::new(DynSolType::Tuple(q)))]
+                }
+            }
             Some(InfoVal::Dynamic(_)) => {
                 if end_key == 0 && self.children.is_empty() {
-                    return "bytes".to_string();
+                    return vec![DynSolType::Bytes];
                 }
                 if end_key == 32 {
                     if self.children.is_empty() {
-                        return "uint256[]".to_string();
+                        return vec![DynSolType::Array(Box::new(DynSolType::Uint(256)))];
                     }
                     if self.children.len() == 1
                         && self.children.first_key_value().unwrap().1.tinfo.is_none()
                     {
-                        return format!("{}[]", q[1]);
+                        return vec![DynSolType::Array(Box::new(q[1].clone()))];
                     }
                 }
-                c.to_string()
+                c
             }
             None => c,
         }
     }
 }
 
+#[derive(Debug)]
 struct ArgsResult {
     data: Info,
     not_bool: BTreeSet<Vec<u32>>,
@@ -147,7 +160,7 @@ impl ArgsResult {
 
         if let Some(el) = self.get_mut(&full_path) {
             if let Some((v, _)) = &mut el.tname {
-                if v == "bool" {
+                if matches!(v, DynSolType::Bool) {
                     el.tname = None;
                 }
             }
@@ -156,10 +169,10 @@ impl ArgsResult {
         self.not_bool.insert(full_path);
     }
 
-    fn set_tname(&mut self, path: &[u32], offset: u32, tname: String, confidence: u8) {
+    fn set_tname(&mut self, path: &[u32], offset: u32, tname: DynSolType, confidence: u8) {
         let full_path = [path, &[offset]].concat();
 
-        if tname == "bool" && self.not_bool.contains(&full_path) {
+        if matches!(tname, DynSolType::Bool) && self.not_bool.contains(&full_path) {
             return;
         }
 
@@ -182,7 +195,8 @@ impl ArgsResult {
     }
 
     fn set_info(&mut self, path: &[u32], tinfo: InfoVal) {
-        if path.is_empty() { // root
+        if path.is_empty() {
+            // root
             return;
         }
         let el = self.get_or_create(path);
@@ -208,17 +222,9 @@ impl ArgsResult {
         }
         el.tinfo = Some(tinfo);
     }
-
-    fn join_to_string(&self) -> String {
-        if self.data.children.is_empty() {
-            "".to_string()
-        } else {
-            self.data.to_str(true)
-        }
-    }
 }
 
-fn and_mask_to_type(mask: U256) -> Option<String> {
+fn and_mask_to_type(mask: U256) -> Option<DynSolType> {
     if mask.is_zero() {
         return None;
     }
@@ -228,9 +234,9 @@ fn and_mask_to_type(mask: U256) -> Option<String> {
         let bl = mask.bit_len();
         if bl % 8 == 0 {
             return Some(if bl == 160 {
-                "address".to_string()
+                DynSolType::Address
             } else {
-                format!("uint{bl}")
+                DynSolType::Uint(bl)
             });
         }
     } else {
@@ -239,7 +245,7 @@ fn and_mask_to_type(mask: U256) -> Option<String> {
         if (mask & (mask + VAL_1)).is_zero() {
             let bl = mask.bit_len();
             if bl % 8 == 0 {
-                return Some(format!("bytes{}", bl / 8));
+                return Some(DynSolType::FixedBytes(bl / 8));
             }
         }
     }
@@ -252,14 +258,30 @@ fn analyze(
     ret: StepResult<Label>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ret {
-        StepResult{op: op::CALLDATASIZE, ..} =>
-        {
+        StepResult {
+            op: op::CALLDATASIZE,
+            ..
+        } => {
             let v = vm.stack.peek_mut()?;
             v.data = VAL_131072_B;
         }
 
-        StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),  fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, ..})), ..}), sa, ..} =>
-        {
+        StepResult {
+            op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            ..
+                        })),
+                    ..
+                }),
+            sa,
+            ..
+        } => {
             if add_val >= 4 && (add_val - 4) % 32 == 0 {
                 let mut full_path = path.clone();
                 full_path.push(offset);
@@ -309,7 +331,7 @@ fn analyze(
                     op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
                     op::CALLDATACOPY => {
                         if let Some(v) = vm.memory.get_mut(mem_offset) {
-                            args.set_tname(&path, offset, "bytes".to_string(), 10);
+                            args.set_tname(&path, offset, DynSolType::Bytes, 10);
                             v.label = new_label;
                         }
                     }
@@ -318,8 +340,12 @@ fn analyze(
             }
         }
 
-        StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY), fa: Some(el), sa, ..} =>
-        {
+        StepResult {
+            op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),
+            fa: Some(el),
+            sa,
+            ..
+        } => {
             let offr: Result<u32, _> = U256::from_be_bytes(el.data).try_into();
             if let Ok(off) = offr {
                 if (4..131072 - 1024).contains(&off) {
@@ -348,12 +374,32 @@ fn analyze(
             }
         }
 
-        StepResult{
+        StepResult {
             op: op::ADD,
-            fa: Some(Element{label: Some(Label::Arg(Val{offset: f_offset, path: f_path, add_val: f_add_val, and_mask: f_and_mask})), ..}),
-            sa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: s_and_mask})), ..}),
-            ..} =>
-        {
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: f_offset,
+                            path: f_path,
+                            add_val: f_add_val,
+                            and_mask: f_and_mask,
+                        })),
+                    ..
+                }),
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: s_offset,
+                            path: s_path,
+                            add_val: s_add_val,
+                            and_mask: s_and_mask,
+                        })),
+                    ..
+                }),
+            ..
+        } => {
             args.mark_not_bool(&f_path, f_offset);
             args.mark_not_bool(&s_path, s_offset);
             vm.stack.peek_mut()?.label = Some(Label::Arg(if f_path.len() > s_path.len() {
@@ -373,9 +419,40 @@ fn analyze(
             }));
         }
 
-          StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask})), data, ..}), sa: Some(ot), ..}
-        | StepResult{op: op::ADD, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask})), data, ..}), fa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op::ADD,
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            and_mask,
+                        })),
+                    data,
+                    ..
+                }),
+            sa: Some(ot),
+            ..
+        }
+        | StepResult {
+            op: op::ADD,
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            and_mask,
+                        })),
+                    data,
+                    ..
+                }),
+            fa: Some(ot),
+            ..
+        } => {
             args.mark_not_bool(&path, offset);
             if offset == 0
                 && add_val == 0
@@ -396,10 +473,54 @@ fn analyze(
             }
         }
 
-          StepResult{op: op @ op::MUL, fa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), sa: Some(ot), ..}
-        | StepResult{op: op @ op::MUL, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), fa: Some(ot), ..}
-        | StepResult{op: op @ op::SHL, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), fa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op @ op::MUL,
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: 0,
+                            path,
+                            add_val: 0,
+                            ..
+                        })),
+                    ..
+                }),
+            sa: Some(ot),
+            ..
+        }
+        | StepResult {
+            op: op @ op::MUL,
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: 0,
+                            path,
+                            add_val: 0,
+                            ..
+                        })),
+                    ..
+                }),
+            fa: Some(ot),
+            ..
+        }
+        | StepResult {
+            op: op @ op::SHL,
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: 0,
+                            path,
+                            add_val: 0,
+                            ..
+                        })),
+                    ..
+                }),
+            fa: Some(ot),
+            ..
+        } => {
             args.mark_not_bool(&path, 0);
             if let Some(Label::Arg(Val {
                 offset: o1,
@@ -418,14 +539,14 @@ fn analyze(
                 match mult {
                     VAL_1 => {
                         if let Some((last, rest)) = path.split_last() {
-                            args.set_tname(rest, *last, "bytes".to_string(), 10);
+                            args.set_tname(rest, *last, DynSolType::Bytes, 10);
                         }
                     }
 
                     VAL_2 => {
                         // slen*2+1 for SSTORE
                         if let Some((last, rest)) = path.split_last() {
-                            args.set_tname(rest, *last, "string".to_string(), 20);
+                            args.set_tname(rest, *last, DynSolType::Bytes, 20);
                         }
                     }
 
@@ -461,9 +582,38 @@ fn analyze(
         }
 
         // 0 < arr.len || arr.len > 0
-          StepResult{op: op::LT, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, and_mask: None})), ..}), fa: Some(ot), ..}
-        | StepResult{op: op::GT, fa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, and_mask: None})), ..}), sa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op::LT,
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: 0,
+                            path,
+                            add_val: 0,
+                            and_mask: None,
+                        })),
+                    ..
+                }),
+            fa: Some(ot),
+            ..
+        }
+        | StepResult {
+            op: op::GT,
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: 0,
+                            path,
+                            add_val: 0,
+                            and_mask: None,
+                        })),
+                    ..
+                }),
+            sa: Some(ot),
+            ..
+        } => {
             args.mark_not_bool(&path, 0);
             // 31 = string for storage
             if ot.data == VAL_0_B || ot.data == VAL_31_B {
@@ -471,15 +621,59 @@ fn analyze(
             }
         }
 
-          StepResult{op: op::LT|op::GT|op::MUL, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..}
-        | StepResult{op: op::LT|op::GT|op::MUL, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..} =>
-        {
+        StepResult {
+            op: op::LT | op::GT | op::MUL,
+            fa:
+                Some(Element {
+                    label: Some(Label::Arg(Val { offset, path, .. })),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::LT | op::GT | op::MUL,
+            sa:
+                Some(Element {
+                    label: Some(Label::Arg(Val { offset, path, .. })),
+                    ..
+                }),
+            ..
+        } => {
             args.mark_not_bool(&path, offset);
         }
 
-          StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}), sa: Some(ot), ..}
-        | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}), fa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op::AND,
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            and_mask: None,
+                        })),
+                    ..
+                }),
+            sa: Some(ot),
+            ..
+        }
+        | StepResult {
+            op: op::AND,
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            and_mask: None,
+                        })),
+                    ..
+                }),
+            fa: Some(ot),
+            ..
+        } => {
             args.mark_not_bool(&path, offset);
             let mask = U256::from_be_bytes(ot.data);
             if let Some(t) = and_mask_to_type(mask) {
@@ -493,15 +687,58 @@ fn analyze(
             }
         }
 
-          StepResult{op: op::EQ,
-            fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}),
-            sa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: Some(mask)})), ..}),
-        ..} |
-          StepResult{op: op::EQ,
-            sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}),
-            fa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: Some(mask)})), ..}),
-        ..} =>
-        {
+        StepResult {
+            op: op::EQ,
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            and_mask: None,
+                        })),
+                    ..
+                }),
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: s_offset,
+                            path: s_path,
+                            add_val: s_add_val,
+                            and_mask: Some(mask),
+                        })),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::EQ,
+            sa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            and_mask: None,
+                        })),
+                    ..
+                }),
+            fa:
+                Some(Element {
+                    label:
+                        Some(Label::Arg(Val {
+                            offset: s_offset,
+                            path: s_path,
+                            add_val: s_add_val,
+                            and_mask: Some(mask),
+                        })),
+                    ..
+                }),
+            ..
+        } => {
             if (s_offset == offset) && (s_path == path) && (s_add_val == add_val) {
                 if let Some(t) = and_mask_to_type(mask) {
                     args.set_tname(&path, offset, t, 20);
@@ -509,13 +746,27 @@ fn analyze(
             }
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Arg(val)), ..}), ..} =>
-        {
+        StepResult {
+            op: op::ISZERO,
+            fa:
+                Some(Element {
+                    label: Some(Label::Arg(val)),
+                    ..
+                }),
+            ..
+        } => {
             vm.stack.peek_mut()?.label = Some(Label::IsZeroResult(val));
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::IsZeroResult(val)), ..}), ..} =>
-        {
+        StepResult {
+            op: op::ISZERO,
+            fa:
+                Some(Element {
+                    label: Some(Label::IsZeroResult(val)),
+                    ..
+                }),
+            ..
+        } => {
             // Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
             // for solidity < 0.6.0
             let mut is_bool = true;
@@ -536,21 +787,36 @@ fn analyze(
             }
 
             if is_bool {
-                args.set_tname(&val.path, val.offset, "bool".to_string(), 5);
+                args.set_tname(&val.path, val.offset, DynSolType::Bool, 5);
             }
         }
 
-        StepResult{op: op::SIGNEXTEND, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), fa: Some(s0), ..} =>
-        {
+        StepResult {
+            op: op::SIGNEXTEND,
+            sa:
+                Some(Element {
+                    label: Some(Label::Arg(Val { offset, path, .. })),
+                    ..
+                }),
+            fa: Some(s0),
+            ..
+        } => {
             if s0.data < VAL_32_B {
                 let s0: u8 = s0.data[31];
-                args.set_tname(&path, offset, format!("int{}", (s0 + 1) * 8), 20);
+                args.set_tname(&path, offset, DynSolType::Int((s0 as usize + 1) * 8), 20);
             }
         }
 
-        StepResult{op: op::BYTE, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..} =>
-        {
-            args.set_tname(&path, offset, "bytes32".to_string(), 4);
+        StepResult {
+            op: op::BYTE,
+            sa:
+                Some(Element {
+                    label: Some(Label::Arg(Val { offset, path, .. })),
+                    ..
+                }),
+            ..
+        } => {
+            args.set_tname(&path, offset, DynSolType::FixedBytes(32), 4);
         }
 
         _ => (),
@@ -580,13 +846,18 @@ fn analyze(
 /// assert_eq!(arguments, "uint32,address,uint224");
 /// ```
 
-pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
-    if cfg!(feature = "trace") {
-        println!(
-            "Processing selector {:02x}{:02x}{:02x}{:02x}",
-            selector[0], selector[1], selector[2], selector[3]
-        );
-    }
+pub fn function_arguments_typed(
+    code: &[u8],
+    selector: &Selector,
+    gas_limit: u32,
+) -> Vec<DynSolType> {
+    trace!(
+        "Processing selector {:02x}{:02x}{:02x}{:02x}",
+        selector[0],
+        selector[1],
+        selector[2],
+        selector[3]
+    );
     let mut cd: [u8; 32] = [0; 32];
     cd[0..4].copy_from_slice(selector);
     let mut vm = Vm::<Label>::new(
@@ -605,16 +876,15 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
         gas_limit
     };
     while !vm.stopped {
-        if cfg!(feature = "trace") && inside_function {
-            println!("args: {}", args.join_to_string());
-            println!("not_bool: {:?}", args.not_bool);
-            println!("{:#?}", args.data);
-            println!("{:?}\n", vm);
+        if inside_function {
+            trace!("args: {:?}", args);
+            trace!("not_bool: {:?}", args.not_bool);
+            trace!("{:#?}", args.data);
+            trace!("{:?}\n", vm);
         }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
-                // println!("{}", _e);
                 break;
             }
         };
@@ -642,5 +912,16 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
         }
     }
 
-    args.join_to_string()
+    if args.data.children.is_empty() {
+        vec![]
+    } else {
+        args.data.to_alloy_type(true)
+    }
+}
+
+pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
+    function_arguments_typed(code, selector, gas_limit)
+        .into_iter()
+        .map(|t| t.sol_type_name().to_string())
+        .join(",")
 }
