@@ -368,9 +368,27 @@ where
                     Err(UnsupportedOpError { op }.into())
                 } else {
                     let mut data: Vec<u8> = vec![0; size];
+                    let code_len = self.code.len();
 
-                    let n = std::cmp::min(size, self.code.len() - src_off);
-                    data[0..n].copy_from_slice(&self.code[src_off..src_off + n]);
+                    let (from_code_length, _) = if src_off + size < code_len {
+                        (size, 0)
+                    } else if src_off < code_len {
+                        // | <---- code ----> |
+                        //       | <------ CODECOPY ------> |
+                        //    src_off
+                        //       |  from_code |  from_zero  |
+                        (code_len - src_off, src_off + size - code_len)
+                    } else {
+                        (0, size)
+                    };
+
+                    if from_code_length != 0 {
+                        data[0..from_code_length]
+                            .copy_from_slice(&self.code[src_off..src_off + from_code_length]);
+                    }
+
+                    // No need to deal with from_zero because they are already zero
+
                     self.memory.store(mem_off, data, None);
                     Ok(StepResult::new(op, 3))
                 }

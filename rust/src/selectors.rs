@@ -22,39 +22,103 @@ fn analyze(
     gas_limit: u32,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ret {
-          StepResult{op: op::XOR|op::EQ|op::SUB, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
-        | StepResult{op: op::XOR|op::EQ|op::SUB, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
-        {
+        StepResult {
+            op: op::XOR | op::EQ | op::SUB,
+            fa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            sa: Some(s1),
+            ..
+        }
+        | StepResult {
+            op: op::XOR | op::EQ | op::SUB,
+            sa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            fa: Some(s1),
+            ..
+        } => {
             selectors.insert(s1.data[28..32].try_into().unwrap());
             let v = vm.stack.peek_mut()?;
             v.data = if ret.op == op::EQ { VAL_0_B } else { VAL_1_B };
         }
 
-          StepResult{op: op::LT|op::GT, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
-        | StepResult{op: op::LT|op::GT, sa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
-        {
+        StepResult {
+            op: op::LT | op::GT,
+            fa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::LT | op::GT,
+            sa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            ..
+        } => {
             *gas_used += process(vm.clone(), selectors, (gas_limit - *gas_used) / 2);
             let v = vm.stack.peek_mut()?;
             v.data = if v.data == VAL_0_B { VAL_1_B } else { VAL_0_B };
         }
 
-          StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
-        | StepResult{op: op::MUL, sa: Some(Element{label: Some(Label::Signature), ..}), ..}
-        | StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::MulSig), ..}), ..} =>
-        {
+        StepResult {
+            op: op::MUL,
+            fa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::MUL,
+            sa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::SHR,
+            sa:
+                Some(Element {
+                    label: Some(Label::MulSig),
+                    ..
+                }),
+            ..
+        } => {
             vm.stack.peek_mut()?.label = Some(Label::MulSig);
         }
 
         // Vyper _selector_section_dense()
-        StepResult{op: op::MOD, fa: Some(Element{label: Some(Label::MulSig | Label::Signature), ..}), sa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op::MOD,
+            fa:
+                Some(Element {
+                    label: Some(Label::MulSig | Label::Signature),
+                    ..
+                }),
+            sa: Some(ot),
+            ..
+        } => {
             let t: Result<u8, _> = U256::from_be_bytes(ot.data).try_into();
             if let Ok(ma) = t {
                 if ma < 128 {
                     for m in 1..ma {
                         let mut vm_clone = vm.clone();
                         vm_clone.stack.peek_mut()?.data = U256::from(m).to_be_bytes();
-                        *gas_used += process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
+                        *gas_used +=
+                            process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
                         if *gas_used > gas_limit {
                             break;
                         }
@@ -64,31 +128,87 @@ fn analyze(
             }
         }
 
-          StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::CallData), ..}), ..}
-        | StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
-        | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Signature), ..}), ..}
-        | StepResult{op: op::DIV, fa: Some(Element{label: Some(Label::CallData), ..}), ..} =>
-        {
+        StepResult {
+            op: op::SHR,
+            sa:
+                Some(Element {
+                    label: Some(Label::CallData),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::AND,
+            fa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::AND,
+            sa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::DIV,
+            fa:
+                Some(Element {
+                    label: Some(Label::CallData),
+                    ..
+                }),
+            ..
+        } => {
             let v = vm.stack.peek_mut()?;
             if v.data[28..32] == vm.calldata.data[0..4] {
                 v.label = Some(Label::Signature);
             }
         }
 
-          StepResult{op: op::AND, fa: Some(Element{label: Some(Label::CallData), ..}), ..}
-        | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::CallData), ..}), ..} =>
-        {
+        StepResult {
+            op: op::AND,
+            fa:
+                Some(Element {
+                    label: Some(Label::CallData),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::AND,
+            sa:
+                Some(Element {
+                    label: Some(Label::CallData),
+                    ..
+                }),
+            ..
+        } => {
             let v = vm.stack.peek_mut()?;
             v.label = Some(Label::CallData);
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
-        {
+        StepResult {
+            op: op::ISZERO,
+            fa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            ..
+        } => {
             selectors.insert([0; 4]);
         }
 
-        StepResult{op: op::MLOAD, ul: Some(used), ..} =>
-        {
+        StepResult {
+            op: op::MLOAD,
+            ul: Some(used),
+            ..
+        } => {
             let v = vm.stack.peek_mut()?;
             if used.contains(&Label::CallData) && v.data[28..32] == vm.calldata.data[0..4] {
                 v.label = Some(Label::Signature);
@@ -155,7 +275,10 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
     let vm = Vm::<Label>::new(
         code,
         Element {
-            data: [0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            data: [
+                0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+            ],
             label: Some(Label::CallData),
         },
     );
