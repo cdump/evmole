@@ -3,8 +3,8 @@
 //! Accuracy and speed comparison with other tools, as well as Python and JavaScript implementations, are available on [GitHub](https://github.com/cdump/evmole/tree/master#benchmark).
 
 pub use arguments::function_arguments;
-pub use selectors::function_selectors;
 pub use arguments::function_arguments_typed;
+pub use selectors::function_selectors;
 
 #[doc(hidden)]
 pub mod arguments;
