@@ -75,7 +75,7 @@ p, h1 {
         >
         <el-input v-model="addressForm.address" placeholder="Address, ex: 0xdac17f958d2ee523a2206206994597c13d831ec7" style="width: 600px">
           <template #prepend>
-            <el-select v-model="addressForm.rpc" placeholder="Chain" style="width: 120px">
+            <el-select v-model="addressForm.rpc" placeholder="Chain" style="width: 140px">
               <el-option label="Ethereum" value="eth"></el-option>
               <el-option label="BNB" value="bnb"></el-option>
               <el-option label="Polygon" value="matic"></el-option>
@@ -117,6 +117,7 @@ p, h1 {
   </div>
 <script>
 const {ref, reactive, watch, nextTick, createApp} = Vue
+const {ElNotification} = ElementPlus
 createApp({
   setup() {
     const addressForm = reactive({
@@ -157,9 +158,22 @@ createApp({
       // await new Promise(r => setTimeout(() => r(), 1000));
       // return '0x6080'
       const req = {'method':'eth_getCode','params': [address.startsWith('0x') ? address : `0x${address}`,'latest'],'id':1,'jsonrpc':'2.0'}
-      const resp = await fetch(`https://1rpc.io/${rpc}`, {method: 'POST', headers: {'Content-Type': 'application/json',}, body: JSON.stringify(req)});
-      const j = await resp.json();
-      return j.result;
+      try {
+        const resp = await fetch(`https://1rpc.io/${rpc}`, {method: 'POST', headers: {'Content-Type': 'application/json',}, body: JSON.stringify(req)});
+        if (resp.status != 200) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        const j = await resp.json();
+        return j.result;
+      } catch(e) {
+        console.log(e)
+        ElNotification({
+          type: 'error',
+          title: 'Code fetch error',
+          message: e,
+        })
+        return '0x'
+      }
     }
 
     async function address_changed(prop, isValid, message) {
@@ -185,10 +199,11 @@ createApp({
       if (val == '') {
         return;
       }
-      const s = evmole.functionSelectors(code.value).map((v) => `0x${v}`).sort();
+      const codeHex = code.value.trim();
+      const s = evmole.functionSelectors(codeHex).map((v) => `0x${v}`).sort();
       selectors.value = s;
 
-      const args = Object.fromEntries(s.map((s) => [s, evmole.functionArguments(code.value, s)]));
+      const args = Object.fromEntries(s.map((s) => [s, evmole.functionArguments(codeHex, s)]));
       local_lookup.value = args;
 
       if (s.length > 0) {
