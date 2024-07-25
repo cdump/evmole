@@ -2,8 +2,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::{env, fs};
 
-use heimdall_core::decompile::out::abi::ABIStructure;
-use heimdall_core::decompile::DecompilerArgsBuilder;
+use heimdall_core::heimdall_decompiler::DecompilerArgsBuilder;
 
 #[derive(Debug, serde::Deserialize)]
 struct Input {
@@ -58,20 +57,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         //    continue
         //}
 
-        let result = heimdall_core::decompile::decompile(dargs).await?;
-        let abi = result.abi.unwrap();
+        let result = heimdall_core::heimdall_decompiler::decompile(dargs).await;
+        if let Err(e) = result {
+            println!("got error for {}: {}", fname, e);
+            if mode == "arguments" {
+                let r: HashMap<String, String> = selectors[&fname].iter().map(|s| (s.to_string(), "not_found".to_string())).collect();
+                ret_arguments.insert(fname, r);
+            } else {
+                ret_selectors.insert(fname, Vec::new());
+            }
+            continue
+        }
+        let abi = result?.abi.functions;
 
         if mode == "arguments" {
             let args: HashMap<String, String> = abi
                 .iter()
-                .filter_map(|e| match e {
-                    ABIStructure::Function(v) => {
-                        let selector = v.name.strip_prefix("Unresolved_").unwrap().to_string();
-                        let a: Vec<_> = v.inputs.iter().map(|v| v.type_.to_string()).collect();
-                        let args = a.join(",");
-                        Some((selector, args))
-                    }
-                    _ => None,
+                .map(|(name, v)| {
+                    let selector = name.strip_prefix("Unresolved_").unwrap().to_string();
+                    let a: Vec<_> = v[0].inputs.iter().map(|v| v.ty.to_string()).collect();
+                    let args = a.join(",");
+                    (selector, args)
                 })
                 .collect();
 
@@ -85,13 +91,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             ret_arguments.insert(fname, r);
         } else {
             let r: Vec<String> = abi
-                .iter()
-                .filter_map(|e| match e {
-                    ABIStructure::Function(v) => {
-                        Some(v.name.strip_prefix("Unresolved_").unwrap().to_string())
-                    }
-                    _ => None,
-                })
+                .keys()
+                .map(|x| x.strip_prefix("Unresolved_").unwrap().to_string())
                 .collect();
             ret_selectors.insert(fname, r);
         }
