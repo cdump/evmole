@@ -25,7 +25,7 @@ export default class Memory {
   get(offset) {
     for (let d = this.data.length - 1; d >= 0; d--) {
       const [off, val] = this.data[d]
-      if (off == offset) {
+      if (off === offset) {
         return val
       }
     }

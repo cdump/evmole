@@ -1,6 +1,7 @@
+// biome-ignore lint/complexity/noStaticOnlyClass: x
 export default class Op {
   static name(code) {
-    return this.#names[code]
+    return Op.#names[code]
   }
 
   static STOP = 0x00
@@ -168,7 +169,7 @@ export default class Op {
   static #names = Array(256)
   static {
     for (const [k, v] of Object.entries(Op)) {
-      this.#names[v] = k
+      Op.#names[v] = k
     }
   }
 }

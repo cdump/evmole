@@ -51,7 +51,7 @@ export class Vm {
   step() {
     const op = this.current_op()
     const ret = this.#exec_opcode(op)
-    if (op != Op.JUMP && op != Op.JUMPI) {
+    if (op !== Op.JUMP && op !== Op.JUMPI) {
       this.pc += 1
     }
     if (this.pc >= this.code.length) {
@@ -76,17 +76,16 @@ export class Vm {
   #exec_opcode(op) {
     if (op >= Op.PUSH0 && op <= Op.PUSH32) {
       const n = op - Op.PUSH0
-      if (n != 0) {
-        const args = this.code.subarray(this.pc + 1, this.pc + 1 + n)
-        const v = new Uint8Array(32)
-        v.set(args, v.length - args.length)
-        this.stack.push(new Element(v))
-        this.pc += n
-        return [3]
-      } else {
+      if (n === 0) {
         this.stack.push_uint(0n)
         return [2]
       }
+      const args = this.code.subarray(this.pc + 1, this.pc + 1 + n)
+      const v = new Uint8Array(32)
+      v.set(args, v.length - args.length)
+      this.stack.push(new Element(v))
+      this.pc += n
+      return [3]
     }
 
     if (op >= Op.DUP1 && op <= Op.DUP16) {
@@ -111,14 +110,14 @@ export class Vm {
       case Op.JUMP:
       case Op.JUMPI: {
         const s0 = Number(this.stack.pop_uint())
-        if (op == Op.JUMPI) {
+        if (op === Op.JUMPI) {
           const s1 = this.stack.pop_uint()
-          if (s1 == 0n) {
+          if (s1 === 0n) {
             this.pc += 1
             return [10]
           }
         }
-        if (s0 >= this.code.length || this.code[s0] != Op.JUMPDEST) {
+        if (s0 >= this.code.length || this.code[s0] !== Op.JUMPDEST) {
           throw new UnsupportedOpError(op)
         }
         this.pc = s0
@@ -138,10 +137,10 @@ export class Vm {
         return this.#bop((raws0, s0, raws1, s1) => [3, (s0 - s1) & E256M1])
 
       case Op.DIV:
-        return this.#bop((raws0, s0, raws1, s1) => [5, s1 != 0n ? s0 / s1 : 0n])
+        return this.#bop((raws0, s0, raws1, s1) => [5, s1 !== 0n ? s0 / s1 : 0n])
 
       case Op.MOD:
-        return this.#bop((raws0, s0, raws1, s1) => [5, s1 != 0n ? s0 % s1 : 0n])
+        return this.#bop((raws0, s0, raws1, s1) => [5, s1 !== 0n ? s0 % s1 : 0n])
 
       case Op.EXP:
         return this.#bop((raws0, s0, raws1, s1) => [
@@ -189,7 +188,7 @@ export class Vm {
         })
 
       case Op.EQ:
-        return this.#bop((raws0, s0, raws1, s1) => [3, s0 == s1 ? 1n : 0n])
+        return this.#bop((raws0, s0, raws1, s1) => [3, s0 === s1 ? 1n : 0n])
 
       case Op.ISZERO: {
         const raw = this.stack.pop()
@@ -376,7 +375,7 @@ export class Vm {
         this.stack.pop()
         this.stack.pop()
         this.stack.pop()
-        if (op == Op.CREATE2) {
+        if (op === Op.CREATE2) {
           this.stack.pop()
         }
         this.stack.push_uint(0n)

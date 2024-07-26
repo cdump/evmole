@@ -5,7 +5,7 @@ import Element from './evm/element.js'
 import { toUint8Array, uint8ArrayToBigInt } from './utils.js'
 
 function process(vm, gasLimit) {
-  let selectors = new Set()
+  const selectors = new Set()
   let gasUsed = 0
 
   while (!vm.stopped) {
@@ -23,9 +23,8 @@ function process(vm, gasLimit) {
       if (e instanceof StackIndexError || e instanceof UnsupportedOpError) {
         // console.log(e)
         break
-      } else {
-        throw e
       }
+      throw e
     }
 
     const [op, , r0, r1] = ret
@@ -46,7 +45,9 @@ function process(vm, gasLimit) {
         if (r0.label === 'signature' || r1.label === 'signature') {
           const clonedVm = vm.clone()
           const [newSelectors, gas] = process(clonedVm, Math.trunc((gasLimit - gasUsed) / 2))
-          newSelectors.forEach((v) => selectors.add(v))
+          for (const v of newSelectors) {
+            selectors.add(v)
+          }
           gasUsed += gas
           const v = vm.stack.pop_uint()
           vm.stack.push_uint(v === 0n ? 1n : 0n)
@@ -70,7 +71,9 @@ function process(vm, gasLimit) {
               const clonedVm = vm.clone()
               clonedVm.stack.push_uint(BigInt(m))
               const [newSelectors, gas] = process(clonedVm, Math.trunc((gasLimit - gasUsed) / ma))
-              newSelectors.forEach((v) => selectors.add(v))
+              for (const v of newSelectors) {
+                selectors.add(v)
+              }
               gasUsed += gas
             }
             vm.stack.push_uint(0n)

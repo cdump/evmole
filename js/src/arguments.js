@@ -75,7 +75,7 @@ class Info {
         }
       }
     }
-    let startKey = this.tinfo instanceof InfoValArray ? 32 : 0
+    const startKey = this.tinfo instanceof InfoValArray ? 32 : 0
     let endKey = this.children.size > 0 ? Math.max(...this.children.keys()) : 0
 
     if (this.tinfo instanceof InfoValArray || this.tinfo instanceof InfoValDynamic) {
@@ -87,7 +87,7 @@ class Info {
       q.push(this.children.has(k) ? this.children.get(k).toStr(false) : 'uint256')
     }
 
-    let c = q.length > 1 && !isRoot ? `(${q.join(',')})` : q.join(',')
+    const c = q.length > 1 && !isRoot ? `(${q.join(',')})` : q.join(',')
 
     if (this.tinfo instanceof InfoValArray) {
       return `${c}[]`
@@ -133,7 +133,7 @@ class ArgsResult {
   markNotBool(path, offset) {
     const fullPath = [...path, offset]
     const el = this.get(fullPath)
-    if (el && el.tname && el.tname[0] === 'bool') {
+    if (el?.tname && el.tname[0] === 'bool') {
       el.tname = null
     }
     this.notBool.add(fullPath.join(','))
@@ -203,7 +203,7 @@ function andMaskToType(mask) {
     const m = BigInt(uint8ArrayToBigInt(bigIntToUint8Array(mask).slice().reverse()))
     if ((m & (m + 1n)) === 0n) {
       const bl = bigIntBitLength(m)
-      if (bl % 8 == 0) {
+      if (bl % 8 === 0) {
         return `bytes${bl / 8}`
       }
     }
@@ -218,7 +218,7 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
 
   let gas_used = 0
   let inside_function = false
-  let args = new ArgsResult()
+  const args = new ArgsResult()
 
   while (!vm.stopped) {
     let ret
@@ -239,15 +239,14 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
       if (e instanceof StackIndexError || e instanceof UnsupportedOpError) {
         // console.log(e)
         break
-      } else {
-        throw e
       }
+      throw e
     }
 
     const [op, , r0, r1] = ret
 
-    if (inside_function == false) {
-      if (op === Op.EQ || op == Op.XOR || op == Op.SUB) {
+    if (inside_function === false) {
+      if (op === Op.EQ || op === Op.XOR || op === Op.SUB) {
         const p = vm.stack.peek().data[31]
         if (p === (op === Op.EQ ? 1 : 0)) {
           const a = r0.data.slice(-4)
@@ -271,7 +270,7 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
             const { offset, path, add_val } = r0.label
             if (add_val >= 4 && (add_val - 4) % 32 === 0) {
               let po = 0
-              if (add_val != 4) {
+              if (add_val !== 4) {
                 const a = args.arrayInPath(path).reduce((s, v) => s + 32 * v, 0)
                 if (a <= add_val - 4) {
                   po = a
@@ -285,19 +284,19 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
 
               if (new_off === 0 && args.arrayInPath(fullPath).pop() === true) {
                 const d = bigIntToUint8Array(1n)
-                if (op == Op.CALLDATALOAD) {
+                if (op === Op.CALLDATALOAD) {
                   vm.stack.peek().data = d
                 } else {
-                  const mem_off = uint8ArrayToBigInt(r1.data)
+                  const mem_off = Number(uint8ArrayToBigInt(r1.data))
                   vm.memory.get(mem_off).data = d
                 }
               }
 
               const new_label = new Arg({ offset: new_off, path: fullPath, add_val: 0, and_mask: null })
-              if (op == Op.CALLDATALOAD) {
+              if (op === Op.CALLDATALOAD) {
                 vm.stack.peek().label = new_label
               } else {
-                const mem_off = uint8ArrayToBigInt(r1.data)
+                const mem_off = Number(uint8ArrayToBigInt(r1.data))
                 vm.memory.get(mem_off).label = new_label
                 args.setTname(path, offset, 'bytes', 10)
               }
@@ -309,10 +308,10 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
               args.getOrCreate([Number(off) - 4])
 
               const new_label = new Arg({ offset: Number(off) - 4, path: [], add_val: 0, and_mask: null })
-              if (op == Op.CALLDATALOAD) {
+              if (op === Op.CALLDATALOAD) {
                 vm.stack.peek().label = new_label
               } else {
-                const mem_off = uint8ArrayToBigInt(r1.data)
+                const mem_off = Number(uint8ArrayToBigInt(r1.data))
                 vm.memory.get(mem_off).label = new_label
               }
             }
@@ -352,11 +351,11 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
             const E256M1 = (1n << 256n) - 1n
 
             if (
-              rl.offset == 0 &&
-              rl.add_val == 0 &&
-              rl.path.length != 0 &&
+              rl.offset === 0 &&
+              rl.add_val === 0 &&
+              rl.path.length !== 0 &&
               uint8ArrayToBigInt(r.data) === 0n &&
-              ot_val == E256M1
+              ot_val === E256M1
             ) {
               vm.stack.peek().data = bigIntToUint8Array(0n)
             }
@@ -381,31 +380,31 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
               args.markNotBool(ot.label.path, ot.label.offset)
             }
             if (rl.offset === 0 && rl.add_val === 0) {
-              if (rl.path.length != 0) {
+              if (rl.path.length !== 0) {
                 let mult = uint8ArrayToBigInt(ot.data)
                 if (op === Op.SHL) {
                   mult = 1n << mult
                 }
                 if (mult === 1n) {
                   args.setTname(rl.path, null, 'bytes', 10)
-                } else if (mult == 2n) {
+                } else if (mult === 2n) {
                   args.setTname(rl.path, null, 'string', 20)
                 } else if (mult % 32n === 0n && 32n <= mult && mult < 3200n) {
                   args.setInfo(rl.path, new InfoValArray(Number(mult / 32n)))
 
-                  const shouldUpdate = (v) => v.offset == 0 && v.path == rl.path && v.add_val == 0
+                  const shouldUpdate = (v) => v.offset === 0 && v.path === rl.path && v.add_val === 0
 
-                  vm.stack.data.forEach((el) => {
+                  for (const el of vm.stack.data) {
                     if (el.label instanceof Arg && shouldUpdate(el.label)) {
                       el.data = bigIntToUint8Array(1n)
                     }
-                  })
+                  }
 
-                  vm.memory.data.forEach((el) => {
+                  for (const el of vm.memory.data) {
                     if (el.label instanceof Arg && shouldUpdate(el.label[1])) {
                       el.data = bigIntToUint8Array(1n)
                     }
-                  })
+                  }
 
                   vm.stack.peek().data = ot.data // ==bigIntToUint8Array(mult)
                 }
@@ -445,7 +444,7 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
             args.markNotBool(path, offset)
 
             const mask = uint8ArrayToBigInt(otd)
-            let t = andMaskToType(mask)
+            const t = andMaskToType(mask)
             if (t !== null) {
               args.setTname(path, offset, t, 5)
               vm.stack.peek().label = new Arg({ offset, path, add_val, and_mask: mask })
@@ -466,7 +465,7 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
                 mask = l0.and_mask
               }
               if (mask !== null) {
-                let t = andMaskToType(mask)
+                const t = andMaskToType(mask)
                 if (t !== null) {
                   args.setTname(l0.path, l0.offset, t, 20)
                 }
