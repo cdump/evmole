@@ -17,8 +17,8 @@
     "build-esm": "npx esbuild ./src/ --bundle --minify --sourcemap --format=esm --outfile=dist/index.esm.js",
     "build-iife": "npx esbuild ./src/ --bundle --minify --sourcemap --format=iife --global-name=evmole --outfile=dist/index.iife.js",
     "build": "rm -rf dist/ && npm run build-cjs && npm run build-esm && npm run build-iife && cp ./src/index.d.ts dist/",
-    "lint": "npx eslint ./src/",
-    "format": "npx prettier ./src/ --write"
+    "lint": "npx @biomejs/biome lint ./src/",
+    "format": "npx @biomejs/biome format --write ./src"
   },
   "author": "Maxim Andreev <andreevmaxim@gmail.com>",
   "license": "MIT",
@@ -34,7 +34,6 @@
   ],
   "devDependencies": {
     "esbuild": "^0.21",
-    "eslint": "^9.4",
-    "prettier": "^3.3"
+    "@biomejs/biome": "1.8.3"
   }
 }
