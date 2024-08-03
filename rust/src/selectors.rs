@@ -14,6 +14,8 @@ enum Label {
     MulSig,
 }
 
+const VAL_FFFFFFFF_B: [u8; 32] = ruint::uint!(0xffffffff_U256).to_be_bytes();
+
 fn analyze(
     vm: &mut Vm<Label>,
     selectors: &mut BTreeSet<Selector>,
@@ -45,13 +47,19 @@ fn analyze(
             vm.stack.peek_mut()?.label = Some(Label::MulSig);
         }
 
-        // Vyper _selector_section_dense()
-        StepResult{op: op::MOD, fa: Some(Element{label: Some(Label::MulSig | Label::Signature), ..}), sa: Some(ot), ..} =>
+        // Vyper _selector_section_dense()/_selector_section_sparse()
+        // (sig MOD n_buckets) or (sig AND (n_buckets-1))
+          StepResult{op: op @ op::MOD, fa: Some(Element{label: Some(Label::MulSig | Label::Signature), ..}), sa: Some(ot), ..}
+        | StepResult{op: op @ op::AND, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(ot), ..}
+        | StepResult{op: op @ op::AND, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(ot), ..} =>
         {
-            let t: Result<u8, _> = U256::from_be_bytes(ot.data).try_into();
-            if let Ok(ma) = t {
-                if ma < 128 {
-                    for m in 1..ma {
+            if op == op::AND && ot.data == VAL_FFFFFFFF_B {
+                vm.stack.peek_mut()?.label = Some(Label::Signature);
+            } else {
+                let ot8: Result<u8, _> = U256::from_be_bytes(ot.data).try_into();
+                if let Ok(ma) = ot8 {
+                    let to = if op == op::MOD { ma } else { ma + 1 };
+                    for m in 1..to {
                         let mut vm_clone = vm.clone();
                         vm_clone.stack.peek_mut()?.data = U256::from(m).to_be_bytes();
                         *gas_used += process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
@@ -65,8 +73,6 @@ fn analyze(
         }
 
           StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::CallData), ..}), ..}
-        | StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
-        | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Signature), ..}), ..}
         | StepResult{op: op::DIV, fa: Some(Element{label: Some(Label::CallData), ..}), ..} =>
         {
             let v = vm.stack.peek_mut()?;
