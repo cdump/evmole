@@ -12,6 +12,9 @@ repository = "https://github.com/cdump/evmole"
 
 [dependencies]
 ruint = "1.11.1"
+hex = { version = "0.4.3", optional = true }
+pyo3 = { version = "0.22.2", features = ["extension-module"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
 
 [dev-dependencies]
 hex = "0.4.3"
@@ -19,3 +22,9 @@ hex = "0.4.3"
 [features]
 # for dev
 trace = []
+
+python = ["dep:hex", "dep:pyo3"]
+javascript = ["dep:hex", "dep:wasm-bindgen"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
