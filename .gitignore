@@ -3,6 +3,9 @@ benchmark/results/*
 
 __pycache__/
 node_modules/
+.parcel-cache/
+test-results/
+*.tgz
 
 dist/
 

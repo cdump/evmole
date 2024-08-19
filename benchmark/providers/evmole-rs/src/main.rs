@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let only_selector = if let Some(s) = cfg.filter_selector {
-        vec![s]
+        vec![s.strip_prefix("0x").unwrap_or(&s).to_string()]
     } else {
         vec![]
     };

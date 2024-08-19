@@ -1,0 +1,15 @@
+{
+  "name": "example-parcel",
+  "version": "0.0.1",
+  "source": "src/index.html",
+  "scripts": {
+    "start": "parcel serve",
+    "build": "parcel build"
+  },
+  "devDependencies": {
+    "parcel": "^2.12.0"
+  },
+  "dependencies": {
+    "evmole": "file:../../evmole.latest.tgz"
+  }
+}

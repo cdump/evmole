@@ -9,7 +9,7 @@ MODE=arguments
 
 case $1 in
     js)
-        ln -s `pwd`/js ${BDIR}/providers/evmole-js 2>/dev/null || true
+        echo "TODO" && exit 1
         node ${BDIR}/providers/evmole-js/main.mjs \
             ${MODE} \
             ${BDIR}/datasets/${2} \
@@ -20,7 +20,7 @@ case $1 in
     ;;
 
     rs)
-        ln -s `pwd`/rust ${BDIR}/providers/evmole-rs 2>/dev/null || true
+        ln -s `pwd` ${BDIR}/providers/evmole-rs 2>/dev/null || true
         cargo run \
             --manifest-path benchmark/providers/evmole-rs/Cargo.toml \
             --features "evmole/trace" \
@@ -33,6 +33,7 @@ case $1 in
     ;;
 
     py)
+        echo "TODO" && exit 1
         PYTHONPATH=`pwd` \
             python3.12 \
             ${BDIR}/providers/evmole-py/main.py \

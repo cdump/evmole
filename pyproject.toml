@@ -1,40 +1,6 @@
-[tool.poetry]
-name = "evmole"
-version = "0.3.8"
-description = "Extracts function selectors and arguments from EVM bytecode"
-authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
-license = "MIT"
-readme = "README.md"
-repository = "https://github.com/cdump/evmole"
-
-[tool.poetry.dependencies]
-python = "^3.11"
-aiohttp = {version = "^3.9", optional = true}
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.2"
-mypy = "^1.10"
-ruff = "^0.4"
-
-[tool.poetry.extras]
-benchmark = ["aiohttp"]
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
-[tool.ruff]
-line-length = 130
-target-version = "py311"
-
-[tool.ruff.lint]
-extend-select = ["B", "Q", "I"]
-
-[tool.ruff.lint.flake8-quotes]
-inline-quotes = "single"
-
-[tool.ruff.format]
-quote-style = "single"
-
-[tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]
+[tool.maturin]
+features = ["pyo3/extension-module", "python"]

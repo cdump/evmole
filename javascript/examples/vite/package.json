@@ -1,0 +1,15 @@
+{
+  "name": "example-vite",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^5.4.1"
+  },
+  "dependencies": {
+    "evmole": "file:../../evmole.latest.tgz"
+  }
+}

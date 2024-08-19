@@ -1,0 +1,15 @@
+{
+  "name": "example-webpack",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "webpack"
+  },
+  "devDependencies": {
+    "html-webpack-plugin": "^5.6.0",
+    "webpack": "^5.93.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "evmole": "file:../../evmole.latest.tgz"
+  }
+}

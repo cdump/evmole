@@ -7,8 +7,8 @@
 
 This library extracts [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector) and arguments from Ethereum Virtual Machine (EVM) bytecode, even for unverified contracts.
 
-- JavaScript, Rust and Python implementations
-- Clean code with zero external dependencies (py & js)
+- JavaScript, Rust and Python libraries
+- Clean code with minimal external dependencies
 - [Faster and more accurate](#Benchmark) than other existing tools
 - Tested on Solidity and Vyper compiled contracts
 
@@ -17,6 +17,7 @@ This library extracts [function selectors](https://docs.soliditylang.org/en/late
 ## Usage
 
 ### JavaScript
+[More examples](./javascript/) (node, vite, webpack, parcel, esbuild)
 ```sh
 $ npm i evmole
 ```
@@ -77,8 +78,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
 0x23b872dd	address,address,uint256	transferFrom(address,address,uint256)
 ...
 ```
-
-See [examples](./examples) for more
 
 ## Benchmark
 

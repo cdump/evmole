@@ -1,0 +1,8 @@
+{
+  "name": "examples-tests",
+  "version": "0.0.1",
+  "main": "main.test.js",
+  "devDependencies": {
+    "@playwright/test": "^1.46.1"
+  }
+}
