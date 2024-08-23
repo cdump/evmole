@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "evmole"
-version = "0.3.7"
+version = "0.3.8"
 description = "Extracts function selectors and arguments from EVM bytecode"
 authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
 license = "MIT"
