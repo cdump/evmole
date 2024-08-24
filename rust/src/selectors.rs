@@ -104,10 +104,36 @@ fn analyze(
 
         // Vyper _selector_section_dense()/_selector_section_sparse()
         // (sig MOD n_buckets) or (sig AND (n_buckets-1))
-          StepResult{op: op @ op::MOD, fa: Some(Element{label: Some(Label::MulSig | Label::Signature), ..}), sa: Some(ot), ..}
-        | StepResult{op: op @ op::AND, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(ot), ..}
-        | StepResult{op: op @ op::AND, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op @ op::MOD,
+            fa:
+                Some(Element {
+                    label: Some(Label::MulSig | Label::Signature),
+                    ..
+                }),
+            sa: Some(ot),
+            ..
+        }
+        | StepResult {
+            op: op @ op::AND,
+            fa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            sa: Some(ot),
+            ..
+        }
+        | StepResult {
+            op: op @ op::AND,
+            sa:
+                Some(Element {
+                    label: Some(Label::Signature),
+                    ..
+                }),
+            fa: Some(ot),
+            ..
+        } => {
             if op == op::AND && ot.data == VAL_FFFFFFFF_B {
                 vm.stack.peek_mut()?.label = Some(Label::Signature);
             } else {
@@ -128,9 +154,24 @@ fn analyze(
             }
         }
 
-          StepResult{op: op::SHR, sa: Some(Element{label: Some(Label::CallData), ..}), ..}
-        | StepResult{op: op::DIV, fa: Some(Element{label: Some(Label::CallData), ..}), ..} =>
-        {
+        StepResult {
+            op: op::SHR,
+            sa:
+                Some(Element {
+                    label: Some(Label::CallData),
+                    ..
+                }),
+            ..
+        }
+        | StepResult {
+            op: op::DIV,
+            fa:
+                Some(Element {
+                    label: Some(Label::CallData),
+                    ..
+                }),
+            ..
+        } => {
             let v = vm.stack.peek_mut()?;
             if v.data[28..32] == vm.calldata.data[0..4] {
                 v.label = Some(Label::Signature);

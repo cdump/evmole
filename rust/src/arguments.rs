@@ -100,13 +100,11 @@ impl Info {
 
         match self.tinfo {
             Some(InfoVal::Array(_)) => {
-                vec![
-                    if q.len() == 1 {
-                        DynSolType::Array(Box::new(q[0].clone()))
-                    } else {
-                        DynSolType::Array(Box::new(DynSolType::Tuple(q)))
-                    }
-                ]
+                vec![if q.len() == 1 {
+                    DynSolType::Array(Box::new(q[0].clone()))
+                } else {
+                    DynSolType::Array(Box::new(DynSolType::Tuple(q)))
+                }]
             }
             Some(InfoVal::Dynamic(_)) => {
                 if end_key == 0 && self.children.is_empty() {
@@ -853,10 +851,7 @@ pub fn function_arguments_alloy(
     if cfg!(feature = "trace") {
         println!(
             "Processing selector {:02x}{:02x}{:02x}{:02x}",
-            selector[0],
-            selector[1],
-            selector[2],
-            selector[3]
+            selector[0], selector[1], selector[2], selector[3]
         );
     }
     let mut cd: [u8; 32] = [0; 32];
