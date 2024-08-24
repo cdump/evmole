@@ -42,26 +42,30 @@ def process(vm: Vm, gas_limit: int) -> tuple[set[bytes], int]:
             case (Op.MUL, _, Element('signature'), _) | (Op.MUL, _, _, Element('signature')) | (Op.SHR, _, _, Element('mulsig')):
                 vm.stack.peek().label = 'mulsig'
 
-            # Vyper _selector_section_dense()
-            case (Op.MOD, _, Element('mulsig') | Element('signature'), Element() as s1):
-                ma = int.from_bytes(s1.data, 'big')
-                if ma < 128:
-                    for m in range(1, ma):
-                        cloned_vm = copy.copy(vm)
-                        cloned_vm.stack.peek().data = m.to_bytes(32, 'big')
-                        s, g = process(cloned_vm, (gas_limit - gas_used) // ma)
-                        selectors.update(s)
-                        gas_used += g
-                        if gas_used > gas_limit:
-                            break
-                    vm.stack.peek().data = (0).to_bytes(32, 'big')
-
+            # Vyper _selector_section_dense()/_selector_section_sparse()
+            # (sig MOD n_buckets) or (sig AND (n_buckets-1))
             case (
-                (Op.SHR, _, _, Element('calldata'))
-                | (Op.AND, _, Element('signature'), _)
-                | (Op.AND, _, _, Element('signature'))
-                | (Op.DIV, _, Element('calldata'), _)
+                (Op.MOD as op, _, Element('mulsig') | Element('signature'), Element() as s1)
+                | (Op.AND as op, _, Element('signature'), Element() as s1)
+                | (Op.AND as op, _, Element() as s1, Element('signature'))
             ):
+                if op == Op.AND and s1.data == b'\x00' * 28 + b'\xff\xff\xff\xff':
+                    vm.stack.peek().label = 'signature'
+                else:
+                    ma = int.from_bytes(s1.data, 'big')
+                    if ma < 256:
+                        to = ma if op == Op.MOD else ma + 1
+                        for m in range(1, to):
+                            cloned_vm = copy.copy(vm)
+                            cloned_vm.stack.peek().data = m.to_bytes(32, 'big')
+                            s, g = process(cloned_vm, (gas_limit - gas_used) // ma)
+                            selectors.update(s)
+                            gas_used += g
+                            if gas_used > gas_limit:
+                                break
+                        vm.stack.peek().data = (0).to_bytes(32, 'big')
+
+            case (Op.SHR, _, _, Element('calldata')) | (Op.DIV, _, Element('calldata'), _):
                 v = vm.stack.peek()
                 if v.data[-4:] == vm.calldata.data[:4]:
                     vm.stack.peek().label = 'signature'

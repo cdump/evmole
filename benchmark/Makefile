@@ -34,10 +34,14 @@ $(BUILD_TARGETS):
 	[ "$@" = "evmole-py.build" ] && cp -r ../evmole providers/evmole-py/ || true
 	[ "$@" = "evmole-js.build" ] && cp -r ../js providers/evmole-js/ || true
 	[ "$@" = "evmole-rs.build" ] && cp -r ../rust providers/evmole-rs/ || true
+	[ "$@" = "evmole-rs-py.build" ] && cp -r ../rust providers/evmole-rs-py/ || true
+	[ "$@" = "evmole-rs-js.build" ] && cp -r ../rust providers/evmole-rs-js/ || true
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(DOCKER_PREFIX)-$(basename $@) providers/$(basename $@)
 	[ "$@" = "evmole-py.build" ] && rm -rf providers/evmole-py/evmole || true
 	[ "$@" = "evmole-js.build" ] && rm -rf providers/evmole-js/js || true
 	[ "$@" = "evmole-rs.build" ] && rm -rf providers/evmole-rs/rust || true
+	[ "$@" = "evmole-rs-py.build" ] && rm -rf providers/evmole-rs-py/rust || true
+	[ "$@" = "evmole-rs-js.build" ] && rm -rf providers/evmole-rs-js/rust || true
 
 $(UNPACK_TARGETS):
 	$(info [*] Unpacking $@...)

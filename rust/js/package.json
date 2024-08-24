@@ -1,0 +1,45 @@
+{
+  "name": "evmole",
+  "description": "Extracts function selectors and arguments from EVM bytecode",
+  "version": "0.3.7",
+  "license": "MIT",
+  "collaborators": [
+    "Maxim Andreev <andreevmaxim@gmail.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cdump/evmole.git"
+  },
+  "type": "module",
+  "main": "dist/evmole_node.cjs",
+  "module": "dist/evmole.mjs",
+  "files": [
+    "README.md",
+    "dist/evmole_bg.wasm",
+    "dist/evmole.js",
+    "dist/evmole.mjs",
+    "dist/evmole_node.cjs",
+    "dist/evmole_node.mjs",
+    "dist/evmole_vite.js"
+  ],
+  "exports": {
+    ".": {
+      "require": "./dist/evmole_node.cjs",
+      "node": "./dist/evmole_node.mjs",
+      "default": "./dist/evmole.mjs"
+    },
+    "./bundler/vite": "./dist/evmole_vite.js",
+    "./no_tla": "./dist/evmole.js"
+  },
+  "scripts": {
+    "build": "rm -rf dist && npm run build-wasm && npm run build-node && npm run build-esm && npm run build-cp",
+    "build-wasm": "npx wasm-pack build --no-pack --out-dir ./js/dist --no-typescript --target web --features javascript",
+    "build-node": "npx rollup ./src/evmole_node.cjs --file ./dist/evmole_node.cjs --format cjs",
+    "build-esm": "npx rollup ./src/evmole_esm.js --file ./dist/evmole.mjs --format esm",
+    "build-cp": "cp ./src/evmole_node.mjs ./src/evmole_vite.js dist/"
+  },
+  "devDependencies": {
+    "rollup": "^4.20.0",
+    "wasm-pack": "^0.13.0"
+  }
+}

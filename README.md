@@ -103,7 +103,7 @@ See [examples](./examples) for more
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>75</td>
-  <td>18</td>
+  <td>68</td>
   <td>95</td>
  </tr>
  <tr>
@@ -112,7 +112,7 @@ See [examples](./examples) for more
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>40</td>
-  <td>102</td>
+  <td>103</td>
   <td>9</td>
  </tr>
  <tr>
@@ -121,7 +121,7 @@ See [examples](./examples) for more
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>720</td>
-  <td>600</td>
+  <td>650</td>
   <td>749</td>
  </tr>
  <tr>
@@ -130,7 +130,7 @@ See [examples](./examples) for more
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>191</td>
-  <td>113</td>
+  <td>114</td>
   <td>12</td>
  </tr>
  <tr>
@@ -139,7 +139,7 @@ See [examples](./examples) for more
   <td>2.9s</td>
   <td>34.8s<sup>(*)</sup></td>
   <td>0.7s</td>
-  <td>719.9s<sup>(*)</sup></td>
+  <td>379.5s<sup>(*)</sup></td>
   <td>1.7s</td>
  </tr>
  <tr><td colspan="8"></td></tr>
@@ -150,7 +150,7 @@ See [examples](./examples) for more
   <td>43</td>
   <td>1</td>
   <td>693</td>
-  <td rowspan="5">wait fixes</td>
+  <td>519</td>
   <td>4136</td>
  </tr>
  <tr>
@@ -159,7 +159,7 @@ See [examples](./examples) for more
   <td>11</td>
   <td>85</td>
   <td>2903</td>
-  <!-- -->
+  <td>4669</td>
   <td>77</td>
  </tr>
  <tr>
@@ -168,7 +168,7 @@ See [examples](./examples) for more
   <td>51</td>
   <td>3</td>
   <td>10798</td>
-  <!-- -->
+  <td>545</td>
   <td>14652</td>
  </tr>
  <tr>
@@ -177,7 +177,7 @@ See [examples](./examples) for more
   <td>12</td>
   <td>1759</td>
   <td>3538</td>
-  <!-- -->
+  <td>4943</td>
   <td>96</td>
  </tr>
  <tr>
@@ -186,7 +186,7 @@ See [examples](./examples) for more
   <td>55.9s</td>
   <td>1343s<sup>(*)</sup></td>
   <td>11.5s</td>
-  <!-- -->
+  <td>9881.1s<sup>(*)</sup></td>
   <td>47.9s</td>
  </tr>
  <tr><td colspan="8"></td></tr>
@@ -197,7 +197,7 @@ See [examples](./examples) for more
   <td>30</td>
   <td>0</td>
   <td>19</td>
-  <td>0</td>
+  <td>780</td>
   <td>185</td>
  </tr>
  <tr>
@@ -215,7 +215,7 @@ See [examples](./examples) for more
   <td>30</td>
   <td>0</td>
   <td>19</td>
-  <td>0</td>
+  <td>780</td>
   <td>197</td>
  </tr>
  <tr>
@@ -233,7 +233,7 @@ See [examples](./examples) for more
   <td>2.1s</td>
   <td>55.1s<sup>(*)</sup></td>
   <td>0.4s</td>
-  <td>16.4s<sup>(*)</sup></td>
+  <td>29.1s<sup>(*)</sup></td>
   <td>1.1s</td>
  </tr>
 </table>
@@ -253,13 +253,13 @@ See [examples](./examples) for more
   <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>14.0%, 3417 🥇</td>
-  <td>42.7%, 10421</td>
+  <td>31.1%, 7603</td>
   <td>58.3%, 14242</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>1.2s · 12.6s · 30.1s</td>
-  <td>724.4s<sup>(*)</sup></td>
+  <td>385.6s<sup>(*)</sup></td>
   <td>0.6s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
@@ -267,13 +267,13 @@ See [examples](./examples) for more
   <td rowspan="2"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>4.5%, 52777 🥇</td>
-  <td rowspan="2">waiting fixes</td>
+  <td>19.4%, 227078</td>
   <td>54.9%, 643213</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>33.7s · 337.7s · 1002.4s</td>
-  <!-- -->
+  <td>9594.6s<sup>(*)</sup></td>
   <td>9.6s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
@@ -287,14 +287,14 @@ See [examples](./examples) for more
  <tr>
   <td><i>Time</i></td>
   <td>0.8s · 8.0s · 16.9s</td>
-  <td>16.8s<sup>(*)</sup></td>
+  <td>29.6s<sup>(*)</sup></td>
   <td>0.5s</td>
  </tr>
 </table>
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.3.6; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.12.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.18; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.7.3</i>
+<i>versions: evmole v0.3.7; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.12.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.18; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.3</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 

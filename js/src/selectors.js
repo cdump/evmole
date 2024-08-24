@@ -59,21 +59,37 @@ function process(vm, gasLimit) {
         }
         break
 
-      // Vyper _selector_section_dense()
+      // Vyper _selector_section_dense()/_selector_section_sparse()
+      // (sig MOD n_buckets) or (sig AND (n_buckets-1))
       case Op.MOD:
-        if (r0.label === 'mulsig' || r0.label === 'signature') {
-          const rawMa = uint8ArrayToBigInt(r1.data)
-          if (rawMa < 128n) {
-            const ma = Number(rawMa)
-            vm.stack.pop()
-            for (let m = 1; m < ma && gasUsed < gasLimit; m++) {
-              const clonedVm = vm.clone()
-              clonedVm.stack.push_uint(BigInt(m))
-              const [newSelectors, gas] = process(clonedVm, Math.trunc((gasLimit - gasUsed) / ma))
-              newSelectors.forEach((v) => selectors.add(v))
-              gasUsed += gas
+      case Op.AND:
+        {
+          const p = vm.stack.peek()
+          if (
+            (op === Op.AND && (r0.label === 'signature' || r1.label === 'signature')) ||
+            (op === Op.MOD && (r0.label === 'mulsig' || r0.label === 'signature'))
+          ) {
+            const otd = op === Op.AND && r1.label == 'signature' ? r0.data : r1.data
+            const rawMa = uint8ArrayToBigInt(otd)
+            if (op === Op.AND && rawMa === 0xffffffffn) {
+              p.label = 'signature'
+            } else {
+              if (rawMa < 256n) {
+                const ma = Number(rawMa)
+                vm.stack.pop()
+                const to = op === Op.MOD ? ma : ma + 1
+                for (let m = 1; m < to && gasUsed < gasLimit; m++) {
+                  const clonedVm = vm.clone()
+                  clonedVm.stack.push_uint(BigInt(m))
+                  const [newSelectors, gas] = process(clonedVm, Math.trunc((gasLimit - gasUsed) / ma))
+                  newSelectors.forEach((v) => selectors.add(v))
+                  gasUsed += gas
+                }
+                vm.stack.push_uint(0n)
+              }
             }
-            vm.stack.push_uint(0n)
+          } else if (op === Op.AND && (r0.label === 'calldata' || r1.label === 'calldata')) {
+            p.label = 'calldata'
           }
         }
         break
@@ -89,19 +105,6 @@ function process(vm, gasLimit) {
         } else if (r1.label === 'mulsig') {
           const p = vm.stack.peek()
           p.label = 'mulsig'
-        }
-        break
-
-      case Op.AND:
-        {
-          const p = vm.stack.peek()
-          if (r0.label === 'signature' || r1.label === 'signature') {
-            if (p.data.slice(-4).every((v, i) => v === vm.calldata.data[i])) {
-              p.label = 'signature'
-            }
-          } else if (r0.label === 'calldata' || r1.label === 'calldata') {
-            p.label = 'calldata'
-          }
         }
         break
 

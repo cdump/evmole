@@ -297,7 +297,7 @@ def function_arguments(code: bytes | str, selector: bytes | str, gas_limit: int 
                         args.set_tname(path, None, 'bytes', 10)
                     elif mult == 2:
                         args.set_tname(path, None, 'string', 20)
-                    elif mult % 32 == 0 and 32 <= mult <= 3200:
+                    elif mult % 32 == 0 and 32 <= mult < 3200:
                         args.set_info(path, InfoValArray(mult // 32))
 
                         for el in vm.stack.data:

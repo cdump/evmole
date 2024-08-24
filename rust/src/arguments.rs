@@ -1,6 +1,4 @@
 use alloy::dyn_abi::DynSolType;
-use itertools::Itertools;
-use log::trace;
 
 use crate::{
     evm::{
@@ -851,13 +849,15 @@ pub fn function_arguments_typed(
     selector: &Selector,
     gas_limit: u32,
 ) -> Vec<DynSolType> {
-    trace!(
-        "Processing selector {:02x}{:02x}{:02x}{:02x}",
-        selector[0],
-        selector[1],
-        selector[2],
-        selector[3]
-    );
+    if cfg!(feature = "trace") {
+        println!(
+            "Processing selector {:02x}{:02x}{:02x}{:02x}",
+            selector[0],
+            selector[1],
+            selector[2],
+            selector[3]
+        );
+    }
     let mut cd: [u8; 32] = [0; 32];
     cd[0..4].copy_from_slice(selector);
     let mut vm = Vm::<Label>::new(
@@ -876,11 +876,11 @@ pub fn function_arguments_typed(
         gas_limit
     };
     while !vm.stopped {
-        if inside_function {
-            trace!("args: {:?}", args);
-            trace!("not_bool: {:?}", args.not_bool);
-            trace!("{:#?}", args.data);
-            trace!("{:?}\n", vm);
+        if cfg!(feature = "trace") && inside_function {
+            println!("args: {:?}", args);
+            println!("not_bool: {:?}", args.not_bool);
+            println!("{:#?}", args.data);
+            println!("{:?}\n", vm);
         }
         let ret = match vm.step() {
             Ok(v) => v,
@@ -923,5 +923,6 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
     function_arguments_typed(code, selector, gas_limit)
         .into_iter()
         .map(|t| t.sol_type_name().to_string())
+        .collect::<Vec<String>>()
         .join(",")
 }

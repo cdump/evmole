@@ -390,7 +390,7 @@ export function functionArguments(code, selector, gas_limit = 5e4) {
                   args.setTname(rl.path, null, 'bytes', 10)
                 } else if (mult == 2n) {
                   args.setTname(rl.path, null, 'string', 20)
-                } else if (mult % 32n === 0n && 32n <= mult && mult <= 3200n) {
+                } else if (mult % 32n === 0n && 32n <= mult && mult < 3200n) {
                   args.setInfo(rl.path, new InfoValArray(Number(mult / 32n)))
 
                   const shouldUpdate = (v) => v.offset == 0 && v.path == rl.path && v.add_val == 0

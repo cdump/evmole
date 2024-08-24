@@ -1,6 +1,6 @@
 [package]
 name = "evmole"
-version = "0.3.6"
+version = "0.3.8"
 edition = "2021"
 description = "Extracts function selectors and arguments from EVM bytecode"
 authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
@@ -11,10 +11,11 @@ repository = "https://github.com/cdump/evmole"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-alloy = {version = "0.1", features = ["full"]}
-itertools = "0.13.0"
-log = "0.4.22"
-ruint = {version = "1.0"}
+ruint = "1.12.3"
+hex = { version = "0.4.3", optional = true }
+pyo3 = { version = "0.22.2", features = ["extension-module"], optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+alloy = { version = "0.2", features = ["dyn-abi"]}
 
 [dev-dependencies]
 hex = "0.4.3"
@@ -22,3 +23,8 @@ hex = "0.4.3"
 [features]
 # for dev
 trace = []
+python = ["dep:hex", "dep:pyo3"]
+javascript = ["dep:hex", "dep:wasm-bindgen"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
