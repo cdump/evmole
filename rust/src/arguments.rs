@@ -1,3 +1,5 @@
+use alloy_dyn_abi::DynSolType;
+
 use crate::{
     evm::{
         op,
@@ -40,7 +42,7 @@ enum InfoVal {
 #[derive(Default, Debug)]
 struct Info {
     tinfo: Option<InfoVal>,
-    tname: Option<(String, u8)>,
+    tname: Option<(DynSolType, u8)>,
     children: BTreeMap<u32, Info>,
 }
 
@@ -53,15 +55,15 @@ impl Info {
         }
     }
 
-    fn to_str(&self, is_root: bool) -> String {
+    fn to_alloy_type(&self, is_root: bool) -> Vec<DynSolType> {
         if let Some((name, _)) = &self.tname {
-            if name == "bytes" {
+            if matches!(name, DynSolType::Bytes) {
                 if let Some(InfoVal::Array(0)) | Some(InfoVal::Dynamic(1)) | None = self.tinfo {
-                    return name.to_string();
+                    return vec![name.clone()];
                 }
             } else if self.children.is_empty() {
                 if let Some(InfoVal::Dynamic(_)) | None = self.tinfo {
-                    return name.to_string();
+                    return vec![name.clone()];
                 }
             }
         }
@@ -82,42 +84,50 @@ impl Info {
 
         let q: Vec<_> = (start_key..=end_key)
             .step_by(32)
-            .map(|k| {
+            .flat_map(|k| {
                 self.children
                     .get(&k)
-                    .map_or("uint256".to_string(), |val| val.to_str(false))
+                    .map_or(vec![DynSolType::Uint(256)], |val| val.to_alloy_type(false))
+                    .into_iter()
             })
             .collect();
 
         let c = if q.len() > 1 && !is_root {
-            format!("({})", q.join(","))
+            vec![DynSolType::Tuple(q.clone())]
         } else {
-            q.join(",")
+            q.clone()
         };
 
         match self.tinfo {
-            Some(InfoVal::Array(_)) => format!("{}[]", c),
+            Some(InfoVal::Array(_)) => {
+                vec![if q.len() == 1 {
+                    DynSolType::Array(Box::new(q[0].clone()))
+                } else {
+                    DynSolType::Array(Box::new(DynSolType::Tuple(q)))
+                }]
+            }
             Some(InfoVal::Dynamic(_)) => {
                 if end_key == 0 && self.children.is_empty() {
-                    return "bytes".to_string();
+                    return vec![DynSolType::Bytes];
                 }
                 if end_key == 32 {
                     if self.children.is_empty() {
-                        return "uint256[]".to_string();
+                        return vec![DynSolType::Array(Box::new(DynSolType::Uint(256)))];
                     }
                     if self.children.len() == 1
                         && self.children.first_key_value().unwrap().1.tinfo.is_none()
                     {
-                        return format!("{}[]", q[1]);
+                        return vec![DynSolType::Array(Box::new(q[1].clone()))];
                     }
                 }
-                c.to_string()
+                c
             }
             None => c,
         }
     }
 }
 
+#[derive(Debug)]
 struct ArgsResult {
     data: Info,
     not_bool: BTreeSet<Vec<u32>>,
@@ -147,7 +157,7 @@ impl ArgsResult {
 
         if let Some(el) = self.get_mut(&full_path) {
             if let Some((v, _)) = &mut el.tname {
-                if v == "bool" {
+                if matches!(v, DynSolType::Bool) {
                     el.tname = None;
                 }
             }
@@ -156,10 +166,10 @@ impl ArgsResult {
         self.not_bool.insert(full_path);
     }
 
-    fn set_tname(&mut self, path: &[u32], offset: u32, tname: String, confidence: u8) {
+    fn set_tname(&mut self, path: &[u32], offset: u32, tname: DynSolType, confidence: u8) {
         let full_path = [path, &[offset]].concat();
 
-        if tname == "bool" && self.not_bool.contains(&full_path) {
+        if matches!(tname, DynSolType::Bool) && self.not_bool.contains(&full_path) {
             return;
         }
 
@@ -208,17 +218,9 @@ impl ArgsResult {
         }
         el.tinfo = Some(tinfo);
     }
-
-    fn join_to_string(&self) -> String {
-        if self.data.children.is_empty() {
-            "".to_string()
-        } else {
-            self.data.to_str(true)
-        }
-    }
 }
 
-fn and_mask_to_type(mask: U256) -> Option<String> {
+fn and_mask_to_type(mask: U256) -> Option<DynSolType> {
     if mask.is_zero() {
         return None;
     }
@@ -228,9 +230,9 @@ fn and_mask_to_type(mask: U256) -> Option<String> {
         let bl = mask.bit_len();
         if bl % 8 == 0 {
             return Some(if bl == 160 {
-                "address".to_string()
+                DynSolType::Address
             } else {
-                format!("uint{bl}")
+                DynSolType::Uint(bl)
             });
         }
     } else {
@@ -239,7 +241,7 @@ fn and_mask_to_type(mask: U256) -> Option<String> {
         if (mask & (mask + VAL_1)).is_zero() {
             let bl = mask.bit_len();
             if bl % 8 == 0 {
-                return Some(format!("bytes{}", bl / 8));
+                return Some(DynSolType::FixedBytes(bl / 8));
             }
         }
     }
@@ -309,7 +311,7 @@ fn analyze(
                     op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
                     op::CALLDATACOPY => {
                         if let Some(v) = vm.memory.get_mut(mem_offset) {
-                            args.set_tname(&path, offset, "bytes".to_string(), 10);
+                            args.set_tname(&path, offset, DynSolType::Bytes, 10);
                             v.label = new_label;
                         }
                     }
@@ -418,14 +420,14 @@ fn analyze(
                 match mult {
                     VAL_1 => {
                         if let Some((last, rest)) = path.split_last() {
-                            args.set_tname(rest, *last, "bytes".to_string(), 10);
+                            args.set_tname(rest, *last, DynSolType::Bytes, 10);
                         }
                     }
 
                     VAL_2 => {
                         // slen*2+1 for SSTORE
                         if let Some((last, rest)) = path.split_last() {
-                            args.set_tname(rest, *last, "string".to_string(), 20);
+                            args.set_tname(rest, *last, DynSolType::String, 20);
                         }
                     }
 
@@ -536,7 +538,7 @@ fn analyze(
             }
 
             if is_bool {
-                args.set_tname(&val.path, val.offset, "bool".to_string(), 5);
+                args.set_tname(&val.path, val.offset, DynSolType::Bool, 5);
             }
         }
 
@@ -544,13 +546,13 @@ fn analyze(
         {
             if s0.data < VAL_32_B {
                 let s0: u8 = s0.data[31];
-                args.set_tname(&path, offset, format!("int{}", (s0 + 1) * 8), 20);
+                args.set_tname(&path, offset, DynSolType::Int((s0 as usize + 1) * 8), 20);
             }
         }
 
         StepResult{op: op::BYTE, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..} =>
         {
-            args.set_tname(&path, offset, "bytes32".to_string(), 4);
+            args.set_tname(&path, offset, DynSolType::FixedBytes(32), 4);
         }
 
         _ => (),
@@ -580,7 +582,11 @@ fn analyze(
 /// assert_eq!(arguments, "uint32,address,uint224");
 /// ```
 
-pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
+pub fn function_arguments_alloy(
+    code: &[u8],
+    selector: &Selector,
+    gas_limit: u32,
+) -> Vec<DynSolType> {
     if cfg!(feature = "trace") {
         println!(
             "Processing selector {:02x}{:02x}{:02x}{:02x}",
@@ -606,7 +612,7 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
     };
     while !vm.stopped {
         if cfg!(feature = "trace") && inside_function {
-            println!("args: {}", args.join_to_string());
+            println!("args: {:?}", args);
             println!("not_bool: {:?}", args.not_bool);
             println!("{:#?}", args.data);
             println!("{:?}\n", vm);
@@ -642,5 +648,82 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
         }
     }
 
-    args.join_to_string()
+    if args.data.children.is_empty() {
+        vec![]
+    } else {
+        args.data.to_alloy_type(true)
+    }
+}
+
+pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
+    function_arguments_alloy(code, selector, gas_limit)
+        .into_iter()
+        .map(|t| t.sol_type_name().to_string())
+        .collect::<Vec<String>>()
+        .join(",")
+}
+
+#[cfg(test)]
+mod test {
+    use crate::function_selectors;
+
+    use super::function_arguments;
+
+    #[test]
+    fn test_code_offset_buffer() {
+        // This is a solidity trick to quickly zeroize memory, but
+        // causing crashes in earlier evmole implementation
+        //
+        // Mainnet 0x27e70bfdf7de32bae2274c8d37d51934ff098910
+        let code: &[u8] = &[
+            96, 0, 96, 128, 82, 96, 0, 96, 160, 82, 96, 0, 96, 192, 82, 96, 0, 96, 224, 82, 96, 0,
+            97, 1, 0, 82, 96, 0, 97, 1, 32, 82, 96, 0, 97, 1, 64, 82, 96, 0, 97, 1, 96, 82, 96, 0,
+            97, 1, 128, 82, 96, 0, 97, 1, 160, 82, 96, 0, 97, 1, 192, 82, 96, 0, 97, 1, 224, 82,
+            96, 0, 97, 2, 0, 82, 96, 0, 97, 2, 32, 82, 96, 0, 97, 2, 64, 82, 96, 0, 97, 2, 96, 82,
+            96, 0, 97, 2, 128, 82, 96, 0, 97, 2, 160, 82, 96, 0, 97, 2, 192, 82, 96, 0, 97, 2, 224,
+            82, 96, 0, 97, 3, 0, 82, 96, 0, 97, 3, 32, 82, 96, 0, 97, 3, 64, 82, 96, 0, 97, 3, 96,
+            82, 96, 0, 97, 3, 128, 82, 96, 0, 97, 3, 160, 82, 96, 0, 97, 3, 192, 82, 96, 0, 97, 3,
+            224, 82, 96, 0, 97, 4, 0, 82, 96, 0, 97, 4, 32, 82, 96, 0, 97, 4, 64, 82, 127, 102,
+            112, 45, 102, 112, 45, 112, 117, 102, 45, 118, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 85, 67, 96, 1, 128, 96, 0, 1, 1, 85, 97, 1, 128, 97, 3,
+            220, 97, 2, 0, 57, 97, 2, 0, 81, 96, 4, 85, 97, 2, 32, 81, 96, 8, 85, 97, 2, 64, 81,
+            96, 6, 85, 97, 2, 96, 81, 96, 7, 85, 97, 2, 128, 81, 96, 10, 85, 97, 2, 160, 81, 96,
+            11, 85, 97, 2, 192, 81, 96, 1, 85, 97, 2, 224, 81, 96, 16, 85, 97, 3, 0, 81, 96, 17,
+            85, 97, 3, 32, 81, 96, 20, 85, 97, 3, 64, 81, 96, 128, 144, 97, 3, 220, 144, 96, 32,
+            129, 1, 16, 21, 97, 1, 76, 87, 96, 0, 128, 253, 91, 96, 32, 97, 3, 64, 81, 1, 97, 3,
+            220, 1, 16, 21, 97, 1, 98, 87, 96, 0, 128, 253, 91, 97, 3, 64, 81, 96, 32, 129, 1, 16,
+            21, 97, 1, 117, 87, 96, 0, 128, 253, 91, 96, 32, 97, 3, 64, 81, 1, 97, 3, 220, 1, 97,
+            3, 128, 57, 97, 3, 128, 81, 96, 18, 85, 97, 3, 160, 81, 96, 19, 85, 97, 3, 192, 81, 96,
+            21, 85, 97, 3, 224, 81, 96, 22, 85, 97, 3, 96, 81, 96, 32, 144, 97, 3, 220, 144, 129,
+            1, 16, 21, 97, 1, 184, 87, 96, 0, 128, 253, 91, 97, 3, 96, 81, 97, 3, 220, 1, 97, 4, 0,
+            57, 97, 4, 0, 81, 96, 12, 85, 97, 3, 220, 97, 2, 64, 129, 1, 16, 21, 97, 1, 222, 87,
+            96, 0, 128, 253, 91, 97, 2, 64, 97, 3, 220, 1, 97, 3, 96, 82, 96, 0, 97, 4, 96, 82, 97,
+            4, 0, 81, 97, 4, 128, 82, 91, 97, 4, 128, 81, 21, 97, 3, 49, 87, 96, 32, 97, 3, 96, 81,
+            96, 1, 96, 0, 97, 4, 96, 81, 20, 97, 2, 24, 87, 80, 96, 0, 91, 97, 2, 64, 87, 96, 32,
+            97, 4, 96, 81, 96, 32, 97, 4, 96, 81, 2, 4, 20, 97, 2, 52, 87, 96, 0, 128, 253, 91, 96,
+            32, 97, 4, 96, 81, 2, 97, 2, 67, 86, 91, 96, 0, 91, 97, 3, 96, 81, 1, 16, 21, 97, 2,
+            83, 87, 96, 0, 128, 253, 91, 96, 1, 96, 0, 97, 4, 96, 81, 20, 97, 2, 100, 87, 80, 96,
+            0, 91, 97, 2, 140, 87, 96, 32, 97, 4, 96, 81, 96, 32, 97, 4, 96, 81, 2, 4, 20, 97, 2,
+            128, 87, 96, 0, 128, 253, 91, 96, 32, 97, 4, 96, 81, 2, 97, 2, 143, 86, 91, 96, 0, 91,
+            97, 3, 96, 81, 1, 97, 4, 32, 57, 97, 4, 32, 81, 97, 4, 64, 81, 129, 1, 16, 21, 97, 2,
+            173, 87, 96, 0, 128, 253, 91, 97, 4, 64, 81, 97, 4, 32, 81, 1, 97, 4, 64, 82, 127, 112,
+            97, 121, 109, 101, 110, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 96, 192, 82, 97, 4, 96, 81, 96, 224, 82, 97, 4, 32, 81, 96, 64, 96,
+            192, 32, 85, 97, 4, 96, 81, 96, 1, 97, 4, 96, 81, 1, 16, 21, 97, 3, 5, 87, 96, 0, 128,
+            253, 91, 96, 1, 97, 4, 96, 81, 1, 97, 4, 96, 82, 97, 4, 128, 81, 96, 1, 17, 21, 97, 3,
+            33, 87, 96, 0, 128, 253, 91, 96, 1, 97, 4, 128, 81, 3, 97, 4, 128, 82, 97, 1, 248, 86,
+            91, 52, 21, 97, 3, 60, 87, 96, 0, 128, 253, 91, 96, 1, 96, 3, 85, 127, 88, 126, 206,
+            76, 209, 150, 146, 197, 190, 26, 65, 132, 80, 61, 96, 125, 69, 84, 45, 42, 202, 6, 152,
+            192, 6, 143, 82, 224, 156, 203, 84, 28, 96, 64, 97, 2, 0, 161, 96, 102, 128, 97, 3,
+            118, 96, 0, 57, 96, 0, 243, 0, 124, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 96, 0, 53, 4, 96, 128, 129, 144, 82, 99, 105, 110,
+            184, 251, 20, 21, 96, 62, 87, 96, 0, 84, 97, 4, 160, 144, 129, 82, 96, 32, 144, 243,
+            91, 54, 96, 0, 128, 55, 96, 0, 128, 54, 96, 0, 96, 1, 96, 0, 1, 84, 96, 21, 90, 3, 244,
+            96, 92, 87, 96, 0, 128, 253, 91, 61, 96, 0, 128, 62, 61, 96, 0, 243,
+        ];
+
+        for sig in function_selectors(&code, 0) {
+            let _ = function_arguments(&code, &sig, 0);
+        }
+    }
 }
