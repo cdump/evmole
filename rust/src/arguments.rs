@@ -1,4 +1,4 @@
-use alloy::dyn_abi::DynSolType;
+use alloy_dyn_abi::DynSolType;
 
 use crate::{
     evm::{
@@ -84,13 +84,12 @@ impl Info {
 
         let q: Vec<_> = (start_key..=end_key)
             .step_by(32)
-            .map(|k| {
+            .flat_map(|k| {
                 self.children
                     .get(&k)
                     .map_or(vec![DynSolType::Uint(256)], |val| val.to_alloy_type(false))
                     .into_iter()
             })
-            .flatten()
             .collect();
 
         let c = if q.len() > 1 && !is_root {
@@ -101,11 +100,13 @@ impl Info {
 
         match self.tinfo {
             Some(InfoVal::Array(_)) => {
-                if q.len() == 1 {
-                    vec![DynSolType::Array(Box::new(q[0].clone()))]
-                } else {
-                    vec![DynSolType::Array(Box::new(DynSolType::Tuple(q)))]
-                }
+                vec![
+                    if q.len() == 1 {
+                        DynSolType::Array(Box::new(q[0].clone()))
+                    } else {
+                        DynSolType::Array(Box::new(DynSolType::Tuple(q)))
+                    }
+                ]
             }
             Some(InfoVal::Dynamic(_)) => {
                 if end_key == 0 && self.children.is_empty() {
@@ -844,7 +845,7 @@ fn analyze(
 /// assert_eq!(arguments, "uint32,address,uint224");
 /// ```
 
-pub fn function_arguments_typed(
+pub fn function_arguments_alloy(
     code: &[u8],
     selector: &Selector,
     gas_limit: u32,
@@ -920,7 +921,7 @@ pub fn function_arguments_typed(
 }
 
 pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
-    function_arguments_typed(code, selector, gas_limit)
+    function_arguments_alloy(code, selector, gas_limit)
         .into_iter()
         .map(|t| t.sol_type_name().to_string())
         .collect::<Vec<String>>()
