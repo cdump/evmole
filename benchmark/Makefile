@@ -31,13 +31,13 @@ run-arguments: $(RUN_ARGUMENTS_TARGETS)
 $(BUILD_TARGETS):
 	$(info [*] Building $(basename $@)...)
 	# for evmole - use latest version, from current git branch
-	[ "$@" = "evmole-py.build" ] && cp -r ../rust providers/evmole-py/ || true
-	[ "$@" = "evmole-js.build" ] && cp -r ../rust providers/evmole-js/ || true
-	[ "$@" = "evmole-rs.build" ] && cp -r ../rust providers/evmole-rs/ || true
+	if [ "$@" = "evmole-py.build" ] || [ "$@" = "evmole-js.build" ] || [ "$@" = "evmole-rs.build" ]; then \
+		rsync -av ../ ./providers/$(basename $@)/rust --exclude benchmark --exclude target --exclude dist --exclude javascript/examples --exclude javascript/tests --exclude javascript/node_modules --exclude .git; \
+	fi;
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(DOCKER_PREFIX)-$(basename $@) providers/$(basename $@)
-	[ "$@" = "evmole-py.build" ] && rm -rf providers/evmole-py/rust || true
-	[ "$@" = "evmole-js.build" ] && rm -rf providers/evmole-js/rust || true
-	[ "$@" = "evmole-rs.build" ] && rm -rf providers/evmole-rs/rust || true
+	if [ "$@" = "evmole-py.build" ] || [ "$@" = "evmole-js.build" ] || [ "$@" = "evmole-rs.build" ]; then \
+		rm -rf ./providers/$(basename $@)/rust; \
+	fi;
 
 $(UNPACK_TARGETS):
 	$(info [*] Unpacking $@...)

@@ -1,7 +1,7 @@
 import {readdirSync, readFileSync, writeFileSync} from 'fs'
 import {parseArgs} from 'util'
 
-import {functionArguments, functionSelectors} from './js/src/index.js'
+import {functionArguments, functionSelectors} from 'evmole'
 
 const {
   values: cfg,
