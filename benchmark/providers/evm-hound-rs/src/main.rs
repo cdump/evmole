@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::{env, fs};
 
 #[derive(Debug, serde::Deserialize)]
@@ -43,9 +43,10 @@ fn main() -> std::io::Result<()> {
         ret.insert(fname, string_selectors);
     }
 
-    let mut file = fs::File::create(outfile)?;
-    let _ = serde_json::to_writer(&mut file, &ret);
-    file.flush()?;
+    let file = fs::File::create(outfile)?;
+    let mut bw = BufWriter::new(file);
+    let _ = serde_json::to_writer(&mut bw, &ret);
+    bw.flush()?;
 
     Ok(())
 }

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{BufWriter, Write};
 use std::{env, fs};
 
 use heimdall_core::heimdall_decompiler::DecompilerArgsBuilder;
@@ -98,13 +98,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let mut file = fs::File::create(outfile)?;
+    let file = fs::File::create(outfile)?;
+    let mut bw = BufWriter::new(file);
     if mode == "arguments" {
-        let _ = serde_json::to_writer(&mut file, &ret_arguments);
+        let _ = serde_json::to_writer(&mut bw, &ret_arguments);
     } else {
-        let _ = serde_json::to_writer(&mut file, &ret_selectors);
+        let _ = serde_json::to_writer(&mut bw, &ret_selectors);
     }
-    file.flush()?;
+    bw.flush()?;
 
     Ok(())
 }
