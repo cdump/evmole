@@ -21,5 +21,8 @@ import { test, expect } from '@playwright/test';
 
     const a = await page.locator('#arguments')
     await expect(a).toHaveText('uint32');
+
+    const m = await page.locator('#state_mutability')
+    await expect(m).toHaveText('pure');
   });
 });

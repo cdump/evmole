@@ -1,5 +1,5 @@
 contract Contract {
-    function a(uint32 v) public returns (uint32) {
+    function a(uint32 v) public pure returns (uint32) {
         return v + 1;
     }
 }

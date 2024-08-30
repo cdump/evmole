@@ -13,10 +13,13 @@
   "type": "module",
   "main": "dist/evmole_node.cjs",
   "module": "dist/evmole.mjs",
+  "types": "dist/evmole.d.ts",
   "files": [
     "README.md",
     "dist/evmole_bg.wasm",
+    "dist/evmole_bg.wasm.d.ts",
     "dist/evmole.js",
+    "dist/evmole.d.ts",
     "dist/evmole.mjs",
     "dist/evmole_node.cjs",
     "dist/evmole_node.mjs",
@@ -34,12 +37,14 @@
   },
   "scripts": {
     "build": "rm -rf dist && npm run build-wasm && npm run build-node && npm run build-esm && npm run build-cp",
-    "build-wasm": "wasm-pack build --no-pack --out-dir ./javascript/dist --no-typescript --target web --features javascript",
+    "build-wasm": "wasm-pack build --no-pack --out-dir ./javascript/dist --target web --features javascript",
     "build-node": "rollup ./src/evmole_node.cjs --file ./dist/evmole_node.cjs --format cjs",
     "build-esm": "rollup ./src/evmole_esm.js --file ./dist/evmole.mjs --format esm",
-    "build-cp": "cp ./src/evmole_node.mjs ./src/evmole_wasm_import.js dist/"
+    "build-cp": "cp ./src/evmole_node.mjs ./src/evmole_wasm_import.js dist/",
+    "doc": "jsdoc2md --files ./dist/evmole.js --heading-depth 3"
   },
   "devDependencies": {
+    "jsdoc-to-markdown": "^8.0.3",
     "rollup": "^4.21",
     "wasm-pack": "^0.13"
   }

@@ -15,7 +15,7 @@ evmole-%.tgz:
 	npm pack
 
 evmole.latest.tgz: evmole-%.tgz
-	ln -s evmole-*.tgz evmole.latest.tgz
+	ln -f -s evmole-*.tgz evmole.latest.tgz
 
 test: evmole.latest.tgz $(NODE_MODULES_TARGETS)
 	for dir in $(EXAMPLES_DIR); do \

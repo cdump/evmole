@@ -8,3 +8,6 @@ assert.deepEqual(r, ['fae7ab82']);
 
 const a = evmole.functionArguments(code, 'fae7ab82');
 assert.equal(a, 'uint32');
+
+const m = evmole.functionStateMutability(code, 'fae7ab82');
+assert.equal(m, 'pure');
