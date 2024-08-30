@@ -10,6 +10,7 @@ pub use selectors::function_selectors;
 pub mod arguments;
 
 mod evm;
+mod utils;
 
 #[doc(hidden)]
 pub mod selectors;

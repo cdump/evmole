@@ -6,6 +6,7 @@ use crate::{
         vm::{StepResult, Vm},
         Element, U256, VAL_0_B, VAL_1, VAL_1_B, VAL_32_B,
     },
+    utils::execute_until_function_start,
     Selector,
 };
 use std::{
@@ -605,14 +606,20 @@ pub fn function_arguments_alloy(
     );
     let mut args = ArgsResult::new();
     let mut gas_used = 0;
-    let mut inside_function = false;
     let real_gas_limit = if gas_limit == 0 {
         5e4 as u32
     } else {
         gas_limit
     };
+
+    if let Some(g) = execute_until_function_start(&mut vm, real_gas_limit) {
+        gas_used += g;
+    } else {
+        return vec![];
+    }
+
     while !vm.stopped {
-        if cfg!(feature = "trace") && inside_function {
+        if cfg!(feature = "trace") {
             println!("args: {:?}", args);
             println!("not_bool: {:?}", args.not_bool);
             println!("{:#?}", args.data);
@@ -628,20 +635,6 @@ pub fn function_arguments_alloy(
         gas_used += ret.gas_used;
         if gas_used > real_gas_limit {
             break;
-        }
-
-        if !inside_function {
-            if ret.op == op::EQ || ret.op == op::XOR || ret.op == op::SUB {
-                let p = vm.stack.peek().unwrap().data; // unwrap is safe unless we have bug in our evm implementation
-                if (ret.op == op::EQ && p == VAL_1_B) || (ret.op != op::EQ && p == VAL_0_B) {
-                    if let Some(v) = ret.fa {
-                        if v.data[28..32] == vm.calldata.data[0..4] {
-                            inside_function = true;
-                        }
-                    }
-                }
-            }
-            continue;
         }
 
         if analyze(&mut vm, &mut args, ret).is_err() {
