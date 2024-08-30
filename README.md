@@ -1,63 +1,64 @@
 # EVMole
 
+[![try it online](https://img.shields.io/badge/Try_It_Online-github.io-brightgreen)](https://cdump.github.io/evmole/)
 [![npm](https://img.shields.io/npm/v/evmole)](https://www.npmjs.com/package/evmole)
 [![Crates.io](https://img.shields.io/crates/v/evmole?color=e9b44f)](https://crates.io/crates/evmole)
 [![PyPI](https://img.shields.io/pypi/v/evmole?color=006dad)](https://pypi.org/project/evmole)
-[![license](https://img.shields.io/github/license/cdump/evmole)](./LICENSE)
 
-This library extracts [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector) and arguments from Ethereum Virtual Machine (EVM) bytecode, even for unverified contracts.
+EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, and [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), even for unverified contracts.
 
-- JavaScript, Rust and Python libraries
-- Clean code with minimal external dependencies
-- [Faster and more accurate](#Benchmark) than other existing tools
-- Tested on Solidity and Vyper compiled contracts
 
-[Try it online](https://cdump.github.io/evmole/)
+## Key Features
+
+- Multi-language support: Available as [JavaScript](#javascript), [Rust](#rust), and [Python](#python) libraries.
+- High accurancy and performance: [Outperforms](#benchmark) existing tools.
+- Broad compatibility: Tested with both Solidity and Vyper compiled contracts.
+- Lightweight: Clean codebase with minimal external dependencies.
+- Unverified contract analysis: Extracts information even from unverified bytecode.
+
 
 ## Usage
-
 ### JavaScript
-[More examples](./javascript/) (node, vite, webpack, parcel, esbuild)
+[API documentation](./javascript/#api) and [usage examples](./javascript#usage) (node, vite, webpack, parcel, esbuild)
 ```sh
 $ npm i evmole
 ```
 ```javascript
-import {functionArguments, functionSelectors} from 'evmole'
-// Also supported: const e = require('evmole'); e.functionSelectors();
+import { functionSelectors, functionArguments, functionStateMutability } from 'evmole'
 
 const code = '0x6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256'
-console.log( functionSelectors(code) )
-// Output(list): [ '2125b65b', 'b69ef8a8' ]
 
-console.log( functionArguments(code, '2125b65b') )
-// Output(str): 'uint32,address,uint224'
+console.log(functionSelectors(code));                   // [ '2125b65b', 'b69ef8a8' ]
+console.log(functionArguments(code, '2125b65b'));       // 'uint32,address,uint224'
+console.log(functionStateMutability(code, '2125b65b')); // 'pure'
 ```
 
 ### Rust
-Documentation available on [docs.rs](https://docs.rs/evmole/latest/evmole/)
+Documentation is available on [docs.rs](https://docs.rs/evmole/latest/evmole/)
 ```rust
 let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256").unwrap();
 
-println!("{:x?}", evmole::function_selectors(&code, 0));
-// Output(Vec<[u8;4]>): [[21, 25, b6, 5b], [b6, 9e, f8, a8]]
-
-println!("{}", evmole::function_arguments(&code, &[0x21, 0x25, 0xb6, 0x5b], 0));
-// Output(String): uint32,address,uint224
+println!("{:x?} | {} | {}",
+    evmole::function_selectors(&code, 0),
+    evmole::function_arguments(&code, &[0x21, 0x25, 0xb6, 0x5b], 0),
+    evmole::function_state_mutability(&code, &[0x21, 0x25, 0xb6, 0x5b], 0),
+);
+// [[21, 25, b6, 5b], [b6, 9e, f8, a8]] | uint32,address,uint224 | pure
 ```
 
 ### Python
+[API documentation](./python/#api)
 ```sh
 $ pip install evmole --upgrade
 ```
 ```python
-from evmole import function_arguments, function_selectors
+from evmole import function_selectors, function_arguments, function_state_mutability
 
 code = '0x6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256'
-print( function_selectors(code) )
-# Output(list): ['2125b65b', 'b69ef8a8']
 
-print( function_arguments(code, '2125b65b') )
-# Output(str): 'uint32,address,uint224'
+print(function_selectors(code))                    # ['2125b65b', 'b69ef8a8']
+print(function_arguments(code, '2125b65b'))        # uint32,address,uint224
+print(function_state_mutability(code, '2125b65b')) # pure
 ```
 
 ### Foundry
@@ -96,8 +97,8 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><a href="benchmark/providers/simple/"><b><i>smpl</i></b></a></td>
  </tr>
  <tr>
-  <td rowspan="5"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
-  <td><i>FP <sub>contracts</sub></i></td>
+  <td rowspan="5"><b>largest1k</b><br><sub>1000<br>addresses<br><br>24427<br>functions</sub></td>
+  <td><i>FP <sub>addrs</sub></i></td>
   <td>1 🥈</td>
   <td>0 🥇</td>
   <td>0 🥇</td>
@@ -106,7 +107,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>95</td>
  </tr>
  <tr>
-  <td><i>FN <sub>contracts</sub></i></td>
+  <td><i>FN <sub>addrs</sub></i></td>
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>0 🥇</td>
@@ -115,7 +116,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>9</td>
  </tr>
  <tr>
-  <td><i>FP <sub>functions</sub></i></td>
+  <td><i>FP <sub>funcs</sub></i></td>
   <td>192 🥈</td>
   <td>0 🥇</td>
   <td>0 🥇</td>
@@ -124,7 +125,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>749</td>
  </tr>
  <tr>
-  <td><i>FN <sub>functions</sub></i></td>
+  <td><i>FN <sub>funcs</sub></i></td>
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>0 🥇</td>
@@ -143,8 +144,8 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr><td colspan="8"></td></tr>
  <tr>
-  <td rowspan="5"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
-  <td><i>FP <sub>contracts</sub></i></td>
+  <td rowspan="5"><b>random50k</b><br><sub>50000<br>addresses<br><br>1171102<br>functions</sub></td>
+  <td><i>FP <sub>addrs</sub></i></td>
   <td>1 🥇</td>
   <td>43</td>
   <td>1</td>
@@ -153,7 +154,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>4136</td>
  </tr>
  <tr>
-  <td><i>FN <sub>contracts</sub></i></td>
+  <td><i>FN <sub>addrs</sub></i></td>
   <td>9 🥇</td>
   <td>11</td>
   <td>36</td>
@@ -162,7 +163,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>77</td>
  </tr>
  <tr>
-  <td><i>FP <sub>functions</sub></i></td>
+  <td><i>FP <sub>funcs</sub></i></td>
   <td>3 🥇</td>
   <td>51</td>
   <td>3</td>
@@ -171,7 +172,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>14652</td>
  </tr>
  <tr>
-  <td><i>FN <sub>functions</sub></i></td>
+  <td><i>FN <sub>funcs</sub></i></td>
   <td>10 🥇</td>
   <td>12</td>
   <td>587</td>
@@ -190,8 +191,8 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr><td colspan="8"></td></tr>
  <tr>
-  <td rowspan="5"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
-  <td><i>FP <sub>contracts</sub></i></td>
+  <td rowspan="5"><b>vyper</b><br><sub>780<br>addresses<br><br>21244<br>functions</sub></td>
+  <td><i>FP <sub>addrs</sub></i></td>
   <td>0 🥇</td>
   <td>30</td>
   <td>0</td>
@@ -200,7 +201,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>185</td>
  </tr>
  <tr>
-  <td><i>FN <sub>contracts</sub></i></td>
+  <td><i>FN <sub>addrs</sub></i></td>
   <td>0 🥇</td>
   <td>780</td>
   <td>21</td>
@@ -209,7 +210,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>480</td>
  </tr>
  <tr>
-  <td><i>FP <sub>functions</sub></i></td>
+  <td><i>FP <sub>funcs</sub></i></td>
   <td>0 🥇</td>
   <td>30</td>
   <td>0</td>
@@ -218,7 +219,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>197</td>
  </tr>
  <tr>
-  <td><i>FN <sub>functions</sub></i></td>
+  <td><i>FN <sub>funcs</sub></i></td>
   <td>0 🥇</td>
   <td>21244</td>
   <td>336</td>
@@ -238,18 +239,18 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
 </table>
 
 ### function arguments
-<i>Errors</i> - when at least 1 argument is incorrect: `(uint256,string)` != `(uint256,bytes)`; <b>smaller is better</b>
+<i>Errors</i> - when at least 1 argument is incorrect: `(uint256,string)` ≠ `(uint256,bytes)`
 
 <table>
  <tr>
   <td>Dataset</td>
   <td></td>
   <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
-  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall-rs</i></b></a></td>
+  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
   <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
  </tr>
  <tr>
-  <td rowspan="2"><b>largest1k</b><br><sub>1000<br>contracts<br><br>24427<br>functions</sub></td>
+  <td rowspan="2"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>14.0%, 3417 🥇</td>
   <td>31.1%, 7593</td>
@@ -263,7 +264,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
-  <td rowspan="2"><b>random50k</b><br><sub>50000<br>contracts<br><br>1171102<br>functions</sub></td>
+  <td rowspan="2"><b>random50k</b><br><sub>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>4.5%, 52777 🥇</td>
   <td>19.4%, 227612</td>
@@ -277,7 +278,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
-  <td rowspan="2"><b>vyper</b><br><sub>780<br>contracts<br><br>21244<br>functions</sub></td>
+  <td rowspan="2"><b>vyper</b><br><sub>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>49.6%, 10544 🥇</td>
   <td>100.0%, 21244</td>
@@ -291,9 +292,94 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
 </table>
 
+### function state mutability
+
+<i>Errors</i> - Results are not equal (treating `view` and `pure` as equivalent to `nonpayable`)
+
+<i>Errors strict</i> - Results are strictly unequal (`nonpayable` ≠ `view`). Some ABIs mark `pure`/`view` functions as `nonpayable`, so not all strict errors indicate real issues.
+
+<table>
+ <tr>
+  <td>Dataset</td>
+  <td></td>
+  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
+  <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
+  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
+  <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
+ </tr>
+ <tr>
+  <td rowspan="3"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
+  <td><i>Errors</i></td>
+  <td>0.0%, 0 🥇</td>
+  <td>2.1%, 501</td>
+  <td>25.4%, 6201</td>
+  <td>2.6%, 643</td>
+ </tr>
+ <tr>
+  <td><i>Errors strict</i></td>
+  <td>19.3%, 4718 🥇</td>
+  <td>59.0%, 14417</td>
+  <td>54.9%, 13403</td>
+  <td>60.9%, 14864</td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>7.9s · 17.3s · 10.1s</td>
+  <td>37.4s<sup>(*)</sup></td>
+  <td>339.1s<sup>(*)</sup></td>
+  <td>0.7s</td>
+ </tr>
+ <tr><td colspan="7"></td></tr>
+ <tr>
+  <td rowspan="3"><b>random50k</b><br><sub>1160861<br>functions</sub></td>
+  <td><i>Errors</i></td>
+  <td>0.0%, 35 🥇</td>
+  <td>0.3%, 3887</td>
+  <td>11.6%, 134195</td>
+  <td>2.2%, 24961</td>
+ </tr>
+ <tr>
+  <td><i>Errors strict</i></td>
+  <td>6.8%, 78676 🥇</td>
+  <td>55.7%, 647070</td>
+  <td>27.7%, 321494</td>
+  <td>57.7%, 670318</td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>225.8s · 523.1s · 309.1s</td>
+  <td>1708.9s<sup>(*)</sup></td>
+  <td>8151.0s<sup>(*)</sup></td>
+  <td>9.4s</td>
+ </tr>
+ <tr><td colspan="7"></td></tr>
+ <tr>
+  <td rowspan="3"><b>vyper</b><br><sub>21166<br>functions</sub></td>
+  <td><i>Errors</i></td>
+  <td>0.5%, 110 🥇</td>
+  <td>77.8%, 16462</td>
+  <td>100.0%, 21166</td>
+  <td>1.8%, 390</td>
+ </tr>
+ <tr>
+  <td><i>Errors strict</i></td>
+  <td>11.4%, 2410 🥇</td>
+  <td>91.0%, 19253</td>
+  <td>100.0%, 21166</td>
+  <td>59.6%, 12610</td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>3.7s · 8.7s · 5.1s</td>
+  <td>59.3s<sup>(*)</sup></td>
+  <td>28.1s<sup>(*)</sup></td>
+  <td>0.6s</td>
+ </tr>
+</table>
+
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole master (805c78d0); <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.19; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
+<i>versions: evmole master (01e2a8d0); <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.19; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 

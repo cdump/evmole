@@ -6,9 +6,9 @@ For results, refer to the [main README.md](../README.md#Benchmark).
 
 ## Methodology
 1. Get N Etherscan-verified contracts, save the bytecode and ABI to `datasets/NAME/ADDR.json`.
-2. Extract function signatures/arguments from the bytecode. Each tool runs inside a Docker container and is limited to 1 CPU (see `providers/NAME` and `Makefile`).
-3. Assume selectors and arguments from Etherscan's ABI as ground truth.
-4. Compare the results with it and count [False Positives and False Negatives](https://en.wikipedia.org/wiki/False_positives_and_false_negatives) for signatures and count correct results (strings equal) for arguments list.
+2. Extract function signatures/arguments/state mutability from the bytecode. Each tool runs inside a Docker container and is limited to 1 CPU (see `providers/NAME` and `Makefile`).
+3. Assume Etherscan's ABI as ground truth.
+4. Compare the results with it and count [False Positives and False Negatives](https://en.wikipedia.org/wiki/False_positives_and_false_negatives) for signatures and count correct results (strings equal) for arguments and state mutability.
 
 ## Reproduce
 Set the performance mode using `sudo cpupower frequency-set -g performance` and run `make benchmark-selectors` or `make benchmark-arguments` ([GNU Make](https://www.gnu.org/software/make/)) inside the `benchmark/` directory.
