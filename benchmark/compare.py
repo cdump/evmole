@@ -115,40 +115,6 @@ def markdown_arguments_or_mutability(providers: list[str], all_results: list, se
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
     print('</table>')
 
-
-def serve_web(listen_host: str, listen_port:int, providers: list[str], all_results: list):
-    """
-    {
-      "providers": ["etherscan", "a", "b"],
-      "results": [
-        {
-            "dataset": "name",
-            "timings": [1.2, 0.33], # for every provider
-            "results": [
-              {
-                  "addr": "address",
-                  "ground_truth": ["00aabbcc", "ddeeff22"],
-                  "data": [
-                    [["fp"], ["fn"]], # 1st provider errors
-                    [["fp"], ["fn"]], # 2nd provider errors
-                  ],
-              },
-            ]
-        }
-      ],
-    }
-    """
-    data = {'providers': providers, 'results': all_results}
-    json_data = json.dumps(data, separators=(',', ':'))
-    async def handle_index(_):
-        return web.FileResponse(pathlib.Path(__file__).parent / 'index.html')
-    async def handle_res(_):
-        return web.Response(body=json_data, headers={'Content-Type': 'application/json'})
-    app = web.Application()
-    app.add_routes([web.get('/', handle_index), web.get('/res.json', handle_res)])
-    web.run_app(app, host=listen_host, port=listen_port)
-
-
 def show_selectors(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
         cnt_contracts = len(dataset_result['results'])
@@ -293,7 +259,6 @@ if __name__ == '__main__':
     parser.add_argument('--mode', choices=['selectors', 'arguments', 'mutability'], default='selectors', help='mode')
     parser.add_argument('--providers', nargs='+', default=None)
     parser.add_argument('--datasets', nargs='+', default=['largest1k', 'random50k', 'vyper'])
-    parser.add_argument('--web-listen', type=str, default='', help='start webserver to serve results, example: "127.0.0.1:8080"')
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
     parser.add_argument('--show-errors', nargs='?', default=False, const=True, help='show errors')
     parser.add_argument('--normalize-args', nargs='+', required=False, choices=['fixed-size-array', 'tuples', 'string-bytes'], help='normalize arguments rules')
@@ -308,11 +273,7 @@ if __name__ == '__main__':
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
 
-    if cfg.web_listen != '':
-        from aiohttp import web
-
     if cfg.mode == 'arguments':
-        assert cfg.web_listen == '', 'web-listen for arguments not implemented yet'
         results = [process_arguments(d, cfg.providers, cfg.results_dir, cfg.normalize_args) for d in cfg.datasets]
         if cfg.markdown:
             markdown_arguments_or_mutability(cfg.providers, results, None)
@@ -320,7 +281,6 @@ if __name__ == '__main__':
             show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
 
     elif cfg.mode == 'mutability':
-        assert cfg.web_listen == '', 'web-listen for mutability not implemented yet'
         results_strict = [process_mutability(d, cfg.providers, cfg.results_dir, True) for d in cfg.datasets]
         results_not_strict = [process_mutability(d, cfg.providers, cfg.results_dir, False) for d in cfg.datasets]
 
@@ -340,7 +300,3 @@ if __name__ == '__main__':
             markdown_selectors(cfg.providers, results)
         else:
             show_selectors(cfg.providers, results, cfg.show_errors)
-
-        if cfg.web_listen != '':
-            host, port = cfg.web_listen.rsplit(':')
-            serve_web(host, int(port), cfg.providers, results)
