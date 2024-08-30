@@ -148,11 +148,22 @@ where
 
             op::JUMP | op::JUMPI => {
                 let s0 = self.stack.pop_uint()?;
+                let mut ret = StepResult::new(op, if op == op::JUMP { 8 } else { 10 });
                 if op == op::JUMPI {
+                    ret.sa = Some(self.stack.peek()?.clone());
                     let s1 = self.stack.pop_uint()?;
                     if s1.is_zero() {
                         self.pc += 1;
-                        return Ok(StepResult::new(op, 10));
+                        ret.fa = Some(Element {
+                            data: s0.to_be_bytes(),
+                            label: None,
+                        });
+                        return Ok(ret);
+                    } else {
+                        ret.fa = Some(Element {
+                            data: U256::from(self.pc + 1).to_be_bytes(),
+                            label: None,
+                        });
                     }
                 }
                 let cres: Result<usize, _> = s0.try_into();
@@ -161,7 +172,7 @@ where
                         Err(UnsupportedOpError { op }.into())
                     } else {
                         self.pc = newpc;
-                        Ok(StepResult::new(op, if op == op::JUMP { 8 } else { 10 }))
+                        Ok(ret)
                     }
                 } else {
                     Err(UnsupportedOpError { op }.into())
@@ -512,7 +523,17 @@ where
                 Ok(ret)
             }
 
-            op::REVERT | op::STOP | op::RETURN | op::SELFDESTRUCT => {
+            op::REVERT | op::RETURN => {
+                self.stopped = true;
+                let offset = self.stack.pop()?;
+                let size = self.stack.pop()?;
+                let mut ret = StepResult::new(op, 5);
+                ret.fa = Some(offset);
+                ret.sa = Some(size);
+                Ok(ret)
+            }
+
+            op::STOP | op::SELFDESTRUCT => {
                 // skip stack pop()s
                 self.stopped = true;
                 Ok(StepResult::new(op, 5))
