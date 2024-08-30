@@ -76,9 +76,42 @@ fn function_arguments(
     ))
 }
 
+/// Extracts function state mutability for a given selector from the bytecode.
+///
+/// Args:
+///     code (Union[bytes, str]): Runtime bytecode as a hex string or bytes.
+///     selector (Union[bytes, str]): Function selector as a hex string or bytes.
+///     gas_limit (int, optional): Maximum gas to use. Defaults to 100000.
+///
+/// Returns:
+///     str: "payable" | "nonpayable" | "view" | "pure"
+#[pyfunction]
+#[pyo3(signature = (code, selector, gas_limit=500_000))]
+fn function_state_mutability(
+    code: &Bound<'_, PyAny>,
+    selector: &Bound<'_, PyAny>,
+    gas_limit: u32,
+) -> PyResult<String> {
+    let code_bytes = input_to_bytes(code)?;
+    let selector_bytes = input_to_bytes(selector)?;
+    let selectors_ref = selector_bytes.as_ref();
+    let sel = if selectors_ref.len() != 4 {
+        return Err(PyValueError::new_err("selector should be 4 bytes length"));
+    } else {
+        <[u8; 4]>::try_from(selectors_ref).unwrap()
+    };
+
+    Ok(crate::state_mutability::function_state_mutability(
+        &code_bytes,
+        &sel,
+        gas_limit,
+    ).to_string())
+}
+
 #[pymodule]
 fn evmole(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(function_selectors, m)?)?;
     m.add_function(wrap_pyfunction!(function_arguments, m)?)?;
+    m.add_function(wrap_pyfunction!(function_state_mutability, m)?)?;
     Ok(())
 }

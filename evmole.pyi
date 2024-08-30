@@ -26,3 +26,17 @@ def function_arguments(code: Union[bytes, str], selector: Union[bytes, str], gas
         str: Arguments of the function.
     """
     ...
+
+def function_state_mutability(code: Union[bytes, str], selector: Union[bytes, str], gas_limit: int = 500000) -> str:
+    """
+    Extracts function state mutability for a given selector from the bytecode.
+
+    Args:
+        code (Union[bytes, str]): Runtime bytecode as a hex string or bytes.
+        selector (Union[bytes, str]): Function selector as a hex string or bytes.
+        gas_limit (int, optional): Maximum gas to use. Defaults to 500000.
+
+    Returns:
+        str: "payable" | "nonpayable" | "view" | "pure"
+    """
+    ...
