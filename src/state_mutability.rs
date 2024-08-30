@@ -90,7 +90,7 @@ fn analyze_payable(mut vm: Vm<Label>, gas_limit: u32, call_value: u32) -> (bool,
 
             StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::CallValue), ..}), ..} =>
             {
-                vm.stack.peek_mut().unwrap().label = Some(Label::IsZero);
+                vm.stack.peek_mut().expect("results is always pushed in vm.rs").label = Some(Label::IsZero);
             }
 
             StepResult{op: op::CALLDATASIZE, ..} =>
@@ -168,9 +168,9 @@ fn analyze_view_pure_internal(
             }
 
             op::JUMPI => {
-                let other_pc: usize = U256::from_be_bytes(ret.fa.unwrap().data)
+                let other_pc: usize = U256::from_be_bytes(ret.fa.expect("always set in vm.rs").data)
                     .try_into()
-                    .unwrap();
+                    .expect("set to usize in vm.rs");
 
                 if depth < 8 && gas_used < gas_limit {
                     let mut cloned = vm.clone();

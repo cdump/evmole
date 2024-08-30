@@ -66,7 +66,7 @@ fn function_arguments(
     let sel = if selectors_ref.len() != 4 {
         return Err(PyValueError::new_err("selector should be 4 bytes length"));
     } else {
-        <[u8; 4]>::try_from(selectors_ref).unwrap()
+        <[u8; 4]>::try_from(selectors_ref).expect("len checked above")
     };
 
     Ok(crate::arguments::function_arguments(
@@ -98,7 +98,7 @@ fn function_state_mutability(
     let sel = if selectors_ref.len() != 4 {
         return Err(PyValueError::new_err("selector should be 4 bytes length"));
     } else {
-        <[u8; 4]>::try_from(selectors_ref).unwrap()
+        <[u8; 4]>::try_from(selectors_ref).expect("len checked above")
     };
 
     Ok(crate::state_mutability::function_state_mutability(

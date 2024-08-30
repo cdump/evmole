@@ -116,7 +116,7 @@ impl Info {
                         return vec![DynSolType::Array(Box::new(DynSolType::Uint(256)))];
                     }
                     if self.children.len() == 1
-                        && self.children.first_key_value().unwrap().1.tinfo.is_none()
+                        && self.children.first_key_value().expect("len checked above").1.tinfo.is_none()
                     {
                         return vec![DynSolType::Array(Box::new(q[1].clone()))];
                     }
@@ -283,7 +283,7 @@ fn analyze(
                 args.set_info(&full_path, InfoVal::Dynamic(new_off / 32));
 
                 let mem_offset: u32 = if op == op::CALLDATACOPY {
-                    U256::from_be_bytes(sa.unwrap().data)
+                    U256::from_be_bytes(sa.expect("always set for DATACOPY in vm.rs").data)
                         .try_into()
                         .expect("set as u32 in vm.rs")
                 } else {
@@ -338,7 +338,7 @@ fn analyze(
                     match op {
                         op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
                         op::CALLDATACOPY => {
-                            let mem_offset: u32 = U256::from_be_bytes(sa.unwrap().data)
+                            let mem_offset: u32 = U256::from_be_bytes(sa.expect("always set for DATACOPY in vm.rs").data)
                                 .try_into()
                                 .expect("set as u32 in vm.rs");
                             if let Some(v) = vm.memory.get_mut(mem_offset) {

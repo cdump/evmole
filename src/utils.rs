@@ -30,7 +30,7 @@ where
         }
 
         if ret.op == op::EQ || ret.op == op::XOR || ret.op == op::SUB {
-            let p = vm.stack.peek().unwrap().data; // unwrap is safe unless we have bug in our evm implementation
+            let p = vm.stack.peek().expect("always safe unless bug in vm.rs").data;
             if (ret.op == op::EQ && p == VAL_1_B) || (ret.op != op::EQ && p == VAL_0_B) {
                 if let Some(v) = ret.fa {
                     if v.data[28..32] == vm.calldata.data[0..4] {
