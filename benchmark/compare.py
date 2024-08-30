@@ -81,7 +81,7 @@ def markdown_selectors(providers: list[str], all_results: list):
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
     print('</table>')
 
-def markdown_arguments(providers: list[str], all_results: list):
+def markdown_arguments_or_mutability(providers: list[str], all_results: list, second_results: list|None):
     print('<table>')
     print(' <tr>')
     print('  <td>Dataset</td>')
@@ -91,15 +91,21 @@ def markdown_arguments(providers: list[str], all_results: list):
     print(' </tr>')
     for dataset_idx, dataset_result in enumerate(all_results):
         dataset_name = dataset_result['dataset']
-        cnt_contracts = len(dataset_result['results'])
         cnt_funcs = sum(len(x['func']) for x in dataset_result['results'])
         print(' <tr>')
-        print(f'  <td rowspan="2"><b>{dataset_name}</b><br><sub>{cnt_contracts}<br>contracts<br><br>{cnt_funcs}<br>functions</sub></td>')
+        print(f'  <td rowspan="{2 if second_results is None else 3}"><b>{dataset_name}</b><br><sub>{cnt_funcs}<br>functions</sub></td>')
         print('  <td><i>Errors</i></td>')
         for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
             bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
             print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%, {bad_fn}</td>')
         print(' </tr>')
+        if second_results is not None:
+            print(' <tr>')
+            print('  <td><i>Errors 2nd</i></td>')
+            for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
+                bad_fn = sum(1 - y['data'][provider_idx][0] for x in second_results[dataset_idx]['results'] for y in x['func'])
+                print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%, {bad_fn}</td>')
+            print(' </tr>')
         print(' <tr>')
         print('  <td><i>Time</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
@@ -170,7 +176,7 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
                     print(f'      FN  : {fn}')
         print('')
 
-def normalize_args(args: str, rules: set[str]) -> str:
+def normalize_args(args: str, rules: set[str]|None) -> str:
     if rules is None:
         return args
 
@@ -212,23 +218,26 @@ def normalize_args(args: str, rules: set[str]) -> str:
         args = args.replace('string', 'bytes')
     return args
 
-def process_arguments(dname: str, providers: list[str], results_dir: str, normalize_rules: set[str]):
-    pdata, ptimes = load_data('arguments', dname, providers, results_dir)
+# for 'arguments' and 'mutability'
+def process_functions(tname: str, dname: str, providers: list[str], results_dir: str, normalize_func):
+    pdata, ptimes = load_data(tname, dname, providers, results_dir)
     ret = []
     for fname, gt in pdata[0].items():
         func = []
-        for sel, args in gt.items():
+        for sel, gt_val in gt.items():
+            if gt_val == '' and tname == 'mutability':
+                # old solidity compilers don't output mutability in json abi, skip it
+                continue
             data = []
-            norm_args = normalize_args(args, normalize_rules)
+            norm_gt_val = normalize_func(gt_val)
             for i in range(1, len(providers)): # skip ground_truth provider
-                d = pdata[i][fname]
-                dargs = d[sel]
-                norm_dargs = normalize_args(dargs, normalize_rules)
-                if norm_dargs == norm_args:
+                val = pdata[i][fname][sel]
+                norm_val = normalize_func(val)
+                if norm_val == norm_gt_val:
                     data.append([1])
                 else:
-                    data.append([0, dargs])
-            func.append({'s': sel, 'gt': args, 'data': data})
+                    data.append([0, val])
+            func.append({'s': sel, 'gt': gt_val, 'data': data})
 
         ret.append({
             'addr': fname[2:-5], # '0xFF.json' => 'FF'
@@ -237,7 +246,20 @@ def process_arguments(dname: str, providers: list[str], results_dir: str, normal
     return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
 
 
-def show_arguments(providers: list[str], all_results: list, show_errors: bool):
+def mutability_normalize_dummy(x):
+    return x
+
+def mutability_normalize(x):
+    return 'nonpayable' if (x == 'view' or x == 'pure') else x
+
+def process_mutability(dname: str, providers: list[str], results_dir: str, strict: bool):
+    nfn = mutability_normalize_dummy if strict is True else mutability_normalize
+    return process_functions('mutability', dname, providers, results_dir, nfn)
+
+def process_arguments(dname: str, providers: list[str], results_dir: str, normalize_rules: set[str]):
+    return process_functions('arguments', dname, providers, results_dir, lambda x: normalize_args(x, normalize_rules))
+
+def show_arguments_or_mutability(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
         cnt_contracts = len(dataset_result['results'])
         cnt_funcs = sum(len(x['func']) for x in dataset_result['results'])
@@ -268,7 +290,7 @@ def show_arguments(providers: list[str], all_results: list, show_errors: bool):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', type=str, default=pathlib.Path(__file__).parent / 'results', help='results directory')
-    parser.add_argument('--mode', choices=['selectors', 'arguments'], default='selectors', help='mode')
+    parser.add_argument('--mode', choices=['selectors', 'arguments', 'mutability'], default='selectors', help='mode')
     parser.add_argument('--providers', nargs='+', default=None)
     parser.add_argument('--datasets', nargs='+', default=['largest1k', 'random50k', 'vyper'])
     parser.add_argument('--web-listen', type=str, default='', help='start webserver to serve results, example: "127.0.0.1:8080"')
@@ -279,8 +301,10 @@ if __name__ == '__main__':
     if cfg.providers is None:
         if cfg.mode == 'selectors':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'simple']
-        else:
+        elif cfg.mode == 'arguments':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'simple']
+        else: # mutability
+            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'sevm', 'simple']
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
 
@@ -291,9 +315,23 @@ if __name__ == '__main__':
         assert cfg.web_listen == '', 'web-listen for arguments not implemented yet'
         results = [process_arguments(d, cfg.providers, cfg.results_dir, cfg.normalize_args) for d in cfg.datasets]
         if cfg.markdown:
-            markdown_arguments(cfg.providers, results)
+            markdown_arguments_or_mutability(cfg.providers, results, None)
         else:
-            show_arguments(cfg.providers, results, cfg.show_errors)
+            show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
+
+    elif cfg.mode == 'mutability':
+        assert cfg.web_listen == '', 'web-listen for mutability not implemented yet'
+        results_strict = [process_mutability(d, cfg.providers, cfg.results_dir, True) for d in cfg.datasets]
+        results_not_strict = [process_mutability(d, cfg.providers, cfg.results_dir, False) for d in cfg.datasets]
+
+        if cfg.markdown:
+            markdown_arguments_or_mutability(cfg.providers, results_not_strict, results_strict)
+        else:
+            results = results_not_strict
+            for x in results_strict:
+                x['dataset'] += '/strict'
+                results.append(x)
+            show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
 
     else:
         results = [process_selectors(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]

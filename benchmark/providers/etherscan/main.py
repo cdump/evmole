@@ -4,6 +4,7 @@ import sys
 
 from Crypto.Hash import keccak
 
+
 def sign(inp: bytes) -> str:
     return keccak.new(digest_bits=256, data=inp).digest()[:4].hex()
 
@@ -19,7 +20,7 @@ def join_inputs(inputs) -> str:
         n += ','
     return n[:-1]
 
-def process(abi) -> dict[str,str]:
+def process(abi, mode) -> dict[str,str]:
     ret = {}
     for x in abi:
         if x['type'] != 'function':
@@ -27,7 +28,7 @@ def process(abi) -> dict[str,str]:
         args = join_inputs(x['inputs'])
         n = f'{x["name"]}({args})'
         sg = sign(n.encode('ascii'))
-        ret[sg] = args
+        ret[sg] = args if mode == 'arguments' else x.get('stateMutability', '')
     return ret
 
 if len(sys.argv) < 4:
@@ -43,8 +44,8 @@ outfile = sys.argv[3]
 for fname in os.listdir(indir):
     with open(f'{indir}/{fname}', 'r') as fh:
         d = json.load(fh)
-        r = process(d['abi'])
-        ret[fname] = r if mode == 'arguments' else list(r.keys())
+        r = process(d['abi'], mode)
+        ret[fname] = list(r.keys()) if mode == 'selectors' else r
 
 with open(outfile, 'w') as fh:
     json.dump(ret, fh)

@@ -2,6 +2,7 @@ import json
 import os
 import sys
 
+
 def extract_selectors(code: bytes) -> list[str]:
     ret = []
     for i in range(len(code) - 5):
@@ -15,10 +16,6 @@ def extract_selectors(code: bytes) -> list[str]:
 
     return [s.hex().zfill(8) for s in ret]
 
-def extract_arguments(code: bytes, selector: bytes) -> str:
-    return ''
-
-
 if len(sys.argv) < 4:
     print('Usage: python3 main.py MODE INPUT_DIR OUTPUT_FILE [SELECTORS_FILE]')
     sys.exit(1)
@@ -29,7 +26,7 @@ indir = sys.argv[2]
 outfile = sys.argv[3]
 
 selectors = {}
-if mode == 'arguments':
+if mode != 'selectors':
     selectors_file = sys.argv[4]
     with open(selectors_file, 'r') as fh:
         selectors = json.load(fh)
@@ -39,7 +36,9 @@ for fname in os.listdir(indir):
         d = json.load(fh)
         code = bytes.fromhex(d['code'][2:])
         if mode == 'arguments':
-            r = {s: extract_arguments(code, bytes.fromhex(s)) for s in selectors[fname]}
+            r = {s: '' for s in selectors[fname]}
+        elif mode == 'mutability':
+            r = {s: 'nonpayable' for s in selectors[fname]}
         else:
             r = extract_selectors(code)
         ret[fname] = r

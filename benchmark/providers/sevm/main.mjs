@@ -9,18 +9,34 @@ if (argv.length < 5) {
 }
 
 const mode = argv[2];
-if (mode != 'selectors') {
-  console.log('Only "selectors" mode supported, got ', mode)
+if (mode != 'selectors' && mode != 'mutability') {
+  console.log('Only "selectors" and "mutability" modes are supported, got ', mode)
   process.exit(1)
 }
 const indir = argv[3];
 const outfile = argv[4];
 
-function extract(code) {
+const selectors = mode === 'selectors' ? {} : JSON.parse(readFileSync(argv[5]));
+
+function extract(code, mode, fname) {
+  let funcs;
   try {
-    return Object.keys(new Contract(code).functions)
+    funcs = new Contract(code).functions;
   } catch(e) {
-    return []
+    funcs = {};
+  }
+
+  if (mode == 'selectors') {
+    return Object.keys(funcs)
+  } else {
+    return Object.fromEntries(selectors[fname].map((s) => {
+      const fn = funcs[s];
+      if (fn === undefined) {
+        return [s, 'selnotfound'];
+      } else {
+        return [s, fn.constant ? 'view' : (fn.payable ? 'payable' : 'nonpayable')];
+      }
+    }));
   }
 }
 
@@ -28,7 +44,7 @@ const res = Object.fromEntries(
   readdirSync(indir).map(
     file => [
       file,
-      extract(JSON.parse(readFileSync(`${indir}/${file}`))['code'])
+      extract(JSON.parse(readFileSync(`${indir}/${file}`))['code'], mode, file)
     ]
   )
 );

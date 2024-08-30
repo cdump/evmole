@@ -31,11 +31,11 @@ struct Args {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = Args::parse();
 
-    let selectors: HashMap<String, Vec<String>> = if cfg.mode == "arguments" {
+    let selectors: HashMap<String, Vec<String>> = if cfg.mode == "selectors" {
+        HashMap::new()
+    } else {
         let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
         serde_json::from_str(&file_content)?
-    } else {
-        HashMap::new()
     };
 
     let only_selector = if let Some(s) = cfg.filter_selector {
@@ -67,7 +67,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // println!("processing {}", fname);
 
-        if cfg.mode == "arguments" {
+        if cfg.mode == "selectors" {
+            let r = evmole::function_selectors(&code, 0);
+            ret_selectors.insert(fname, r.iter().map(hex::encode).collect());
+        } else {
             let fsel = if !only_selector.is_empty() {
                 &only_selector
             } else {
@@ -80,24 +83,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let selector = <[u8; 4]>::from_hex(s).unwrap();
                     (
                         s.to_string(),
-                        evmole::function_arguments(&code, &selector, 0),
+                        if cfg.mode == "arguments" {
+                            evmole::function_arguments(&code, &selector, 0)
+                        } else {
+                            evmole::function_state_mutability(&code, &selector, 0).to_string()
+                        }
                     )
                 })
                 .collect();
 
             ret_arguments.insert(fname, r);
-        } else {
-            let r = evmole::function_selectors(&code, 0);
-            ret_selectors.insert(fname, r.iter().map(hex::encode).collect());
         }
     }
 
     let file = fs::File::create(cfg.output_file)?;
     let mut bw = BufWriter::new(file);
-    if cfg.mode == "arguments" {
-        let _ = serde_json::to_writer(&mut bw, &ret_arguments);
-    } else {
+    if cfg.mode == "selectors" {
         let _ = serde_json::to_writer(&mut bw, &ret_selectors);
+    } else {
+        let _ = serde_json::to_writer(&mut bw, &ret_arguments);
     }
     bw.flush()?;
 

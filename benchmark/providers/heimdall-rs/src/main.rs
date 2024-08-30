@@ -20,11 +20,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let indir = &args[2];
     let outfile = &args[3];
 
-    let selectors: HashMap<String, Vec<String>> = if mode == "arguments" {
+    let selectors: HashMap<String, Vec<String>> = if mode == "selectors" {
+        HashMap::new()
+    } else {
         let file_content = fs::read_to_string(&args[4])?;
         serde_json::from_str(&file_content)?
-    } else {
-        HashMap::new()
     };
 
     let mut ret_selectors: HashMap<String, Vec<String>> = HashMap::new();
@@ -60,24 +60,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let result = heimdall_core::heimdall_decompiler::decompile(dargs).await;
         if let Err(e) = result {
             println!("got error for {}: {}", fname, e);
-            if mode == "arguments" {
+            if mode == "selectors" {
+                ret_selectors.insert(fname, Vec::new());
+            } else {
                 let r: HashMap<String, String> = selectors[&fname].iter().map(|s| (s.to_string(), "not_found".to_string())).collect();
                 ret_arguments.insert(fname, r);
-            } else {
-                ret_selectors.insert(fname, Vec::new());
             }
             continue
         }
         let abi = result?.abi.functions;
 
-        if mode == "arguments" {
+        if mode == "selectors" {
+            let r: Vec<String> = abi
+                .keys()
+                .map(|x| x.strip_prefix("Unresolved_").unwrap().to_string())
+                .collect();
+            ret_selectors.insert(fname, r);
+        } else {
             let args: HashMap<String, String> = abi
                 .iter()
                 .map(|(name, v)| {
                     let selector = name.strip_prefix("Unresolved_").unwrap().to_string();
-                    let a: Vec<_> = v[0].inputs.iter().map(|v| v.ty.to_string()).collect();
-                    let args = a.join(",");
-                    (selector, args)
+                    let info = if mode == "arguments" {
+                        let a: Vec<_> = v[0].inputs.iter().map(|v| v.ty.to_string()).collect();
+                        a.join(",")
+                    } else {
+                        v[0].state_mutability.as_json_str().to_string()
+                    };
+                    (selector, info)
                 })
                 .collect();
 
@@ -89,21 +99,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 })
                 .collect();
             ret_arguments.insert(fname, r);
-        } else {
-            let r: Vec<String> = abi
-                .keys()
-                .map(|x| x.strip_prefix("Unresolved_").unwrap().to_string())
-                .collect();
-            ret_selectors.insert(fname, r);
         }
     }
 
     let file = fs::File::create(outfile)?;
     let mut bw = BufWriter::new(file);
-    if mode == "arguments" {
-        let _ = serde_json::to_writer(&mut bw, &ret_arguments);
-    } else {
+    if mode == "selectors" {
         let _ = serde_json::to_writer(&mut bw, &ret_selectors);
+    } else {
+        let _ = serde_json::to_writer(&mut bw, &ret_arguments);
     }
     bw.flush()?;
 

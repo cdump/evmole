@@ -1,7 +1,7 @@
 import {readdirSync, readFileSync, writeFileSync} from 'fs'
 import {parseArgs} from 'util'
 
-import {functionArguments, functionSelectors} from 'evmole'
+import {functionArguments, functionSelectors, functionStateMutability} from 'evmole'
 
 const {
   values: cfg,
@@ -25,18 +25,23 @@ if (cfg_positionals.length < 3) {
 
 const [mode, indir, outfile, ...cfg_rest] = cfg_positionals;
 
-const selectors = mode === 'arguments' ? JSON.parse(readFileSync(cfg_rest[0])) : {};
+const selectors = mode === 'selectors' ? {} : JSON.parse(readFileSync(cfg_rest[0]));
 
 const res = Object.fromEntries(
   readdirSync(indir)
     .filter((file) => cfg['filter-filename'] === undefined || file.includes(cfg['filter-filename']))
     .map((file) => {
       const code = JSON.parse(readFileSync(`${indir}/${file}`))['code']
-      const fsel = cfg['filter-selector'] === undefined ? selectors[file] : [cfg['filter-selector']];
-      let r = mode === 'arguments'
-        ? Object.fromEntries(fsel.map((s) => [s, functionArguments(code, s)]))
-        : functionSelectors(code);
-      return [file, r];
+      if (mode === 'selectors') {
+        return [file, functionSelectors(code)];
+      } else {
+        const fsel = cfg['filter-selector'] === undefined ? selectors[file] : [cfg['filter-selector']];
+        if (mode === 'arguments') {
+          return [file, Object.fromEntries(fsel.map((s) => [s, functionArguments(code, s)]))];
+        } else {
+          return [file, Object.fromEntries(fsel.map((s) => [s, functionStateMutability(code, s)]))];
+        }
+      }
     }
   )
 );
