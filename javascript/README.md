@@ -9,11 +9,15 @@ The library is built with [wasm-pack](https://rustwasm.github.io/wasm-pack/). To
 ### Web page
 
 You can load evmole directly in a web page using a script module. Here's how to do it:
+<!--
+TODO: fix jsdelivr esm import
+import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole/+esm';
+-->
 ```html
 <div id="selectors"></div>
 
 <script type="module">
-import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole/+esm';
+import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole@0.4.1/dist/evmole.mjs';
 
 const bytecode = '0x6080...'; // Replace with actual bytecode
 document.getElementById('selectors').textContent = functionSelectors(bytecode);
