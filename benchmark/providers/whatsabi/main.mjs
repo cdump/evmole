@@ -9,18 +9,32 @@ if (argv.length < 5) {
 }
 
 const mode = argv[2];
-if (mode != 'selectors') {
-  console.log('Only "selectors" mode supported, got ', mode)
+if (mode != 'selectors' && mode != 'mutability') {
+  console.log('Only "selectors" and "mutability" modes are supported, got ', mode)
   process.exit(1)
 }
 const indir = argv[3];
 const outfile = argv[4];
 
+const selectors = mode === 'selectors' ? {} : JSON.parse(readFileSync(argv[5]));
+
+function extract(code, mode, fname) {
+  if (mode == 'selectors') {
+    return whatsabi.selectorsFromBytecode(code).map(x => x.slice(2)); // remove '0x' prefix
+  } else { // mutability
+    const abi = whatsabi.abiFromBytecode(code);
+    const smut = Object.fromEntries(abi.filter((v) => v.type == 'function').map((v) => [v.selector, v.stateMutability]));
+    return Object.fromEntries(selectors[fname].map((s) => {
+      return [s, smut[`0x${s}`] || 'selnotfound'];
+    }));
+  }
+}
+
 const res = Object.fromEntries(
   readdirSync(indir).map(
     file => [
       file,
-      whatsabi.selectorsFromBytecode(JSON.parse(readFileSync(`${indir}/${file}`))['code']).map(x => x.slice(2)) // remove '0x' prefix
+      extract(JSON.parse(readFileSync(`${indir}/${file}`))['code'], mode, file)
     ]
   )
 );

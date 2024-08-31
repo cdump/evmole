@@ -137,9 +137,9 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Time</i></td>
   <td>0.4s · 0.8s · 0.6s</td>
   <td>2.9s</td>
-  <td>37.6s<sup>(*)</sup></td>
+  <td>38s<sup>(*)</sup></td>
   <td>0.5s</td>
-  <td>341.3s<sup>(*)</sup></td>
+  <td>341s<sup>(*)</sup></td>
   <td>1.8s</td>
  </tr>
  <tr><td colspan="8"></td></tr>
@@ -182,12 +182,12 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>4.5s · 11.7s · 10.0s</td>
-  <td>49.3s</td>
+  <td>4.5s · 12s · 10s</td>
+  <td>49s</td>
   <td>1427s<sup>(*)</sup></td>
   <td>5.8s</td>
   <td>8576s<sup>(*)</sup></td>
-  <td>49.2s</td>
+  <td>49s</td>
  </tr>
  <tr><td colspan="8"></td></tr>
  <tr>
@@ -231,9 +231,9 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Time</i></td>
   <td>0.4s · 0.7s · 0.5s</td>
   <td>2.2s</td>
-  <td>60.0s<sup>(*)</sup></td>
+  <td>60s<sup>(*)</sup></td>
   <td>0.4s</td>
-  <td>27.4s<sup>(*)</sup></td>
+  <td>27s<sup>(*)</sup></td>
   <td>1.1s</td>
  </tr>
 </table>
@@ -247,32 +247,32 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td></td>
   <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
-  <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
+  <td><a href="benchmark/providers/simple/"><b><i>smpl</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>14.0%, 3417 🥇</td>
-  <td>31.1%, 7593</td>
-  <td>58.3%, 14242</td>
+  <td>14.0% 🥇<br><sub>3417</sub></td>
+  <td>31.1%<br><sub>7593</sub></td>
+  <td>58.3%<br><sub>14242</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>1.0s · 8.3s · 3.5s</td>
-  <td>341.6s<sup>(*)</sup></td>
+  <td>342s<sup>(*)</sup></td>
   <td>0.7s</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>4.5%, 52777 🥇</td>
-  <td>19.4%, 227612</td>
-  <td>54.9%, 643213</td>
+  <td>4.5% 🥇<br><sub>52777</sub></td>
+  <td>19.4%<br><sub>227612</sub></td>
+  <td>54.9%<br><sub>643213</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>22.9s · 262.7s · 103.8s</td>
+  <td>23s · 263s · 104s</td>
   <td>8544s<sup>(*)</sup></td>
   <td>9.7s</td>
  </tr>
@@ -280,14 +280,14 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>49.6%, 10544 🥇</td>
-  <td>100.0%, 21244</td>
-  <td>56.8%, 12077</td>
+  <td>49.6% 🥇<br><sub>10544</sub></td>
+  <td>100.0%<br><sub>21244</sub></td>
+  <td>56.8%<br><sub>12077</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>0.7s · 5.2s · 2.2s</td>
-  <td>28.2s<sup>(*)</sup></td>
+  <td>28s<sup>(*)</sup></td>
   <td>0.5s</td>
  </tr>
 </table>
@@ -303,83 +303,93 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>Dataset</td>
   <td></td>
   <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
+  <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
   <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
-  <td><a href="benchmark/providers/simple/"><b><i>simple</i></b></a></td>
+  <td><a href="benchmark/providers/simple/"><b><i>smpl</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="3"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>0.0%, 0 🥇</td>
-  <td>2.1%, 501</td>
-  <td>25.4%, 6201</td>
-  <td>2.6%, 643</td>
+  <td>0.0% 🥇<br><sub>0</sub></td>
+  <td>68.1%<br><sub>16623</sub></td>
+  <td>2.1%<br><sub>501</sub></td>
+  <td>25.4%<br><sub>6201</sub></td>
+  <td>2.6%<br><sub>643</sub></td>
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
-  <td>19.3%, 4718 🥇</td>
-  <td>59.0%, 14417</td>
-  <td>54.9%, 13403</td>
-  <td>60.9%, 14864</td>
+  <td>19.3% 🥇<br><sub>4718</sub></td>
+  <td>79.3%<br><sub>19370</sub></td>
+  <td>59.0%<br><sub>14417</sub></td>
+  <td>54.9%<br><sub>13403</sub></td>
+  <td>60.9%<br><sub>14864</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>7.9s · 17.3s · 10.1s</td>
-  <td>37.4s<sup>(*)</sup></td>
-  <td>339.1s<sup>(*)</sup></td>
+  <td>7.9s · 17s · 10s</td>
+  <td>3.7s</td>
+  <td>37s<sup>(*)</sup></td>
+  <td>339s<sup>(*)</sup></td>
   <td>0.7s</td>
  </tr>
- <tr><td colspan="7"></td></tr>
+ <tr><td colspan="6"></td></tr>
  <tr>
   <td rowspan="3"><b>random50k</b><br><sub>1160861<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>0.0%, 35 🥇</td>
-  <td>0.3%, 3887</td>
-  <td>11.6%, 134195</td>
-  <td>2.2%, 24961</td>
+  <td>0.0% 🥇<br><sub>35</sub></td>
+  <td>30.2%<br><sub>351060</sub></td>
+  <td>0.3%<br><sub>3887</sub></td>
+  <td>11.6%<br><sub>134195</sub></td>
+  <td>2.2%<br><sub>24961</sub></td>
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
-  <td>6.8%, 78676 🥇</td>
-  <td>55.7%, 647070</td>
-  <td>27.7%, 321494</td>
-  <td>57.7%, 670318</td>
+  <td>6.8% 🥇<br><sub>78676</sub></td>
+  <td>58.1%<br><sub>674922</sub></td>
+  <td>55.7%<br><sub>647070</sub></td>
+  <td>27.7%<br><sub>321494</sub></td>
+  <td>57.7%<br><sub>670318</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>225.8s · 523.1s · 309.1s</td>
-  <td>1708.9s<sup>(*)</sup></td>
-  <td>8151.0s<sup>(*)</sup></td>
+  <td>226s · 523s · 309s</td>
+  <td>80s</td>
+  <td>1709s<sup>(*)</sup></td>
+  <td>8151s<sup>(*)</sup></td>
   <td>9.4s</td>
  </tr>
- <tr><td colspan="7"></td></tr>
+ <tr><td colspan="6"></td></tr>
  <tr>
   <td rowspan="3"><b>vyper</b><br><sub>21166<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>0.5%, 110 🥇</td>
-  <td>77.8%, 16462</td>
-  <td>100.0%, 21166</td>
-  <td>1.8%, 390</td>
+  <td>0.5% 🥇<br><sub>110</sub></td>
+  <td>100.0%<br><sub>21166</sub></td>
+  <td>77.8%<br><sub>16462</sub></td>
+  <td>100.0%<br><sub>21166</sub></td>
+  <td>1.8%<br><sub>390</sub></td>
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
-  <td>11.4%, 2410 🥇</td>
-  <td>91.0%, 19253</td>
-  <td>100.0%, 21166</td>
-  <td>59.6%, 12610</td>
+  <td>11.4% 🥇<br><sub>2410</sub></td>
+  <td>100.0%<br><sub>21166</sub></td>
+  <td>91.0%<br><sub>19253</sub></td>
+  <td>100.0%<br><sub>21166</sub></td>
+  <td>59.6%<br><sub>12610</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>3.7s · 8.7s · 5.1s</td>
-  <td>59.3s<sup>(*)</sup></td>
-  <td>28.1s<sup>(*)</sup></td>
+  <td>2.2s</td>
+  <td>59s<sup>(*)</sup></td>
+  <td>28s<sup>(*)</sup></td>
   <td>0.6s</td>
  </tr>
 </table>
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole master (01e2a8d0); <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.19; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
+<i>versions: evmole master (fc4274e4); <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.19; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 

@@ -35,6 +35,10 @@ def process_selectors(dname: str, providers: list[str], results_dir: str):
     return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
 
 
+def format_time(val: float) -> str:
+    return f'{val:.1f}s' if val < 10 else f'{val:.0f}s'
+
+
 def markdown_selectors(providers: list[str], all_results: list):
     print('<table>')
     print(' <tr>')
@@ -75,7 +79,7 @@ def markdown_selectors(providers: list[str], all_results: list):
         print(' <tr>')
         print('  <td><i>Time</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
-            print(f'  <td>{dataset_result["timings"][idx]:.1f}s</td>')
+            print(f'  <td>{format_time(dataset_result["timings"][idx])}</td>')
         print(' </tr>')
         if dataset_idx != len(all_results) - 1:
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
@@ -97,19 +101,19 @@ def markdown_arguments_or_mutability(providers: list[str], all_results: list, se
         print('  <td><i>Errors</i></td>')
         for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
             bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
-            print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%, {bad_fn}</td>')
+            print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%<br><sub>{bad_fn}</sub></td>')
         print(' </tr>')
         if second_results is not None:
             print(' <tr>')
             print('  <td><i>Errors 2nd</i></td>')
             for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
                 bad_fn = sum(1 - y['data'][provider_idx][0] for x in second_results[dataset_idx]['results'] for y in x['func'])
-                print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%, {bad_fn}</td>')
+                print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%<br><sub>{bad_fn}</sub></td>')
             print(' </tr>')
         print(' <tr>')
         print('  <td><i>Time</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
-            print(f'  <td>{dataset_result["timings"][idx]:.1f}s</td>')
+            print(f'  <td>{format_time(dataset_result["timings"][idx])}</td>')
         print(' </tr>')
         if dataset_idx != len(all_results) - 1:
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
