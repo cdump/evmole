@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EVMole Demo</title>
-  <script src="//cdn.jsdelivr.net/npm/vue@3.4.27/dist/vue.global.prod.js"></script>
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/element-plus@2.7.4/dist/index.css" />
-  <script src="//cdn.jsdelivr.net/npm/element-plus@2.7.4/dist/index.full.min.js"></script>
-  <script src="//cdn.jsdelivr.net/npm/evmole@0.3.8"></script>
+  <script src="//cdn.jsdelivr.net/npm/vue@3.4.38/dist/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/element-plus@2.8.1/dist/index.css" />
+  <script src="//cdn.jsdelivr.net/npm/element-plus@2.8.1/dist/index.full.min.js"></script>
 <style>
 body {
   font-family: Monospace;
@@ -21,8 +20,7 @@ p, h1 {
 }
 .signature {
   display: flex;
-  padding-bottom: 10px;
-  padding-right: 30px;
+  padding-right: 1.5em;
 }
 .lookup{
   display: flex;
@@ -30,7 +28,13 @@ p, h1 {
 }
 .local_lookup {
   display: flex;
+  align-items: center;
   color: #000a7a;
+}
+.mutability {
+  padding-left: 0.5em;
+  font-size: 0.9em;
+  color: #888899;
 }
 .remote_lookup {
   display: flex;
@@ -49,7 +53,10 @@ p, h1 {
   font-size: 0.5em;
   display: flex;
   align-items: center;
-  padding-right: 10px;
+  padding-right: 1em;
+}
+.local_lookup .label {
+  padding-left: 2em;
 }
 </style>
 </head>
@@ -58,11 +65,11 @@ p, h1 {
       <h1>EVMole demo</h1>
 
       <p>
-        Function Selector & Arguments Extractor: <a href="https://github.com/cdump/evmole" target="_blank">cdump/evmole</a> (v0.3.8)
+        Function selectors, arguments & mutability: <a href="https://github.com/cdump/evmole" target="_blank">cdump/evmole</a> (v0.4.1)
       </p>
 
       <p>
-        Function Signature Database: <a href="https://openchain.xyz/signatures" target="_blank">openchain.xyz</a> | RPC: <a href="https://1rpc.io" target="_blank">1rpc.io</a>
+        Function signature database: <a href="https://openchain.xyz/signatures" target="_blank">openchain.xyz</a> | RPC: <a href="https://1rpc.io" target="_blank">1rpc.io</a>
       </p>
 
       <br>
@@ -101,7 +108,7 @@ p, h1 {
         <div class="function">
           <div class="signature">{{item}}</div>
           <div class="lookup">
-            <div class="local_lookup"><div class="label">&nbsp;&nbsp;&nbsp;evmole:</div>{{'&nbsp;'.repeat((remote_lookup[item] || '(').indexOf('('))}}({{local_lookup[item] || ''}})</div>
+              <div class="local_lookup"><div class="label">evmole:</div>{{'&nbsp;'.repeat((remote_lookup[item] || '(').indexOf('('))}}({{local_lookup[item]?.arguments || ''}})<div class="mutability">{{local_lookup[item]?.mutability || ''}}</div></div>
 
             <el-skeleton v-if="lookup_loading" class="name">
               <template #template>
@@ -115,7 +122,9 @@ p, h1 {
         </template>
       </div>
   </div>
-<script>
+<script type="module">
+import {functionSelectors, functionArguments, functionStateMutability} from 'https://cdn.jsdelivr.net/npm/evmole@0.4.1/dist/evmole.mjs';
+
 const {ref, reactive, watch, nextTick, createApp} = Vue
 const {ElNotification} = ElementPlus
 createApp({
@@ -200,11 +209,10 @@ createApp({
         return;
       }
       const codeHex = code.value.trim();
-      const s = evmole.functionSelectors(codeHex).map((v) => `0x${v}`).sort();
+      const s = functionSelectors(codeHex).map((v) => `0x${v}`).sort();
       selectors.value = s;
 
-      const args = Object.fromEntries(s.map((s) => [s, evmole.functionArguments(codeHex, s)]));
-      local_lookup.value = args;
+      local_lookup.value = Object.fromEntries(s.map((s) => [s, {arguments: functionArguments(codeHex, s), mutability: functionStateMutability(codeHex, s)}]));
 
       if (s.length > 0) {
         lookup_loading.value = true;
