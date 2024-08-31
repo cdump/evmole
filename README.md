@@ -389,7 +389,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole master (fc4274e4); <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.19; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
+<i>versions: evmole v0.4.0; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.6.19; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 

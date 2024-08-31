@@ -168,13 +168,13 @@ jobs:
       - name: Publish rust
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
-        run: cargo publish --allow-dirty --dry-run
+        run: cargo publish --allow-dirty
 
       - name: Publish javascript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         working-directory: javascript
-        run: npm publish --provenance --dry-run *.tgz
+        run: npm publish --provenance *.tgz
 
       - name: Publish python
         env:
@@ -182,4 +182,4 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
           pip install twine
-          twine upload -r testpypi ./dist-py/* || true
+          twine upload ./dist-py/*
