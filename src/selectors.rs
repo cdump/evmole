@@ -4,7 +4,7 @@ use crate::evm::{
     Element, U256, VAL_0_B, VAL_1_B,
 };
 use crate::Selector;
-
+use alloy_primitives::uint;
 use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -14,7 +14,7 @@ enum Label {
     MulSig,
 }
 
-const VAL_FFFFFFFF_B: [u8; 32] = ruint::uint!(0xffffffff_U256).to_be_bytes();
+const VAL_FFFFFFFF_B: [u8; 32] = uint!(0xffffffff_U256).to_be_bytes();
 
 fn analyze(
     vm: &mut Vm<Label>,
@@ -161,7 +161,10 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
     let vm = Vm::<Label>::new(
         code,
         Element {
-            data: [0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            data: [
+                0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0,
+            ],
             label: Some(Label::CallData),
         },
     );

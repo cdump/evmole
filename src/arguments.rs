@@ -13,10 +13,11 @@ use std::{
     cmp::max,
     collections::{BTreeMap, BTreeSet},
 };
+use alloy_primitives::uint;
 
-const VAL_2: U256 = ruint::uint!(2_U256);
-const VAL_31_B: [u8; 32] = ruint::uint!(31_U256).to_be_bytes();
-const VAL_131072_B: [u8; 32] = ruint::uint!(131072_U256).to_be_bytes();
+const VAL_2: U256 = uint!(2_U256);
+const VAL_31_B: [u8; 32] = uint!(31_U256).to_be_bytes();
+const VAL_131072_B: [u8; 32] = uint!(131072_U256).to_be_bytes();
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Val {
@@ -681,8 +682,8 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
 #[cfg(test)]
 mod test {
     use crate::function_selectors;
-
     use super::function_arguments;
+    use alloy_primitives::hex;
 
     #[test]
     fn test_code_offset_buffer() {

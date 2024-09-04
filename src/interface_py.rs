@@ -1,8 +1,8 @@
-use std::borrow::Cow;
-
+use alloy_primitives::hex;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyString};
+use std::borrow::Cow;
 
 fn input_to_bytes<'a>(code: &'a Bound<'a, PyAny>) -> PyResult<Cow<'a, [u8]>> {
     if let Ok(s) = code.downcast::<PyString>() {
@@ -10,7 +10,7 @@ fn input_to_bytes<'a>(code: &'a Bound<'a, PyAny>) -> PyResult<Cow<'a, [u8]>> {
             .to_str()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
-        let v = hex::decode(strip_hex_prefix(str_slice))
+        let v = hex::decode(str_slice)
             .map_err(|e| PyValueError::new_err(format!("failed to parse hex: {}", e)))?;
         Ok(Cow::Owned(v))
     } else if let Ok(b) = code.downcast::<PyBytes>() {
@@ -20,10 +20,6 @@ fn input_to_bytes<'a>(code: &'a Bound<'a, PyAny>) -> PyResult<Cow<'a, [u8]>> {
             "input should be 'str' (hex) or 'bytes'",
         ))
     }
-}
-
-fn strip_hex_prefix(s: &str) -> &str {
-    s.strip_prefix("0x").unwrap_or(s)
 }
 
 /// Extracts function selectors from the given bytecode.
@@ -101,11 +97,10 @@ fn function_state_mutability(
         <[u8; 4]>::try_from(selectors_ref).expect("len checked above")
     };
 
-    Ok(crate::state_mutability::function_state_mutability(
-        &code_bytes,
-        &sel,
-        gas_limit,
-    ).to_string())
+    Ok(
+        crate::state_mutability::function_state_mutability(&code_bytes, &sel, gas_limit)
+            .to_string(),
+    )
 }
 
 #[pymodule]

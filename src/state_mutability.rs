@@ -7,6 +7,7 @@ use crate::{
     utils::execute_until_function_start,
     Selector,
 };
+use alloy_primitives::uint;
 
 const fn create_opcode_lookup_table<const N: usize>(ops: [op::OpCode; N]) -> [bool; 256] {
     let mut res = [false; 256];
@@ -96,7 +97,7 @@ fn analyze_payable(mut vm: Vm<Label>, gas_limit: u32, call_value: u32) -> (bool,
             StepResult{op: op::CALLDATASIZE, ..} =>
             {
                 if let Ok(s) = vm.stack.peek_mut() {
-                    s.data = ruint::uint!(131072_U256).to_be_bytes();
+                    s.data = uint!(131072_U256).to_be_bytes();
                 } else {
                     break; // error
                 }
@@ -161,7 +162,7 @@ fn analyze_view_pure_internal(
         match ret.op {
             op::CALLDATASIZE => {
                 if let Ok(s) = vm.stack.peek_mut() {
-                    s.data = ruint::uint!(131072_U256).to_be_bytes();
+                    s.data = uint!(131072_U256).to_be_bytes();
                 } else {
                     break; // error
                 }

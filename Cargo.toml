@@ -9,23 +9,19 @@ readme = "README.md"
 repository = "https://github.com/cdump/evmole"
 exclude = ["/javascript", "/python", "/benchmark", "/.github"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-ruint = "1.12.3"
-hex = { version = "0.4.3", optional = true }
+alloy-primitives = "0.8"
+alloy-dyn-abi = "0.8"
+
 pyo3 = { version = "0.22.2", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
-alloy-dyn-abi = {version = "0.7"}
-
-[dev-dependencies]
-hex = "0.4.3"
 
 [features]
+python = ["dep:pyo3"]
+javascript = ["dep:wasm-bindgen"]
+
 # for dev
 trace = []
-python = ["dep:hex", "dep:pyo3"]
-javascript = ["dep:hex", "dep:wasm-bindgen"]
 
 [lib]
 crate-type = ["cdylib", "lib"]

@@ -1,25 +1,27 @@
+use alloy_primitives::uint;
+
 pub mod memory;
 pub mod op;
 pub mod stack;
 pub mod vm;
 
-pub use ruint::aliases::U256;
+pub use alloy_primitives::U256;
 
 pub const VAL_0_B: [u8; 32] = U256::ZERO.to_be_bytes();
 
-pub const VAL_1: U256 = ruint::uint!(1_U256);
+pub const VAL_1: U256 = uint!(1_U256);
 pub const VAL_1_B: [u8; 32] = VAL_1.to_be_bytes();
 
-pub const VAL_4: U256 = ruint::uint!(4_U256);
+pub const VAL_4: U256 = uint!(4_U256);
 
-pub const VAL_32: U256 = ruint::uint!(32_U256);
+pub const VAL_32: U256 = uint!(32_U256);
 pub const VAL_32_B: [u8; 32] = VAL_32.to_be_bytes();
 
-pub const VAL_256: U256 = ruint::uint!(256_U256);
+pub const VAL_256: U256 = uint!(256_U256);
 
-pub const VAL_1024: U256 = ruint::uint!(1024_U256);
+pub const VAL_1024: U256 = uint!(1024_U256);
 
-pub const VAL_1M: U256 = ruint::uint!(1000000_U256);
+pub const VAL_1M: U256 = uint!(1000000_U256);
 
 #[derive(Clone)]
 pub struct Element<T> {
