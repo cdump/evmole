@@ -20,6 +20,7 @@ mod utils;
 pub mod selectors;
 
 pub type Selector = [u8; 4];
+pub type StateMutability = alloy_dyn_abi::parser::StateMutability;
 
 #[cfg(feature = "python")]
 mod interface_py;

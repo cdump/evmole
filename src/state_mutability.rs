@@ -5,9 +5,9 @@ use crate::{
         Element, U256,
     },
     utils::execute_until_function_start,
+    StateMutability,
     Selector,
 };
-use alloy_dyn_abi::parser::StateMutability;
 use alloy_primitives::uint;
 
 const fn create_opcode_lookup_table<const N: usize>(ops: [op::OpCode; N]) -> [bool; 256] {
@@ -219,19 +219,10 @@ fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
 /// * `selector` - A function selector
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
 ///
-/// # Return value
-///
-/// Returns a [StateMutability](alloy_dyn_abi::parser::StateMutability) enum variant indicating the function's state mutability:
-/// - [StateMutability::Payable](alloy_dyn_abi::parser::StateMutability::Payable)
-/// - [StateMutability::NonPayable](alloy_dyn_abi::parser::StateMutability::NonPayable)
-/// - [StateMutability::View](alloy_dyn_abi::parser::StateMutability::View)
-/// - [StateMutability::Pure](alloy_dyn_abi::parser::StateMutability::Pure)
-///
 /// # Examples
 ///
 /// ```
-/// use evmole::function_state_mutability;
-/// use alloy_dyn_abi::parser::StateMutability;
+/// use evmole::{function_state_mutability, StateMutability};
 /// use alloy_primitives::hex;
 ///
 /// let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256").unwrap();
