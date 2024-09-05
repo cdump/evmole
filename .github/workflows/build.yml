@@ -1,14 +1,18 @@
 name: build
 
-on: push
+on:
+  push:
+  pull_request:
 
 jobs:
   rust-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Test
-        run: cargo test
+      - name: Test and Clippy
+        run: |
+          cargo test
+          cargo clippy --all-features -- -D warnings
 
   javascript:
     runs-on: ubuntu-latest
