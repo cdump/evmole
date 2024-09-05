@@ -99,6 +99,7 @@ fn function_state_mutability(
 
     Ok(
         crate::state_mutability::function_state_mutability(&code_bytes, &sel, gas_limit)
+            .as_json_str()
             .to_string(),
     )
 }
