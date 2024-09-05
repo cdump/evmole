@@ -185,9 +185,7 @@ jobs:
         run: npm publish --provenance *.tgz
 
       - name: Publish python
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          pip install twine
-          twine upload ./dist-py/*
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+          packages-dir: dist-py/
