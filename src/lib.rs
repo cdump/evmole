@@ -6,7 +6,6 @@ pub use arguments::function_arguments;
 pub use arguments::function_arguments_alloy;
 pub use selectors::function_selectors;
 pub use state_mutability::function_state_mutability;
-pub use state_mutability::StateMutability;
 
 #[doc(hidden)]
 pub mod arguments;
