@@ -221,11 +221,11 @@ fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
 ///
 /// # Return value
 ///
-/// Returns a `StateMutability` enum variant indicating the function's state mutability:
-/// - `StateMutability::Payable`
-/// - `StateMutability::NonPayable`
-/// - `StateMutability::View`
-/// - `StateMutability::Pure`
+/// Returns a [StateMutability](alloy_dyn_abi::parser::StateMutability) enum variant indicating the function's state mutability:
+/// - [StateMutability::Payable](alloy_dyn_abi::parser::StateMutability::Payable)
+/// - [StateMutability::NonPayable](alloy_dyn_abi::parser::StateMutability::NonPayable)
+/// - [StateMutability::View](alloy_dyn_abi::parser::StateMutability::View)
+/// - [StateMutability::Pure](alloy_dyn_abi::parser::StateMutability::Pure)
 ///
 /// # Examples
 ///
