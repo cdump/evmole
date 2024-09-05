@@ -209,6 +209,16 @@ fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
     ret
 }
 
+/// The state mutability of a function
+/// Refer to https://docs.soliditylang.org/en/latest/contracts.html#state-mutability
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum StateMutability {
+    Payable,
+    NonPayable,
+    View,
+    Pure,
+}
+
 /// Extracts function state mutability
 ///
 /// # Arguments
@@ -218,12 +228,17 @@ fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
 ///
 /// # Return value
-/// `payable` | `nonpayable` | `view` | `pure`
+///
+/// Returns a `StateMutability` enum variant indicating the function's state mutability:
+/// - `StateMutability::Payable`
+/// - `StateMutability::NonPayable`
+/// - `StateMutability::View`
+/// - `StateMutability::Pure`
 ///
 /// # Examples
 ///
 /// ```
-/// use evmole::function_state_mutability;
+/// use evmole::{function_state_mutability, StateMutability};
 /// use alloy_primitives::hex;
 ///
 /// let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256").unwrap();
@@ -231,9 +246,9 @@ fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
 ///
 /// let state_mutability = function_state_mutability(&code, &selector, 0);
 ///
-/// assert_eq!(state_mutability, "pure");
+/// assert_eq!(state_mutability, StateMutability::Pure);
 /// ```
-pub fn function_state_mutability(code: &[u8], selector: &Selector, gas_limit: u32) -> &'static str {
+pub fn function_state_mutability(code: &[u8], selector: &Selector, gas_limit: u32) -> StateMutability {
     let mut cd: [u8; 32] = [0; 32];
     cd[0..4].copy_from_slice(selector);
     let vm = Vm::<Label>::new(
@@ -252,16 +267,16 @@ pub fn function_state_mutability(code: &[u8], selector: &Selector, gas_limit: u3
 
     let (is_payable, gas_used) = analyze_payable(vm.clone(), real_gas_limit / 2, 1);
     if is_payable {
-        "payable"
+        StateMutability::Payable
     } else {
         let gas_remaining = real_gas_limit - gas_used.min(real_gas_limit / 2);
         let vpr = analyze_view_pure(vm, gas_remaining);
         if vpr.pure {
-            "pure"
+            StateMutability::Pure
         } else if vpr.view {
-            "view"
+            StateMutability::View
         } else {
-            "nonpayable"
+            StateMutability::NonPayable
         }
     }
 }
