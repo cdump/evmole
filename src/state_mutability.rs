@@ -53,7 +53,7 @@ const OP_NOT_PURE: [bool; 256] = create_opcode_lookup_table([
     op::TIMESTAMP,
 ]);
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Label {
     CallValue,
     IsZero,

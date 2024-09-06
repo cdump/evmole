@@ -7,7 +7,7 @@ use crate::Selector;
 use alloy_primitives::uint;
 use std::collections::BTreeSet;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Label {
     CallData,
     Signature,

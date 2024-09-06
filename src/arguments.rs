@@ -19,7 +19,7 @@ const VAL_2: U256 = uint!(2_U256);
 const VAL_31_B: [u8; 32] = uint!(31_U256).to_be_bytes();
 const VAL_131072_B: [u8; 32] = uint!(131072_U256).to_be_bytes();
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Val {
     offset: u32,
     path: Vec<u32>,
@@ -27,7 +27,7 @@ struct Val {
     and_mask: Option<U256>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Label {
     CallData,
     Arg(Val),

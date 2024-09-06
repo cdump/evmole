@@ -23,7 +23,7 @@ pub const VAL_1024: U256 = uint!(1024_U256);
 
 pub const VAL_1M: U256 = uint!(1000000_U256);
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Element<T> {
     pub data: [u8; 32],
     pub label: Option<T>,

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, error, fmt};
+use std::{error, fmt};
 
 use super::{memory::Memory, op, stack::Stack, Element, U256};
 use super::{VAL_0_B, VAL_1, VAL_1024, VAL_1M, VAL_1_B, VAL_256, VAL_32, VAL_4};
@@ -20,7 +20,7 @@ pub struct StepResult<T> {
     pub gas_used: u32,
     pub fa: Option<Element<T>>,
     pub sa: Option<Element<T>>,
-    pub ul: Option<HashSet<T>>,
+    pub ul: Option<Vec<T>>,
 }
 
 impl<T> StepResult<T> {
@@ -70,7 +70,7 @@ where
 
 impl<'a, T> Vm<'a, T>
 where
-    T: std::fmt::Debug + Clone + Eq + std::hash::Hash,
+    T: std::fmt::Debug + Clone + Eq,
 {
     pub fn new(code: &'a [u8], calldata: Element<T>) -> Self {
         Self {
@@ -294,10 +294,11 @@ where
             }),
 
             op::KECCAK256 => {
-                self.stack.pop()?;
-                self.stack.pop()?;
+                let mut ret = StepResult::new(op, 30);
+                ret.fa = Some(self.stack.pop()?); // offset
+                ret.sa = Some(self.stack.pop()?); // size
                 self.stack.push_uint(VAL_1);
-                Ok(StepResult::new(op, 30))
+                Ok(ret)
             }
 
             op::ADDRESS
@@ -461,19 +462,16 @@ where
             }
 
             op::SLOAD => {
-                let slot = self.stack.pop()?;
                 let mut ret = StepResult::new(op, 100);
-                ret.fa = Some(slot);
+                ret.fa = Some(self.stack.pop()?); // slot
                 self.stack.push_uint(U256::ZERO);
                 Ok(ret)
             }
 
             op::SSTORE => {
-                let slot = self.stack.pop()?;
-                let sval = self.stack.pop()?;
                 let mut ret = StepResult::new(op, 100);
-                ret.fa = Some(slot);
-                ret.sa = Some(sval);
+                ret.fa = Some(self.stack.pop()?); // slot
+                ret.sa = Some(self.stack.pop()?); // value
                 Ok(ret)
             }
 

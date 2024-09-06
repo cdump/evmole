@@ -1,5 +1,5 @@
 use super::Element;
-use std::{collections::HashSet, fmt};
+use std::fmt;
 
 #[derive(Clone)]
 pub struct LabeledVec<T> {
@@ -34,7 +34,7 @@ impl<T: fmt::Debug> fmt::Debug for Memory<T> {
 
 impl<T> Memory<T>
 where
-    T: fmt::Debug + Clone + Eq + std::hash::Hash,
+    T: fmt::Debug + Clone + Eq,
 {
     pub fn new() -> Self {
         Self { data: Vec::new() }
@@ -58,12 +58,12 @@ where
         None
     }
 
-    pub fn load(&self, offset: u32) -> (Element<T>, HashSet<T>) {
+    pub fn load(&self, offset: u32) -> (Element<T>, Vec<T>) {
         let mut r = Element {
             data: [0; 32],
             label: None,
         };
-        let mut used: HashSet<T> = HashSet::new();
+        let mut used: Vec<T> = Vec::new();
 
         #[allow(clippy::needless_range_loop)]
         for idx in 0usize..32 {
@@ -71,7 +71,9 @@ where
             for (off, el) in self.data.iter().rev() {
                 if i >= *off && i < *off + el.data.len() as u32 {
                     if let Some(label) = &el.label {
-                        used.insert(label.clone());
+                        if used.last().map_or(true, |last| last != label) {
+                            used.push(label.clone());
+                        }
                     }
                     // early return if it's one full element
                     if idx == 0 && offset == *off && el.data.len() == 32 {
