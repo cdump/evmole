@@ -456,7 +456,7 @@ fn analyze(
                                 }
 
                                 // simulate arglen = 1
-                                vm.stack.peek_mut()?.data = ot.data; // ==mult.to_be_bytes();
+                                vm.stack.peek_mut()?.data = mult.to_be_bytes();
                             }
                         }
                     }
