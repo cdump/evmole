@@ -55,20 +55,17 @@ fn analyze(
         {
             if op == op::AND && ot.data == VAL_FFFFFFFF_B {
                 vm.stack.peek_mut()?.label = Some(Label::Signature);
-            } else {
-                let ot8: Result<u8, _> = U256::from_be_bytes(ot.data).try_into();
-                if let Ok(ma) = ot8 {
-                    let to = if op == op::MOD { ma } else { ma + 1 };
-                    for m in 1..to {
-                        let mut vm_clone = vm.clone();
-                        vm_clone.stack.peek_mut()?.data = U256::from(m).to_be_bytes();
-                        *gas_used += process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
-                        if *gas_used > gas_limit {
-                            break;
-                        }
+            } else if let Ok(ma) = u8::try_from(ot) {
+                let to = if op == op::MOD { ma } else { ma + 1 };
+                for m in 1..to {
+                    let mut vm_clone = vm.clone();
+                    vm_clone.stack.peek_mut()?.data = U256::from(m).to_be_bytes();
+                    *gas_used += process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
+                    if *gas_used > gas_limit {
+                        break;
                     }
-                    vm.stack.peek_mut()?.data = VAL_0_B;
                 }
+                vm.stack.peek_mut()?.data = VAL_0_B;
             }
         }
 

@@ -2,11 +2,10 @@ use crate::{
     evm::{
         op,
         vm::{StepResult, Vm},
-        Element, U256,
+        Element, U256, VAL_0_B,
     },
     utils::execute_until_function_start,
-    StateMutability,
-    Selector,
+    Selector, StateMutability,
 };
 use alloy_primitives::uint;
 
@@ -112,7 +111,7 @@ fn analyze_payable(mut vm: Vm<Label>, gas_limit: u32, call_value: u32) -> (bool,
 
             StepResult{op: op::REVERT, sa: Some(sa), ..} =>
             {
-                if last_jumpi_callvalue && U256::from_be_bytes(sa.data).is_zero() {
+                if last_jumpi_callvalue && sa.data == VAL_0_B {
                     return (false, gas_used);
                 }
             }
@@ -170,8 +169,7 @@ fn analyze_view_pure_internal(
             }
 
             op::JUMPI => {
-                let other_pc: usize = U256::from_be_bytes(ret.fa.expect("always set in vm.rs").data)
-                    .try_into()
+                let other_pc = usize::try_from(ret.fa.expect("always set in vm.rs"))
                     .expect("set to usize in vm.rs");
 
                 if depth < 8 && gas_used < gas_limit {

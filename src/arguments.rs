@@ -283,9 +283,8 @@ fn analyze(
 
                 args.set_info(&full_path, InfoVal::Dynamic(new_off / 32));
 
-                let mem_offset: u32 = if op == op::CALLDATACOPY {
-                    U256::from_be_bytes(sa.expect("always set for DATACOPY in vm.rs").data)
-                        .try_into()
+                let mem_offset = if op == op::CALLDATACOPY {
+                    u32::try_from(sa.expect("always set for DATACOPY in vm.rs"))
                         .expect("set as u32 in vm.rs")
                 } else {
                     0
@@ -324,8 +323,7 @@ fn analyze(
 
         StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY), fa: Some(el), sa, ..} =>
         {
-            let offr: Result<u32, _> = U256::from_be_bytes(el.data).try_into();
-            if let Ok(off) = offr {
+            if let Ok(off) = u32::try_from(el) {
                 if (4..131072 - 1024).contains(&off) {
                     // -1024: cut 'trustedForwarder'
                     args.get_or_create(&[off - 4]);
@@ -339,9 +337,9 @@ fn analyze(
                     match op {
                         op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
                         op::CALLDATACOPY => {
-                            let mem_offset: u32 = U256::from_be_bytes(sa.expect("always set for DATACOPY in vm.rs").data)
-                                .try_into()
-                                .expect("set as u32 in vm.rs");
+                            let mem_offset =
+                                u32::try_from(sa.expect("always set for DATACOPY in vm.rs"))
+                                    .expect("set as u32 in vm.rs");
                             if let Some(v) = vm.memory.get_mut(mem_offset) {
                                 v.label = new_label;
                             }
@@ -389,8 +387,7 @@ fn analyze(
             {
                 vm.stack.peek_mut()?.data = VAL_0_B; // sub(-1) as add(0xff..ff)
             }
-            let r: Result<u32, _> = (U256::from_be_bytes(ot.data) + U256::from(add_val)).try_into();
-            if let Ok(val) = r {
+            if let Ok(val) = u32::try_from(U256::from_be_bytes(ot.data) + U256::from(add_val)) {
                 vm.stack.peek_mut()?.label = Some(Label::Arg(Val {
                     offset,
                     path,
@@ -407,14 +404,14 @@ fn analyze(
             args.mark_not_bool(&path, 0);
             if let Some(Label::Arg(Val {
                 offset: o1,
-                path: p1,
+                path: ref p1,
                 ..
             })) = ot.label
             {
-                args.mark_not_bool(&p1, o1);
+                args.mark_not_bool(p1, o1);
             }
             if !path.is_empty() {
-                let mut mult = U256::from_be_bytes(ot.data);
+                let mut mult: U256 = ot.into();
                 if op == op::SHL {
                     mult = VAL_1 << mult;
                 }
@@ -485,7 +482,7 @@ fn analyze(
         | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}), fa: Some(ot), ..} =>
         {
             args.mark_not_bool(&path, offset);
-            let mask = U256::from_be_bytes(ot.data);
+            let mask: U256 = ot.into();
             if let Some(t) = and_mask_to_type(mask) {
                 args.set_tname(&path, offset, t, 5);
                 vm.stack.peek_mut()?.label = Some(Label::Arg(Val {
