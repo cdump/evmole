@@ -1,4 +1,4 @@
-use super::Element;
+use super::element::Element;
 use std::fmt;
 
 #[derive(Clone)]

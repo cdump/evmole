@@ -1,11 +1,16 @@
 use crate::evm::{
+    calldata::CallData,
+    element::Element,
     op,
     vm::{StepResult, Vm},
-    Element, U256, VAL_0_B, VAL_1_B,
+    U256, VAL_0_B, VAL_1_B,
 };
 use crate::Selector;
 use alloy_primitives::uint;
 use std::collections::BTreeSet;
+
+mod calldata;
+use calldata::CallDataImpl;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Label {
@@ -17,7 +22,7 @@ enum Label {
 const VAL_FFFFFFFF_B: [u8; 32] = uint!(0xffffffff_U256).to_be_bytes();
 
 fn analyze(
-    vm: &mut Vm<Label>,
+    vm: &mut Vm<Label, CallDataImpl>,
     selectors: &mut BTreeSet<Selector>,
     ret: StepResult<Label>,
     gas_used: &mut u32,
@@ -73,7 +78,7 @@ fn analyze(
         | StepResult{op: op::DIV, fa: Some(Element{label: Some(Label::CallData), ..}), ..} =>
         {
             let v = vm.stack.peek_mut()?;
-            if v.data[28..32] == vm.calldata.data[0..4] {
+            if v.data[28..32] == vm.calldata.selector() {
                 v.label = Some(Label::Signature);
             }
         }
@@ -93,7 +98,7 @@ fn analyze(
         StepResult{op: op::MLOAD, ul: Some(used), ..} =>
         {
             let v = vm.stack.peek_mut()?;
-            if used.contains(&Label::CallData) && v.data[28..32] == vm.calldata.data[0..4] {
+            if used.contains(&Label::CallData) && v.data[28..32] == vm.calldata.selector() {
                 v.label = Some(Label::Signature);
             }
         }
@@ -103,7 +108,11 @@ fn analyze(
     Ok(())
 }
 
-fn process(mut vm: Vm<Label>, selectors: &mut BTreeSet<Selector>, gas_limit: u32) -> u32 {
+fn process(
+    mut vm: Vm<Label, CallDataImpl>,
+    selectors: &mut BTreeSet<Selector>,
+    gas_limit: u32,
+) -> u32 {
     let mut gas_used = 0;
     while !vm.stopped {
         if cfg!(feature = "trace") {
@@ -155,16 +164,7 @@ fn process(mut vm: Vm<Label>, selectors: &mut BTreeSet<Selector>, gas_limit: u32
 /// assert_eq!(selectors, vec![[0x21, 0x25, 0xb6, 0x5b], [0xb6, 0x9e, 0xf8, 0xa8]])
 /// ```
 pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
-    let vm = Vm::<Label>::new(
-        code,
-        Element {
-            data: [
-                0xaa, 0xbb, 0xcc, 0xdd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            ],
-            label: Some(Label::CallData),
-        },
-    );
+    let vm = Vm::new(code, CallDataImpl {});
     let mut selectors = BTreeSet::new();
     process(
         vm,

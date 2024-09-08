@@ -1,13 +1,23 @@
 use crate::{
     evm::{
+        element::Element,
         op,
         vm::{StepResult, Vm},
-        Element, U256, VAL_0_B,
+        U256, VAL_0_B,
     },
     utils::execute_until_function_start,
     Selector, StateMutability,
 };
 use alloy_primitives::uint;
+
+mod calldata;
+use calldata::CallDataImpl;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Label {
+    CallValue,
+    IsZero,
+}
 
 const fn create_opcode_lookup_table<const N: usize>(ops: [op::OpCode; N]) -> [bool; 256] {
     let mut res = [false; 256];
@@ -52,13 +62,11 @@ const OP_NOT_PURE: [bool; 256] = create_opcode_lookup_table([
     op::TIMESTAMP,
 ]);
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum Label {
-    CallValue,
-    IsZero,
-}
-
-fn analyze_payable(mut vm: Vm<Label>, gas_limit: u32, call_value: u32) -> (bool, u32) {
+fn analyze_payable(
+    mut vm: Vm<Label, CallDataImpl>,
+    gas_limit: u32,
+    call_value: u32,
+) -> (bool, u32) {
     let mut gas_used = 0;
     let mut last_jumpi_callvalue = false;
 
@@ -91,7 +99,10 @@ fn analyze_payable(mut vm: Vm<Label>, gas_limit: u32, call_value: u32) -> (bool,
 
             StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::CallValue), ..}), ..} =>
             {
-                vm.stack.peek_mut().expect("results is always pushed in vm.rs").label = Some(Label::IsZero);
+                vm.stack
+                    .peek_mut()
+                    .expect("results is always pushed in vm.rs")
+                    .label = Some(Label::IsZero);
             }
 
             StepResult{op: op::CALLDATASIZE, ..} =>
@@ -128,7 +139,7 @@ struct ViewPureResult {
 }
 
 fn analyze_view_pure_internal(
-    mut vm: Vm<Label>,
+    mut vm: Vm<Label, CallDataImpl>,
     vpr: &mut ViewPureResult,
     gas_limit: u32,
     depth: u32,
@@ -199,7 +210,7 @@ fn analyze_view_pure_internal(
     gas_used
 }
 
-fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
+fn analyze_view_pure(vm: Vm<Label, CallDataImpl>, gas_limit: u32) -> ViewPureResult {
     let mut ret = ViewPureResult {
         view: true,
         pure: true,
@@ -207,7 +218,6 @@ fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
     analyze_view_pure_internal(vm, &mut ret, gas_limit, 0);
     ret
 }
-
 
 /// Extracts function state mutability
 ///
@@ -230,14 +240,17 @@ fn analyze_view_pure(vm: Vm<Label>, gas_limit: u32) -> ViewPureResult {
 ///
 /// assert_eq!(state_mutability, StateMutability::Pure);
 /// ```
-pub fn function_state_mutability(code: &[u8], selector: &Selector, gas_limit: u32) -> StateMutability {
+pub fn function_state_mutability(
+    code: &[u8],
+    selector: &Selector,
+    gas_limit: u32,
+) -> StateMutability {
     let mut cd: [u8; 32] = [0; 32];
     cd[0..4].copy_from_slice(selector);
-    let vm = Vm::<Label>::new(
+    let vm = Vm::new(
         code,
-        Element {
-            data: cd,
-            label: None,
+        CallDataImpl {
+            selector: *selector,
         },
     );
 

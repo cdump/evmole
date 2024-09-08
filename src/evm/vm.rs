@@ -1,7 +1,6 @@
+use super::{calldata::CallData, element::Element, memory::Memory, op, stack::Stack, U256};
+use super::{VAL_0_B, VAL_1, VAL_1024, VAL_1M, VAL_1_B, VAL_256, VAL_32};
 use std::{error, fmt};
-
-use super::{memory::Memory, op, stack::Stack, Element, U256};
-use super::{VAL_0_B, VAL_1, VAL_1024, VAL_1M, VAL_1_B, VAL_256, VAL_32, VAL_4};
 
 #[derive(Debug)]
 pub struct UnsupportedOpError {
@@ -36,21 +35,23 @@ impl<T> StepResult<T> {
 }
 
 #[derive(Clone)]
-pub struct Vm<'a, T>
+pub struct Vm<'a, T, U>
 where
     T: Clone + std::fmt::Debug,
+    U: Clone + CallData<T>,
 {
     pub code: &'a [u8],
     pub pc: usize,
     pub stack: Stack<T>,
     pub memory: Memory<T>,
     pub stopped: bool,
-    pub calldata: Element<T>, // don't have calldata.len > 32
+    pub calldata: U,
 }
 
-impl<'a, T> fmt::Debug for Vm<'a, T>
+impl<'a, T, U> fmt::Debug for Vm<'a, T, U>
 where
     T: Clone + std::fmt::Debug,
+    U: Clone + CallData<T>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -68,16 +69,17 @@ where
     }
 }
 
-impl<'a, T> Vm<'a, T>
+impl<'a, T, U> Vm<'a, T, U>
 where
     T: std::fmt::Debug + Clone + Eq,
+    U: Clone + CallData<T>,
 {
-    pub fn new(code: &'a [u8], calldata: Element<T>) -> Self {
+    pub fn new(code: &'a [u8], calldata: U) -> Self {
         Self {
             code,
             pc: 0,
-            stack: Stack::new(),
-            memory: Memory::new(),
+            stack: Stack::<T>::new(),
+            memory: Memory::<T>::new(),
             stopped: code.is_empty(),
             calldata,
         }
@@ -327,14 +329,14 @@ where
             op::CALLDATALOAD => {
                 let raws0 = self.stack.pop()?;
                 let offset: U256 = (&raws0).into();
-                self.stack.push(self.calldata.load(offset, 32));
+                self.stack.push(self.calldata.load32(offset));
                 let mut ret = StepResult::new(op, 3);
                 ret.fa = Some(raws0);
                 Ok(ret)
             }
 
             op::CALLDATASIZE => {
-                self.stack.push_uint(VAL_4);
+                self.stack.push_uint(self.calldata.len());
                 Ok(StepResult::new(op, 2))
             }
 
@@ -346,24 +348,15 @@ where
                 let raws1 = self.stack.pop()?;
                 let src_off: U256 = (&raws1).into();
 
-                let size: usize = self.stack.pop_uint()?.try_into()?;
+                let size: U256 = self.stack.pop()?.into();
 
-                if size > 512 {
-                    Err(UnsupportedOpError { op }.into())
-                } else {
-                    let value = self.calldata.load(src_off, size);
-                    let mut data: Vec<u8> = vec![0; size];
+                let (data, label) = self.calldata.load(src_off, size)?;
+                self.memory.store(mem_off32, data, label);
 
-                    let l = std::cmp::min(size, 32);
-                    data[0..l].copy_from_slice(&value.data[0..l]);
-
-                    self.memory.store(mem_off32, data, value.label.clone());
-
-                    let mut ret = StepResult::new(op, 4);
-                    ret.fa = Some(raws1); // calldata offset, like in CALLDATALOAD
-                    ret.sa = Some(raws0); // memory off
-                    Ok(ret)
-                }
+                let mut ret = StepResult::new(op, 4);
+                ret.fa = Some(raws1); // calldata offset, like in CALLDATALOAD
+                ret.sa = Some(raws0); // memory off
+                Ok(ret)
             }
 
             op::CODESIZE => {

@@ -1,23 +1,32 @@
-use alloy_dyn_abi::DynSolType;
-
 use crate::{
     evm::{
+        element::Element,
         op,
         vm::{StepResult, Vm},
-        Element, U256, VAL_0_B, VAL_1, VAL_1_B, VAL_32_B,
+        U256, VAL_0_B, VAL_1, VAL_1_B, VAL_32_B,
     },
-    utils::execute_until_function_start,
+    utils::{execute_until_function_start, and_mask_to_type},
     Selector,
 };
+use alloy_dyn_abi::DynSolType;
+use alloy_primitives::uint;
 use std::{
     cmp::max,
     collections::{BTreeMap, BTreeSet},
 };
-use alloy_primitives::uint;
+
+mod calldata;
+use calldata::CallDataImpl;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Label {
+    CallData,
+    Arg(Val),
+    IsZeroResult(Val),
+}
 
 const VAL_2: U256 = uint!(2_U256);
 const VAL_31_B: [u8; 32] = uint!(31_U256).to_be_bytes();
-const VAL_131072_B: [u8; 32] = uint!(131072_U256).to_be_bytes();
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Val {
@@ -25,13 +34,6 @@ struct Val {
     path: Vec<u32>,
     add_val: u32,
     and_mask: Option<U256>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum Label {
-    CallData,
-    Arg(Val),
-    IsZeroResult(Val),
 }
 
 #[derive(PartialEq, Debug)]
@@ -222,46 +224,12 @@ impl ArgsResult {
     }
 }
 
-fn and_mask_to_type(mask: U256) -> Option<DynSolType> {
-    if mask.is_zero() {
-        return None;
-    }
-
-    if (mask & (mask + VAL_1)).is_zero() {
-        // 0x0000ffff
-        let bl = mask.bit_len();
-        if bl % 8 == 0 {
-            return Some(if bl == 160 {
-                DynSolType::Address
-            } else {
-                DynSolType::Uint(bl)
-            });
-        }
-    } else {
-        // 0xffff0000
-        let mask = U256::from_le_bytes(mask.to_be_bytes() as [u8; 32]);
-        if (mask & (mask + VAL_1)).is_zero() {
-            let bl = mask.bit_len();
-            if bl % 8 == 0 {
-                return Some(DynSolType::FixedBytes(bl / 8));
-            }
-        }
-    }
-    None
-}
-
 fn analyze(
-    vm: &mut Vm<Label>,
+    vm: &mut Vm<Label, CallDataImpl>,
     args: &mut ArgsResult,
     ret: StepResult<Label>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ret {
-        StepResult{op: op::CALLDATASIZE, ..} =>
-        {
-            let v = vm.stack.peek_mut()?;
-            v.data = VAL_131072_B;
-        }
-
         StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),  fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, ..})), ..}), sa, ..} =>
         {
             if add_val >= 4 && (add_val - 4) % 32 == 0 {
@@ -325,6 +293,7 @@ fn analyze(
         {
             if let Ok(off) = u32::try_from(el) {
                 if (4..131072 - 1024).contains(&off) {
+                    // 131072 is constant from ./calldata.rs
                     // -1024: cut 'trustedForwarder'
                     args.get_or_create(&[off - 4]);
 
@@ -559,7 +528,6 @@ fn analyze(
     Ok(())
 }
 
-
 /// Extracts function arguments and returns them as Alloy types
 ///
 /// # Arguments
@@ -593,13 +561,10 @@ pub fn function_arguments_alloy(
             selector[0], selector[1], selector[2], selector[3]
         );
     }
-    let mut cd: [u8; 32] = [0; 32];
-    cd[0..4].copy_from_slice(selector);
-    let mut vm = Vm::<Label>::new(
+    let mut vm = Vm::new(
         code,
-        Element {
-            data: cd,
-            label: Some(Label::CallData),
+        CallDataImpl {
+            selector: *selector,
         },
     );
     let mut args = ArgsResult::new();
@@ -677,9 +642,9 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> S
 }
 
 #[cfg(test)]
-mod test {
-    use crate::function_selectors;
+mod tests {
     use super::function_arguments;
+    use crate::function_selectors;
     use alloy_primitives::hex;
 
     #[test]

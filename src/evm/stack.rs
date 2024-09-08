@@ -1,6 +1,5 @@
+use super::{element::Element, U256};
 use std::fmt;
-
-use super::{Element, U256};
 
 #[derive(Clone)]
 pub struct Stack<T> {

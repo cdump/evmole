@@ -52,5 +52,9 @@ pub fn function_state_mutability(
 ) -> Result<String, JsError> {
     let c = decode_hex_code(code)?;
     let s = decode_hex_selector(selector)?;
-    Ok(crate::state_mutability::function_state_mutability(&c, &s, gas_limit).as_json_str().to_string())
+    Ok(
+        crate::state_mutability::function_state_mutability(&c, &s, gas_limit)
+            .as_json_str()
+            .to_string(),
+    )
 }

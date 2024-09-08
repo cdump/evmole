@@ -7,17 +7,11 @@ pub use arguments::function_arguments_alloy;
 pub use selectors::function_selectors;
 pub use state_mutability::function_state_mutability;
 
-#[doc(hidden)]
-pub mod arguments;
-
-#[doc(hidden)]
-pub mod state_mutability;
-
+mod arguments;
 mod evm;
+mod selectors;
+mod state_mutability;
 mod utils;
-
-#[doc(hidden)]
-pub mod selectors;
 
 pub type Selector = [u8; 4];
 pub type StateMutability = alloy_dyn_abi::parser::StateMutability;
