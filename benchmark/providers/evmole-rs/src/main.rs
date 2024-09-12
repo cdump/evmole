@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if cfg.mode == "arguments" {
                             evmole::function_arguments(&code, &selector, 0)
                         } else {
-                            evmole::function_state_mutability(&code, &selector, 0).to_string()
+                            evmole::function_state_mutability(&code, &selector, 0).as_json_str().to_string()
                         }
                     )
                 })
