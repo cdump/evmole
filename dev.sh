@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 MODE=$1
 DS=$2
@@ -7,9 +7,14 @@ BDIR=`pwd`/benchmark
 
 ln -s `pwd` ${BDIR}/providers/evmole-rs/rust 2>/dev/null || true
 
+case ${NOTRACE+x} in
+    x) FEAT='' ;;
+    *) FEAT='--features evmole/trace' ;;
+esac
+
 cargo run \
     --manifest-path benchmark/providers/evmole-rs/Cargo.toml \
-    --features "evmole/trace" \
+    ${FEAT} \
     ${MODE} \
     ${BDIR}/datasets/${2} \
     out.json \
