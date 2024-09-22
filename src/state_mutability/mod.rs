@@ -8,7 +8,6 @@ use crate::{
     utils::execute_until_function_start,
     Selector, StateMutability,
 };
-use alloy_primitives::uint;
 
 mod calldata;
 use calldata::CallDataImpl;
@@ -105,15 +104,6 @@ fn analyze_payable(
                     .label = Some(Label::IsZero);
             }
 
-            StepResult{op: op::CALLDATASIZE, ..} =>
-            {
-                if let Ok(s) = vm.stack.peek_mut() {
-                    s.data = uint!(131072_U256).to_be_bytes();
-                } else {
-                    break; // error
-                }
-            }
-
             StepResult{op: op::JUMPI, sa: Some(sa), ..} =>
             {
                 last_jumpi_callvalue =
@@ -171,14 +161,6 @@ fn analyze_view_pure_internal(
         }
 
         match ret.op {
-            op::CALLDATASIZE => {
-                if let Ok(s) = vm.stack.peek_mut() {
-                    s.data = uint!(131072_U256).to_be_bytes();
-                } else {
-                    break; // error
-                }
-            }
-
             op::JUMPI => {
                 let other_pc = usize::try_from(ret.fa.expect("always set in vm.rs"))
                     .expect("set to usize in vm.rs");

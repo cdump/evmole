@@ -1,5 +1,5 @@
 use super::Label;
-use crate::evm::{calldata::CallData, element::Element, U256, VAL_4};
+use crate::evm::{calldata::CallData, element::Element, U256, VAL_4, VAL_131072};
 use std::error;
 
 #[derive(Clone)]
@@ -40,6 +40,6 @@ impl CallData<Label> for CallDataImpl {
     }
 
     fn len(&self) -> U256 {
-        VAL_4
+        VAL_131072
     }
 }
