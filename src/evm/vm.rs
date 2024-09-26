@@ -504,7 +504,7 @@ where
                     self.stack.pop()?;
                 }
 
-                self.stack.push_uint(U256::ZERO); // failure
+                self.stack.push_data(VAL_1_B); // success
 
                 let mut ret = StepResult::new(op, 100);
                 ret.fa = Some(p1);
