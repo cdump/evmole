@@ -295,6 +295,33 @@ where
                 (3, if s0 >= VAL_256 { U256::ZERO } else { s1 >> s0 })
             }),
 
+            op::SAR => self.bop(op, |_, s0, _, s1| {
+                (
+                    3,
+                    if s0 < VAL_256 {
+                        s1 >> s0
+                    } else if s1.bit(255) {
+                        U256::MAX
+                    } else {
+                        U256::ZERO
+                    },
+                )
+            }),
+
+            op::MULMOD | op::ADDMOD => {
+                let s0 = self.stack.pop_uint()?;
+                let s1 = self.stack.pop_uint()?;
+                let s2 = self.stack.pop_uint()?;
+
+                self.stack.push_uint(if op == op::MULMOD {
+                    s0.mul_mod(s1, s2)
+                } else {
+                    s0.add_mod(s1, s2)
+                });
+
+                Ok(StepResult::new(op, 8))
+            }
+
             op::KECCAK256 => {
                 let mut ret = StepResult::new(op, 30);
                 ret.fa = Some(self.stack.pop()?); // offset
@@ -389,6 +416,14 @@ where
                 Ok(StepResult::new(op, 100))
             }
 
+            op::EXTCODECOPY => {
+                self.stack.pop()?;
+                self.stack.pop()?;
+                self.stack.pop()?;
+                self.stack.pop()?;
+                Ok(StepResult::new(op, 100))
+            }
+
             op::RETURNDATASIZE => {
                 self.stack.push_data(VAL_1024_B);
                 Ok(StepResult::new(op, 2))
@@ -470,6 +505,11 @@ where
 
             op::GAS => {
                 self.stack.push_data(VAL_1M_B);
+                Ok(StepResult::new(op, 2))
+            }
+
+            op::PC => {
+                self.stack.push_uint(U256::from(self.pc));
                 Ok(StepResult::new(op, 2))
             }
 
