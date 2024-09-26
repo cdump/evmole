@@ -273,7 +273,7 @@ if __name__ == '__main__':
         elif cfg.mode == 'arguments':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'simple']
         else: # mutability
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'sevm', 'simple']
+            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'simple']
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
 

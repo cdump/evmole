@@ -17,7 +17,7 @@ import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole/+esm';
 <div id="selectors"></div>
 
 <script type="module">
-import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole@0.4.1/dist/evmole.mjs';
+import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole@0.5.1/dist/evmole.mjs';
 
 const bytecode = '0x6080...'; // Replace with actual bytecode
 document.getElementById('selectors').textContent = functionSelectors(bytecode);
