@@ -2,6 +2,6 @@
 
 FROM node:22
 WORKDIR /app
-RUN npm install sevm@0.6.19
+RUN npm install sevm@0.7.2
 COPY main.mjs /app
 ENTRYPOINT ["node", "/app/main.mjs"]
