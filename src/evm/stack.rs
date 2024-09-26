@@ -80,11 +80,15 @@ impl<T: Clone> Stack<T> {
         }
     }
 
-    pub fn push_uint(&mut self, val: U256) {
+    pub fn push_data(&mut self, data: [u8; 32]) {
         self.data.push(Element {
-            data: val.to_be_bytes(),
+            data,
             label: None,
         });
+    }
+
+    pub fn push_uint(&mut self, val: U256) {
+        self.push_data(val.to_be_bytes());
     }
 
     pub fn pop_uint(&mut self) -> Result<U256> {

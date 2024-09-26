@@ -22,7 +22,9 @@ pub const VAL_32_B: [u8; 32] = VAL_32.to_be_bytes();
 pub const VAL_256: U256 = uint!(256_U256);
 
 pub const VAL_1024: U256 = uint!(1024_U256);
+pub const VAL_1024_B: [u8; 32] = VAL_1024.to_be_bytes();
 
 pub const VAL_131072: U256 = uint!(131072_U256);
 
 pub const VAL_1M: U256 = uint!(1000000_U256);
+pub const VAL_1M_B: [u8; 32] = VAL_1M.to_be_bytes();

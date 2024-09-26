@@ -1,5 +1,5 @@
 use super::{calldata::CallData, element::Element, memory::Memory, op, stack::Stack, U256};
-use super::{VAL_0_B, VAL_1, VAL_1024, VAL_1M, VAL_1_B, VAL_256, VAL_32};
+use super::{VAL_0_B, VAL_1, VAL_1024_B, VAL_1M_B, VAL_1_B, VAL_256, VAL_32};
 use std::{error, fmt};
 
 #[derive(Debug)]
@@ -299,7 +299,7 @@ where
                 let mut ret = StepResult::new(op, 30);
                 ret.fa = Some(self.stack.pop()?); // offset
                 ret.sa = Some(self.stack.pop()?); // size
-                self.stack.push_uint(VAL_1);
+                self.stack.push_data(VAL_1_B);
                 Ok(ret)
             }
 
@@ -316,13 +316,13 @@ where
             | op::BASEFEE
             | op::BLOBBASEFEE
             | op::GASPRICE => {
-                self.stack.push_uint(U256::ZERO);
+                self.stack.push_data(VAL_0_B);
                 Ok(StepResult::new(op, 2))
             }
 
             op::BALANCE => {
                 self.stack.pop()?;
-                self.stack.push_uint(U256::ZERO);
+                self.stack.push_data(VAL_0_B);
                 Ok(StepResult::new(op, 100))
             }
 
@@ -385,12 +385,12 @@ where
 
             op::EXTCODESIZE | op::EXTCODEHASH => {
                 self.stack.pop()?;
-                self.stack.push_uint(VAL_1);
+                self.stack.push_data(VAL_1_B);
                 Ok(StepResult::new(op, 100))
             }
 
             op::RETURNDATASIZE => {
-                self.stack.push_uint(VAL_1024);
+                self.stack.push_data(VAL_1024_B);
                 Ok(StepResult::new(op, 2))
             }
 
@@ -409,12 +409,12 @@ where
 
             op::BLOCKHASH => {
                 self.stack.pop()?;
-                self.stack.push_uint(VAL_1);
+                self.stack.push_data(VAL_1_B);
                 Ok(StepResult::new(op, 20))
             }
 
             op::SELFBALANCE => {
-                self.stack.push_uint(U256::ZERO);
+                self.stack.push_data(VAL_0_B);
                 Ok(StepResult::new(op, 5))
             }
 
@@ -457,7 +457,7 @@ where
             op::SLOAD => {
                 let mut ret = StepResult::new(op, 100);
                 ret.fa = Some(self.stack.pop()?); // slot
-                self.stack.push_uint(U256::ZERO);
+                self.stack.push_data(VAL_0_B);
                 Ok(ret)
             }
 
@@ -469,7 +469,7 @@ where
             }
 
             op::GAS => {
-                self.stack.push_uint(VAL_1M);
+                self.stack.push_data(VAL_1M_B);
                 Ok(StepResult::new(op, 2))
             }
 
@@ -488,7 +488,7 @@ where
                 if op == op::CREATE2 {
                     self.stack.pop()?;
                 }
-                self.stack.push_uint(U256::ZERO);
+                self.stack.push_data(VAL_0_B);
                 Ok(StepResult::new(op, 32000))
             }
 
