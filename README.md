@@ -11,7 +11,7 @@ EVMole is a powerful library that extracts information from Ethereum Virtual Mac
 ## Key Features
 
 - Multi-language support: Available as [JavaScript](#javascript), [Rust](#rust), and [Python](#python) libraries.
-- High accurancy and performance: [Outperforms](#benchmark) existing tools.
+- High accuracy and performance: [Outperforms](#benchmark) existing tools.
 - Broad compatibility: Tested with both Solidity and Vyper compiled contracts.
 - Lightweight: Clean codebase with minimal external dependencies.
 - Unverified contract analysis: Extracts information even from unverified bytecode.
