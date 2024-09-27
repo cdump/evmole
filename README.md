@@ -137,7 +137,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Time</i></td>
   <td>0.5s · 0.7s · 0.6s</td>
   <td>3.2s</td>
-  <td>44s<sup>(*)</sup></td>
+  <td>47s<sup>(*)</sup></td>
   <td>0.5s</td>
   <td>341s<sup>(*)</sup></td>
   <td>1.8s</td>
@@ -184,7 +184,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Time</i></td>
   <td>4.5s · 8.5s · 7.8s</td>
   <td>54s</td>
-  <td>2458s<sup>(*)</sup></td>
+  <td>2472s<sup>(*)</sup></td>
   <td>6.1s</td>
   <td>8576s<sup>(*)</sup></td>
   <td>46s</td>
@@ -204,7 +204,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>FN <sub>addrs</sub></i></td>
   <td>0 🥇</td>
   <td>780</td>
-  <td>21</td>
+  <td>0</td>
   <td>300</td>
   <td>780</td>
   <td>480</td>
@@ -222,7 +222,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>FN <sub>funcs</sub></i></td>
   <td>0 🥇</td>
   <td>21244</td>
-  <td>336</td>
+  <td>0</td>
   <td>8273</td>
   <td>21244</td>
   <td>12971</td>
@@ -231,7 +231,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Time</i></td>
   <td>0.4s · 0.6s · 0.4s</td>
   <td>2.4s</td>
-  <td>43s<sup>(*)</sup></td>
+  <td>57s<sup>(*)</sup></td>
   <td>0.4s</td>
   <td>27s<sup>(*)</sup></td>
   <td>1.1s</td>
@@ -355,7 +355,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Time</i></td>
   <td>214s · 471s · 240s</td>
   <td>85s</td>
-  <td>2331s<sup>(*)</sup></td>
+  <td>2335s<sup>(*)</sup></td>
   <td>8151s<sup>(*)</sup></td>
   <td>9.4s</td>
  </tr>
@@ -365,7 +365,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Errors</i></td>
   <td>0.5% 🥇<br><sub>110</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
-  <td>77.8%<br><sub>16462</sub></td>
+  <td>76.3%<br><sub>16150</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
   <td>1.8%<br><sub>390</sub></td>
  </tr>
@@ -373,7 +373,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Errors strict</i></td>
   <td>4.2% 🥇<br><sub>888</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
-  <td>91.0%<br><sub>19253</sub></td>
+  <td>90.2%<br><sub>19092</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
   <td>59.6%<br><sub>12610</sub></td>
  </tr>
@@ -381,7 +381,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><i>Time</i></td>
   <td>10s · 15s · 10s</td>
   <td>2.4s</td>
-  <td>41s<sup>(*)</sup></td>
+  <td>52s<sup>(*)</sup></td>
   <td>28s<sup>(*)</sup></td>
   <td>0.6s</td>
  </tr>
@@ -389,7 +389,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.5.1; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.2; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
+<i>versions: evmole v0.5.1; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.14.1; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.3; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.4</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 
