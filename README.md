@@ -66,17 +66,17 @@ print(function_state_mutability(code, '2125b65b')) # pure
 ```sh
 
 $ cast selectors $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
-0x06fdde03	
-0x095ea7b3	address,uint256
-0x18160ddd	
-0x23b872dd	address,address,uint256
+0x06fdde03                           view
+0x095ea7b3  address,uint256          nonpayable
+0x18160ddd                           view
+0x23b872dd  address,address,uint256  nonpayable
 ...
 
 $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
-0x06fdde03	                       	name()
-0x095ea7b3	address,uint256        	approve(address,uint256)
-0x18160ddd	                       	totalSupply()
-0x23b872dd	address,address,uint256	transferFrom(address,address,uint256)
+0x06fdde03                           view        name()
+0x095ea7b3  address,uint256          nonpayable  approve(address,uint256)
+0x18160ddd                           view        totalSupply()
+0x23b872dd  address,address,uint256  nonpayable  transferFrom(address,address,uint256)
 ...
 ```
 
