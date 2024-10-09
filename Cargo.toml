@@ -19,6 +19,7 @@ wasm-bindgen = { version = "0.2", optional = true }
 [features]
 python = ["dep:pyo3"]
 javascript = ["dep:wasm-bindgen"]
+wasm = []
 
 # for dev
 trace = []
