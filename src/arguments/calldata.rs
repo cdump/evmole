@@ -12,7 +12,7 @@ impl CallData<Label> for CallDataImpl {
         let mut data = [0; 32];
         if offset < VAL_4 {
             let off = usize::try_from(offset).expect("len checked");
-            data[..4 - off].copy_from_slice(&self.selector()[off..]);
+            data[..4 - off].copy_from_slice(&self.selector[off..]);
         }
         Element {
             data,
@@ -33,7 +33,7 @@ impl CallData<Label> for CallDataImpl {
         if offset < VAL_4 {
             let off = usize::try_from(offset).expect("len checked");
             let nlen = std::cmp::min(data.len(), 4 - off);
-            data[..nlen].copy_from_slice(&self.selector()[off..off + nlen]);
+            data[..nlen].copy_from_slice(&self.selector[off..off + nlen]);
         }
         Ok((data, Some(Label::CallData)))
     }

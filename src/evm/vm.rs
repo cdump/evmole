@@ -1,4 +1,4 @@
-use super::{calldata::CallData, element::Element, memory::Memory, op, stack::Stack, U256};
+use super::{calldata::CallData, element::Element, memory::Memory, op, stack::Stack, I256, U256};
 use super::{VAL_0_B, VAL_1, VAL_1024_B, VAL_1M_B, VAL_1_B, VAL_256, VAL_32};
 use std::{error, fmt};
 
@@ -193,8 +193,30 @@ where
                 (5, if s1.is_zero() { U256::ZERO } else { s0 / s1 })
             }),
 
+            op::SDIV => self.bop(op, |_, s0, _, s1| {
+                (
+                    5,
+                    if s1.is_zero() {
+                        U256::ZERO
+                    } else {
+                        (I256::from_raw(s0) / I256::from_raw(s1)).into_raw()
+                    },
+                )
+            }),
+
             op::MOD => self.bop(op, |_, s0, _, s1| {
                 (5, if s1.is_zero() { U256::ZERO } else { s0 % s1 })
+            }),
+
+            op::SMOD => self.bop(op, |_, s0, _, s1| {
+                (
+                    5,
+                    if s1.is_zero() {
+                        U256::ZERO
+                    } else {
+                        (I256::from_raw(s0) % I256::from_raw(s1)).into_raw()
+                    },
+                )
             }),
 
             op::EXP => self.bop(op, |_, s0, _, s1| {
@@ -231,16 +253,16 @@ where
 
             op::SLT => self.bop(op, |_, s0, _, s1| {
                 (3, {
-                    let sign0 = s0.bit(255);
-                    let sign1 = s1.bit(255);
+                    let sign0 = s0.bit(U256::BITS - 1);
+                    let sign1 = s1.bit(U256::BITS - 1);
                     U256::from(if sign0 == sign1 { s0 < s1 } else { sign0 })
                 })
             }),
 
             op::SGT => self.bop(op, |_, s0, _, s1| {
                 (3, {
-                    let sign0 = s0.bit(255);
-                    let sign1 = s1.bit(255);
+                    let sign0 = s0.bit(U256::BITS - 1);
+                    let sign1 = s1.bit(U256::BITS - 1);
                     U256::from(if sign0 == sign1 { s0 > s1 } else { !sign0 })
                 })
             }),
@@ -271,9 +293,12 @@ where
             op::XOR => self.bop(op, |_, s0, _, s1| (3, s0 ^ s1)),
 
             op::NOT => {
-                let v = self.stack.pop_uint()?;
+                let raws0 = self.stack.pop()?;
+                let v: U256 = (&raws0).into();
                 self.stack.push_uint(!v);
-                Ok(StepResult::new(op, 3))
+                let mut ret = StepResult::new(op, 3);
+                ret.fa = Some(raws0);
+                Ok(ret)
             }
 
             op::BYTE => self.bop(op, |_, s0, raws1, _| {
@@ -300,7 +325,7 @@ where
                     3,
                     if s0 < VAL_256 {
                         s1 >> s0
-                    } else if s1.bit(255) {
+                    } else if s1.bit(U256::BITS - 1) {
                         U256::MAX
                     } else {
                         U256::ZERO
@@ -323,9 +348,15 @@ where
             }
 
             op::KECCAK256 => {
-                let mut ret = StepResult::new(op, 30);
-                ret.fa = Some(self.stack.pop()?); // offset
-                ret.sa = Some(self.stack.pop()?); // size
+                let offset = self.stack.pop()?;
+                let size = self.stack.pop()?;
+                let gas_used: u32 = 30
+                    + 6 * (U256::from_be_bytes(size.data)
+                        .try_into()
+                        .unwrap_or(5_000_000));
+                let mut ret = StepResult::new(op, gas_used);
+                ret.fa = Some(offset);
+                ret.sa = Some(size);
                 self.stack.push_data(VAL_1_B);
                 Ok(ret)
             }
@@ -448,6 +479,12 @@ where
                 Ok(StepResult::new(op, 20))
             }
 
+            op::BLOBHASH => {
+                self.stack.pop()?;
+                self.stack.push_data(VAL_1_B);
+                Ok(StepResult::new(op, 3))
+            }
+
             op::SELFBALANCE => {
                 self.stack.push_data(VAL_0_B);
                 Ok(StepResult::new(op, 5))
@@ -489,14 +526,14 @@ where
                 Ok(StepResult::new(op, 2))
             }
 
-            op::SLOAD => {
+            op::SLOAD | op::TLOAD => {
                 let mut ret = StepResult::new(op, 100);
                 ret.fa = Some(self.stack.pop()?); // slot
                 self.stack.push_data(VAL_0_B);
                 Ok(ret)
             }
 
-            op::SSTORE => {
+            op::SSTORE | op::TSTORE => {
                 let mut ret = StepResult::new(op, 100);
                 ret.fa = Some(self.stack.pop()?); // slot
                 ret.sa = Some(self.stack.pop()?); // value
@@ -564,12 +601,86 @@ where
                 Ok(ret)
             }
 
-            op::STOP | op::SELFDESTRUCT => {
+            op::STOP | op::SELFDESTRUCT | op::INVALID => {
                 // skip stack pop()s
                 self.stopped = true;
                 Ok(StepResult::new(op, 5))
             }
             _ => Err(UnsupportedOpError { op }.into()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Clone)]
+    struct DummyCallData {}
+
+    impl CallData<u8> for DummyCallData {
+        fn load32(&self, _: U256) -> Element<u8> {
+            Element {
+                data: [0; 32],
+                label: None,
+            }
+        }
+
+        fn load(&self, _: U256, _: U256) -> Result<(Vec<u8>, Option<u8>), Box<dyn error::Error>> {
+            Err("unsupported".into())
+        }
+
+        fn selector(&self) -> [u8; 4] {
+            [0; 4]
+        }
+
+        fn len(&self) -> U256 {
+            U256::ZERO
+        }
+    }
+
+    #[test]
+    fn test_arithmetic() {
+        let mut vm = Vm::new(&[], DummyCallData {});
+        let cases = [
+            (
+                I256::unchecked_from(-1).into_raw(),
+                op::ADD,
+                U256::from(3),
+                U256::from(2),
+            ),
+            (
+                I256::unchecked_from(-1).into_raw(),
+                op::LT,
+                U256::from(3),
+                U256::from(0),
+            ),
+            (
+                I256::unchecked_from(-1).into_raw(),
+                op::SLT,
+                U256::from(3),
+                U256::from(1),
+            ),
+            (
+                I256::unchecked_from(-4).into_raw(),
+                op::SDIV,
+                U256::from(2),
+                I256::unchecked_from(-2).into_raw(),
+            ),
+            (
+                I256::unchecked_from(-4).into_raw(),
+                op::SDIV,
+                I256::unchecked_from(-2).into_raw(),
+                U256::from(2),
+            ),
+        ];
+
+        for (lhs, op, rhs, expected) in cases.into_iter() {
+            vm.stack.push_uint(rhs);
+            vm.stack.push_uint(lhs);
+            assert!(vm.exec_opcode(op).is_ok());
+            let r = vm.stack.pop_uint().unwrap();
+            assert_eq!(r, expected);
         }
     }
 }

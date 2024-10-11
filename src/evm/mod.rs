@@ -7,7 +7,7 @@ pub mod op;
 pub mod stack;
 pub mod vm;
 
-pub use alloy_primitives::U256;
+pub use alloy_primitives::{I256, U256};
 
 pub const VAL_0_B: [u8; 32] = U256::ZERO.to_be_bytes();
 
