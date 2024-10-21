@@ -150,25 +150,32 @@ where
 
             op::JUMP | op::JUMPI => {
                 let s0 = self.stack.pop_uint()?;
+                let cres = usize::try_from(s0);
                 let mut ret = StepResult::new(op, if op == op::JUMP { 8 } else { 10 });
                 if op == op::JUMPI {
                     ret.sa = Some(self.stack.peek()?.clone());
                     let s1 = self.stack.pop_uint()?;
                     if s1.is_zero() {
                         self.pc += 1;
-                        ret.fa = Some(Element {
-                            data: s0.to_be_bytes(),
-                            label: None,
-                        });
+                        if let Ok(other_pc) = cres {
+                            if other_pc < self.code.len() {
+                                ret.fa = Some(Element {
+                                    data: s0.to_be_bytes(),
+                                    label: None,
+                                });
+                            }
+                        }
                         return Ok(ret);
                     } else {
-                        ret.fa = Some(Element {
-                            data: U256::from(self.pc + 1).to_be_bytes(),
-                            label: None,
-                        });
+                        let other_pc = self.pc + 1;
+                        if other_pc < self.code.len() {
+                            ret.fa = Some(Element {
+                                data: U256::from(other_pc).to_be_bytes(),
+                                label: None,
+                            });
+                        }
                     }
                 }
-                let cres: Result<usize, _> = s0.try_into();
                 if let Ok(newpc) = cres {
                     if newpc >= self.code.len() || self.code[newpc] != op::JUMPDEST {
                         Err(UnsupportedOpError { op }.into())

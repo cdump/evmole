@@ -162,20 +162,21 @@ fn analyze_view_pure_internal(
 
         match ret.op {
             op::JUMPI => {
-                let other_pc = usize::try_from(ret.fa.expect("always set in vm.rs"))
-                    .expect("set to usize in vm.rs");
+                if let Some(other_pc_elem) = ret.fa {
+                    let other_pc = usize::try_from(other_pc_elem).expect("set to usize in vm.rs");
 
-                if depth < 8 && gas_used < gas_limit {
-                    let mut cloned = vm.clone();
-                    cloned.pc = other_pc;
-                    gas_used += analyze_view_pure_internal(
-                        cloned,
-                        vpr,
-                        (gas_limit - gas_used) / 2,
-                        depth + 1,
-                    );
-                } else {
-                    // println!("depth overflow");
+                    if depth < 8 && gas_used < gas_limit {
+                        let mut cloned = vm.clone();
+                        cloned.pc = other_pc;
+                        gas_used += analyze_view_pure_internal(
+                            cloned,
+                            vpr,
+                            (gas_limit - gas_used) / 2,
+                            depth + 1,
+                        );
+                    } else {
+                        // println!("depth overflow");
+                    }
                 }
             }
 
