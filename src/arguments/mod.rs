@@ -555,7 +555,7 @@ pub fn function_arguments_alloy(
     selector: &Selector,
     gas_limit: u32,
 ) -> Vec<DynSolType> {
-    if cfg!(feature = "trace") {
+    if cfg!(feature = "trace_arguments") {
         println!(
             "Processing selector {:02x}{:02x}{:02x}{:02x}",
             selector[0], selector[1], selector[2], selector[3]
@@ -582,7 +582,7 @@ pub fn function_arguments_alloy(
     }
 
     while !vm.stopped {
-        if cfg!(feature = "trace") {
+        if cfg!(feature = "trace_arguments") {
             println!("args: {:?}", args);
             println!("not_bool: {:?}", args.not_bool);
             println!("{:#?}", args.data);

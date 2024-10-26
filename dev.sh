@@ -9,7 +9,7 @@ ln -s `pwd` ${BDIR}/providers/evmole-rs/rust 2>/dev/null || true
 
 case ${NOTRACE+x} in
     x) FEAT='' ;;
-    *) FEAT='--features evmole/trace' ;;
+    *) FEAT="--features evmole/trace_${MODE}" ;;
 esac
 
 cargo run \

@@ -70,7 +70,7 @@ fn analyze_payable(
     let mut last_jumpi_callvalue = false;
 
     while !vm.stopped {
-        if cfg!(feature = "trace") {
+        if cfg!(feature = "trace_mutability") {
             println!("{:?}\n", vm);
         }
         let ret = match vm.step() {
@@ -145,7 +145,7 @@ fn analyze_view_pure_internal(
     }
 
     while !vm.stopped && vpr.view {
-        if cfg!(feature = "trace") {
+        if cfg!(feature = "trace_mutability") {
             println!("{:?}\n", vm);
         }
         let ret = match vm.step() {

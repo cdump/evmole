@@ -21,7 +21,10 @@ python = ["dep:pyo3"]
 javascript = ["dep:wasm-bindgen"]
 
 # for dev
-trace = []
+trace_selectors = []
+trace_arguments = []
+trace_mutability = []
+trace = ["trace_selectors", "trace_arguments", "trace_mutability"]
 
 [lib]
 crate-type = ["cdylib", "lib"]

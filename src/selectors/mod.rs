@@ -115,7 +115,7 @@ fn process(
 ) -> u32 {
     let mut gas_used = 0;
     while !vm.stopped {
-        if cfg!(feature = "trace") {
+        if cfg!(feature = "trace_selectors") {
             println!(
                 "selectors: {:?}",
                 selectors
