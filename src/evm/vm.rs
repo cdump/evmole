@@ -576,25 +576,24 @@ where
                 Ok(StepResult::new(op, 32000))
             }
 
-            op::CALL | op::DELEGATECALL | op::STATICCALL => {
-                self.stack.pop()?;
-                let p1 = self.stack.pop()?;
+            op::CALL | op::CALLCODE | op::DELEGATECALL | op::STATICCALL => {
+                let mut ret = StepResult::new(op, 100);
+
+                let _gas = self.stack.pop()?;
+                let address = self.stack.pop()?;
                 let p2 = self.stack.pop()?;
-                self.stack.pop()?;
-                self.stack.pop()?;
+                let _p3 = self.stack.pop()?;
+                let _p4 = self.stack.pop()?;
                 self.stack.pop()?;
 
-                if op == op::CALL {
+                ret.fa = Some(address);
+                if op == op::CALL || op == op::CALLCODE {
                     self.stack.pop()?;
+                    ret.sa = Some(p2);
                 }
 
                 self.stack.push_data(VAL_1_B); // success
 
-                let mut ret = StepResult::new(op, 100);
-                ret.fa = Some(p1);
-                if op == op::CALL {
-                    ret.sa = Some(p2);
-                }
                 Ok(ret)
             }
 
