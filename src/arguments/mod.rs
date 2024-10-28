@@ -561,12 +561,8 @@ pub fn function_arguments_alloy(
             selector[0], selector[1], selector[2], selector[3]
         );
     }
-    let mut vm = Vm::new(
-        code,
-        CallDataImpl {
-            selector: *selector,
-        },
-    );
+    let calldata = CallDataImpl { selector: *selector };
+    let mut vm = Vm::new(code, &calldata);
     let mut args = ArgsResult::new();
     let mut gas_used = 0;
     let real_gas_limit = if gas_limit == 0 {

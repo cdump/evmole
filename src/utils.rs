@@ -5,7 +5,7 @@ use alloy_dyn_abi::DynSolType;
 pub fn execute_until_function_start<T, U>(vm: &mut Vm<T, U>, gas_limit: u32) -> Option<u32>
 where
     T: Clone + std::fmt::Debug + std::cmp::Eq,
-    U: Clone + CallData<T>,
+    U: CallData<T>,
 {
     let mut gas_used = 0;
     let mut found = false;

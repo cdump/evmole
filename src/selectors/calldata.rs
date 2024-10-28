@@ -2,7 +2,6 @@ use super::Label;
 use crate::evm::{calldata::CallData, element::Element, U256, VAL_4};
 use std::error;
 
-#[derive(Clone)]
 pub(super) struct CallDataImpl {}
 
 impl CallData<Label> for CallDataImpl {

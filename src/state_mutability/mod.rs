@@ -228,14 +228,10 @@ pub fn function_state_mutability(
     selector: &Selector,
     gas_limit: u32,
 ) -> StateMutability {
-    let mut cd: [u8; 32] = [0; 32];
-    cd[0..4].copy_from_slice(selector);
-    let vm = Vm::new(
-        code,
-        CallDataImpl {
-            selector: *selector,
-        },
-    );
+    let calldata = CallDataImpl {
+        selector: *selector,
+    };
+    let vm = Vm::new(code, &calldata);
 
     let real_gas_limit = if gas_limit == 0 {
         5e5 as u32

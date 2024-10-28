@@ -2,7 +2,6 @@ use super::Label;
 use crate::evm::{calldata::CallData, element::Element, U256, VAL_4, VAL_131072};
 use std::error;
 
-#[derive(Clone)]
 pub(super) struct CallDataImpl {
     pub selector: [u8; 4],
 }

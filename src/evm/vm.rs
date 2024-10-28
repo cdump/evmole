@@ -34,24 +34,23 @@ impl<T> StepResult<T> {
     }
 }
 
-#[derive(Clone)]
 pub struct Vm<'a, T, U>
 where
     T: Clone + std::fmt::Debug,
-    U: Clone + CallData<T>,
+    U: CallData<T>,
 {
     pub code: &'a [u8],
     pub pc: usize,
     pub stack: Stack<T>,
     pub memory: Memory<T>,
     pub stopped: bool,
-    pub calldata: U,
+    pub calldata: &'a U,
 }
 
 impl<'a, T, U> fmt::Debug for Vm<'a, T, U>
 where
     T: Clone + std::fmt::Debug,
-    U: Clone + CallData<T>,
+    U: CallData<T>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -72,9 +71,9 @@ where
 impl<'a, T, U> Vm<'a, T, U>
 where
     T: std::fmt::Debug + Clone + Eq,
-    U: Clone + CallData<T>,
+    U: CallData<T>,
 {
-    pub fn new(code: &'a [u8], calldata: U) -> Self {
+    pub fn new(code: &'a [u8], calldata: &'a U) -> Self {
         Self {
             code,
             pc: 0,
@@ -82,6 +81,18 @@ where
             memory: Memory::<T>::new(),
             stopped: code.is_empty(),
             calldata,
+        }
+    }
+
+    // not Clone trait because Cow experiments
+    pub fn clone(&'a self) -> Self {
+        Vm {
+            code: self.code,
+            pc: self.pc,
+            stack: self.stack.clone(),
+            memory: self.memory.clone(),
+            stopped: self.stopped,
+            calldata: self.calldata,
         }
     }
 
@@ -647,7 +658,7 @@ mod tests {
 
     #[test]
     fn test_arithmetic() {
-        let mut vm = Vm::new(&[], DummyCallData {});
+        let mut vm = Vm::new(&[], &DummyCallData {});
         let cases = [
             (
                 I256::unchecked_from(-1).into_raw(),
