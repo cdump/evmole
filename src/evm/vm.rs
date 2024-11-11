@@ -8,7 +8,7 @@ pub struct UnsupportedOpError {
 }
 impl std::fmt::Display for UnsupportedOpError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "UnsupportedOpError({})", op::name(self.op))
+        write!(f, "UnsupportedOpError({})", op::info(self.op).name)
     }
 }
 
@@ -58,7 +58,7 @@ where
             "Vm:\n .pc = 0x{:x} | {}\n .stack = {:?}\n .memory = {:?}",
             self.pc,
             if !self.stopped {
-                op::name(self.code[self.pc])
+                op::info(self.code[self.pc]).name
             } else {
                 ""
             },

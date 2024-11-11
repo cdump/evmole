@@ -2,171 +2,189 @@
 
 pub type OpCode = u8;
 
-#[rustfmt::skip]
-const NAMES: [&str; 256] = ["STOP","ADD","MUL","SUB","DIV","SDIV","MOD","SMOD","ADDMOD","MULMOD","EXP","SIGNEXTEND","?","?","?","?","LT","GT","SLT","SGT","EQ","ISZERO","AND","OR","XOR","NOT","BYTE","SHL","SHR","SAR","?","?","KECCAK256","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","ADDRESS","BALANCE","ORIGIN","CALLER","CALLVALUE","CALLDATALOAD","CALLDATASIZE","CALLDATACOPY","CODESIZE","CODECOPY","GASPRICE","EXTCODESIZE","EXTCODECOPY","RETURNDATASIZE","RETURNDATACOPY","EXTCODEHASH","BLOCKHASH","COINBASE","TIMESTAMP","NUMBER","PREVRANDAO","GASLIMIT","CHAINID","SELFBALANCE","BASEFEE","BLOBHASH","BLOBBASEFEE","?","?","?","?","?","POP","MLOAD","MSTORE","MSTORE8","SLOAD","SSTORE","JUMP","JUMPI","PC","MSIZE","GAS","JUMPDEST","TLOAD","TSTORE","MCOPY","PUSH0","PUSH1","PUSH2","PUSH3","PUSH4","PUSH5","PUSH6","PUSH7","PUSH8","PUSH9","PUSH10","PUSH11","PUSH12","PUSH13","PUSH14","PUSH15","PUSH16","PUSH17","PUSH18","PUSH19","PUSH20","PUSH21","PUSH22","PUSH23","PUSH24","PUSH25","PUSH26","PUSH27","PUSH28","PUSH29","PUSH30","PUSH31","PUSH32","DUP1","DUP2","DUP3","DUP4","DUP5","DUP6","DUP7","DUP8","DUP9","DUP10","DUP11","DUP12","DUP13","DUP14","DUP15","DUP16","SWAP1","SWAP2","SWAP3","SWAP4","SWAP5","SWAP6","SWAP7","SWAP8","SWAP9","SWAP10","SWAP11","SWAP12","SWAP13","SWAP14","SWAP15","SWAP16","LOG0","LOG1","LOG2","LOG3","LOG4","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","?","CREATE","CALL","CALLCODE","RETURN","DELEGATECALL","CREATE2","?","?","?","?","STATICCALL","?","?","REVERT","INVALID","SELFDESTRUCT"];
-
-pub fn name(op: OpCode) -> &'static str {
-    NAMES[op as usize]
+#[derive(Copy, Clone)]
+pub struct OpCodeInfo {
+    pub name: &'static str,
+    pub known: bool,
+    pub size: usize,
+    pub stack_in: usize,
+    pub stack_out: usize,
 }
 
-pub const STOP: OpCode = 0x00;
-pub const ADD: OpCode = 0x01;
-pub const MUL: OpCode = 0x02;
-pub const SUB: OpCode = 0x03;
-pub const DIV: OpCode = 0x04;
-pub const SDIV: OpCode = 0x05;
-pub const MOD: OpCode = 0x06;
-pub const SMOD: OpCode = 0x07;
-pub const ADDMOD: OpCode = 0x08;
-pub const MULMOD: OpCode = 0x09;
-pub const EXP: OpCode = 0x0A;
-pub const SIGNEXTEND: OpCode = 0x0B;
+macro_rules! declare_opcodes {
+    ($(($code:literal, $name:ident, $size:literal, $stack_in:literal, $stack_out:literal)),* $(,)?) => {
+        $(
+            pub const $name: OpCode = $code;
+        )*
 
-pub const LT: OpCode = 0x10;
-pub const GT: OpCode = 0x11;
-pub const SLT: OpCode = 0x12;
-pub const SGT: OpCode = 0x13;
-pub const EQ: OpCode = 0x14;
-pub const ISZERO: OpCode = 0x15;
-pub const AND: OpCode = 0x16;
-pub const OR: OpCode = 0x17;
-pub const XOR: OpCode = 0x18;
-pub const NOT: OpCode = 0x19;
-pub const BYTE: OpCode = 0x1A;
-pub const SHL: OpCode = 0x1B;
-pub const SHR: OpCode = 0x1C;
-pub const SAR: OpCode = 0x1D;
+        const INFOS: [OpCodeInfo; 256] = {
+            let mut arr = [OpCodeInfo{name: "?", known: false, size: 1, stack_in: 0, stack_out: 0}; 256];
+            $(
+                let p = $code as usize;
+                arr[p].name = stringify!($name);
+                arr[p].known = true;
+                arr[p].size = $size;
+                arr[p].stack_in = $stack_in;
+                arr[p].stack_out = $stack_out;
+            )*
+            arr
+        };
 
-pub const KECCAK256: OpCode = 0x20;
+    };
+}
 
-pub const ADDRESS: OpCode = 0x30;
-pub const BALANCE: OpCode = 0x31;
-pub const ORIGIN: OpCode = 0x32;
-pub const CALLER: OpCode = 0x33;
-pub const CALLVALUE: OpCode = 0x34;
-pub const CALLDATALOAD: OpCode = 0x35;
-pub const CALLDATASIZE: OpCode = 0x36;
-pub const CALLDATACOPY: OpCode = 0x37;
-pub const CODESIZE: OpCode = 0x38;
-pub const CODECOPY: OpCode = 0x39;
-pub const GASPRICE: OpCode = 0x3A;
-pub const EXTCODESIZE: OpCode = 0x3B;
-pub const EXTCODECOPY: OpCode = 0x3C;
-pub const RETURNDATASIZE: OpCode = 0x3D;
-pub const RETURNDATACOPY: OpCode = 0x3E;
-pub const EXTCODEHASH: OpCode = 0x3F;
+pub fn info(op: OpCode) -> &'static OpCodeInfo {
+    &INFOS[op as usize]
+}
 
-pub const BLOCKHASH: OpCode = 0x40;
-pub const COINBASE: OpCode = 0x41;
-pub const TIMESTAMP: OpCode = 0x42;
-pub const NUMBER: OpCode = 0x43;
-pub const PREVRANDAO: OpCode = 0x44;
-pub const GASLIMIT: OpCode = 0x45;
-pub const CHAINID: OpCode = 0x46;
-pub const SELFBALANCE: OpCode = 0x47;
-pub const BASEFEE: OpCode = 0x48;
-pub const BLOBHASH: OpCode = 0x49;
-pub const BLOBBASEFEE: OpCode = 0x4A;
-
-pub const POP: OpCode = 0x50;
-pub const MLOAD: OpCode = 0x51;
-pub const MSTORE: OpCode = 0x52;
-pub const MSTORE8: OpCode = 0x53;
-pub const SLOAD: OpCode = 0x54;
-pub const SSTORE: OpCode = 0x55;
-pub const JUMP: OpCode = 0x56;
-pub const JUMPI: OpCode = 0x57;
-pub const PC: OpCode = 0x58;
-pub const MSIZE: OpCode = 0x59;
-pub const GAS: OpCode = 0x5A;
-pub const JUMPDEST: OpCode = 0x5B;
-pub const TLOAD: OpCode = 0x5C;
-pub const TSTORE: OpCode = 0x5D;
-pub const MCOPY: OpCode = 0x5E;
-pub const PUSH0: OpCode = 0x5F;
-
-pub const PUSH1: OpCode = 0x60;
-pub const PUSH2: OpCode = 0x61;
-pub const PUSH3: OpCode = 0x62;
-pub const PUSH4: OpCode = 0x63;
-pub const PUSH5: OpCode = 0x64;
-pub const PUSH6: OpCode = 0x65;
-pub const PUSH7: OpCode = 0x66;
-pub const PUSH8: OpCode = 0x67;
-pub const PUSH9: OpCode = 0x68;
-pub const PUSH10: OpCode = 0x69;
-pub const PUSH11: OpCode = 0x6A;
-pub const PUSH12: OpCode = 0x6B;
-pub const PUSH13: OpCode = 0x6C;
-pub const PUSH14: OpCode = 0x6D;
-pub const PUSH15: OpCode = 0x6E;
-pub const PUSH16: OpCode = 0x6F;
-
-pub const PUSH17: OpCode = 0x70;
-pub const PUSH18: OpCode = 0x71;
-pub const PUSH19: OpCode = 0x72;
-pub const PUSH20: OpCode = 0x73;
-pub const PUSH21: OpCode = 0x74;
-pub const PUSH22: OpCode = 0x75;
-pub const PUSH23: OpCode = 0x76;
-pub const PUSH24: OpCode = 0x77;
-pub const PUSH25: OpCode = 0x78;
-pub const PUSH26: OpCode = 0x79;
-pub const PUSH27: OpCode = 0x7A;
-pub const PUSH28: OpCode = 0x7B;
-pub const PUSH29: OpCode = 0x7C;
-pub const PUSH30: OpCode = 0x7D;
-pub const PUSH31: OpCode = 0x7E;
-pub const PUSH32: OpCode = 0x7F;
-
-pub const DUP1: OpCode = 0x80;
-pub const DUP2: OpCode = 0x81;
-pub const DUP3: OpCode = 0x82;
-pub const DUP4: OpCode = 0x83;
-pub const DUP5: OpCode = 0x84;
-pub const DUP6: OpCode = 0x85;
-pub const DUP7: OpCode = 0x86;
-pub const DUP8: OpCode = 0x87;
-pub const DUP9: OpCode = 0x88;
-pub const DUP10: OpCode = 0x89;
-pub const DUP11: OpCode = 0x8A;
-pub const DUP12: OpCode = 0x8B;
-pub const DUP13: OpCode = 0x8C;
-pub const DUP14: OpCode = 0x8D;
-pub const DUP15: OpCode = 0x8E;
-pub const DUP16: OpCode = 0x8F;
-
-pub const SWAP1: OpCode = 0x90;
-pub const SWAP2: OpCode = 0x91;
-pub const SWAP3: OpCode = 0x92;
-pub const SWAP4: OpCode = 0x93;
-pub const SWAP5: OpCode = 0x94;
-pub const SWAP6: OpCode = 0x95;
-pub const SWAP7: OpCode = 0x96;
-pub const SWAP8: OpCode = 0x97;
-pub const SWAP9: OpCode = 0x98;
-pub const SWAP10: OpCode = 0x99;
-pub const SWAP11: OpCode = 0x9A;
-pub const SWAP12: OpCode = 0x9B;
-pub const SWAP13: OpCode = 0x9C;
-pub const SWAP14: OpCode = 0x9D;
-pub const SWAP15: OpCode = 0x9E;
-pub const SWAP16: OpCode = 0x9F;
-
-pub const LOG0: OpCode = 0xA0;
-pub const LOG1: OpCode = 0xA1;
-pub const LOG2: OpCode = 0xA2;
-pub const LOG3: OpCode = 0xA3;
-pub const LOG4: OpCode = 0xA4;
-
-pub const CREATE: OpCode = 0xF0;
-pub const CALL: OpCode = 0xF1;
-pub const CALLCODE: OpCode = 0xF2;
-pub const RETURN: OpCode = 0xF3;
-pub const DELEGATECALL: OpCode = 0xF4;
-pub const CREATE2: OpCode = 0xF5;
-
-pub const STATICCALL: OpCode = 0xFA;
-pub const REVERT: OpCode = 0xFD;
-pub const INVALID: OpCode = 0xFE;
-pub const SELFDESTRUCT: OpCode = 0xFF;
+declare_opcodes![
+    (0x00, STOP, 1, 0, 0),
+    (0x01, ADD, 1, 2, 1),
+    (0x02, MUL, 1, 2, 1),
+    (0x03, SUB, 1, 2, 1),
+    (0x04, DIV, 1, 2, 1),
+    (0x05, SDIV, 1, 2, 1),
+    (0x06, MOD, 1, 2, 1),
+    (0x07, SMOD, 1, 2, 1),
+    (0x08, ADDMOD, 1, 3, 1),
+    (0x09, MULMOD, 1, 3, 1),
+    (0x0A, EXP, 1, 2, 1),
+    (0x0B, SIGNEXTEND, 1, 2, 1),
+    (0x10, LT, 1, 2, 1),
+    (0x11, GT, 1, 2, 1),
+    (0x12, SLT, 1, 2, 1),
+    (0x13, SGT, 1, 2, 1),
+    (0x14, EQ, 1, 2, 1),
+    (0x15, ISZERO, 1, 1, 1),
+    (0x16, AND, 1, 2, 1),
+    (0x17, OR, 1, 2, 1),
+    (0x18, XOR, 1, 2, 1),
+    (0x19, NOT, 1, 1, 1),
+    (0x1A, BYTE, 1, 2, 1),
+    (0x1B, SHL, 1, 2, 1),
+    (0x1C, SHR, 1, 2, 1),
+    (0x1D, SAR, 1, 2, 1),
+    (0x20, KECCAK256, 1, 2, 1),
+    (0x30, ADDRESS, 1, 0, 1),
+    (0x31, BALANCE, 1, 1, 1),
+    (0x32, ORIGIN, 1, 0, 1),
+    (0x33, CALLER, 1, 0, 1),
+    (0x34, CALLVALUE, 1, 0, 1),
+    (0x35, CALLDATALOAD, 1, 1, 1),
+    (0x36, CALLDATASIZE, 1, 0, 1),
+    (0x37, CALLDATACOPY, 1, 3, 0),
+    (0x38, CODESIZE, 1, 0, 1),
+    (0x39, CODECOPY, 1, 3, 0),
+    (0x3A, GASPRICE, 1, 0, 1),
+    (0x3B, EXTCODESIZE, 1, 1, 1),
+    (0x3C, EXTCODECOPY, 1, 4, 0),
+    (0x3D, RETURNDATASIZE, 1, 0, 1),
+    (0x3E, RETURNDATACOPY, 1, 3, 0),
+    (0x3F, EXTCODEHASH, 1, 1, 1),
+    (0x40, BLOCKHASH, 1, 1, 1),
+    (0x41, COINBASE, 1, 0, 1),
+    (0x42, TIMESTAMP, 1, 0, 1),
+    (0x43, NUMBER, 1, 0, 1),
+    (0x44, PREVRANDAO, 1, 0, 1),
+    (0x45, GASLIMIT, 1, 0, 1),
+    (0x46, CHAINID, 1, 0, 1),
+    (0x47, SELFBALANCE, 1, 0, 1),
+    (0x48, BASEFEE, 1, 0, 1),
+    (0x49, BLOBHASH, 1, 1, 1),
+    (0x4A, BLOBBASEFEE, 1, 0, 1),
+    (0x50, POP, 1, 1, 0),
+    (0x51, MLOAD, 1, 1, 1),
+    (0x52, MSTORE, 1, 2, 0),
+    (0x53, MSTORE8, 1, 2, 0),
+    (0x54, SLOAD, 1, 1, 1),
+    (0x55, SSTORE, 1, 2, 0),
+    (0x56, JUMP, 1, 1, 0),
+    (0x57, JUMPI, 1, 2, 0),
+    (0x58, PC, 1, 0, 1),
+    (0x59, MSIZE, 1, 0, 1),
+    (0x5A, GAS, 1, 0, 1),
+    (0x5B, JUMPDEST, 1, 0, 0),
+    (0x5C, TLOAD, 1, 1, 1),
+    (0x5D, TSTORE, 1, 2, 0),
+    (0x5E, MCOPY, 1, 3, 0),
+    (0x5F, PUSH0, 1, 0, 1),
+    (0x60, PUSH1, 2, 0, 1),
+    (0x61, PUSH2, 3, 0, 1),
+    (0x62, PUSH3, 4, 0, 1),
+    (0x63, PUSH4, 5, 0, 1),
+    (0x64, PUSH5, 6, 0, 1),
+    (0x65, PUSH6, 7, 0, 1),
+    (0x66, PUSH7, 8, 0, 1),
+    (0x67, PUSH8, 9, 0, 1),
+    (0x68, PUSH9, 10, 0, 1),
+    (0x69, PUSH10, 11, 0, 1),
+    (0x6A, PUSH11, 12, 0, 1),
+    (0x6B, PUSH12, 13, 0, 1),
+    (0x6C, PUSH13, 14, 0, 1),
+    (0x6D, PUSH14, 15, 0, 1),
+    (0x6E, PUSH15, 16, 0, 1),
+    (0x6F, PUSH16, 17, 0, 1),
+    (0x70, PUSH17, 18, 0, 1),
+    (0x71, PUSH18, 19, 0, 1),
+    (0x72, PUSH19, 20, 0, 1),
+    (0x73, PUSH20, 21, 0, 1),
+    (0x74, PUSH21, 22, 0, 1),
+    (0x75, PUSH22, 23, 0, 1),
+    (0x76, PUSH23, 24, 0, 1),
+    (0x77, PUSH24, 25, 0, 1),
+    (0x78, PUSH25, 26, 0, 1),
+    (0x79, PUSH26, 27, 0, 1),
+    (0x7A, PUSH27, 28, 0, 1),
+    (0x7B, PUSH28, 29, 0, 1),
+    (0x7C, PUSH29, 30, 0, 1),
+    (0x7D, PUSH30, 31, 0, 1),
+    (0x7E, PUSH31, 32, 0, 1),
+    (0x7F, PUSH32, 33, 0, 1),
+    (0x80, DUP1, 1, 1, 2),
+    (0x81, DUP2, 1, 2, 3),
+    (0x82, DUP3, 1, 3, 4),
+    (0x83, DUP4, 1, 4, 5),
+    (0x84, DUP5, 1, 5, 6),
+    (0x85, DUP6, 1, 6, 7),
+    (0x86, DUP7, 1, 7, 8),
+    (0x87, DUP8, 1, 8, 9),
+    (0x88, DUP9, 1, 9, 10),
+    (0x89, DUP10, 1, 10, 11),
+    (0x8A, DUP11, 1, 11, 12),
+    (0x8B, DUP12, 1, 12, 13),
+    (0x8C, DUP13, 1, 13, 14),
+    (0x8D, DUP14, 1, 14, 15),
+    (0x8E, DUP15, 1, 15, 16),
+    (0x8F, DUP16, 1, 16, 17),
+    (0x90, SWAP1, 1, 2, 2),
+    (0x91, SWAP2, 1, 3, 3),
+    (0x92, SWAP3, 1, 4, 4),
+    (0x93, SWAP4, 1, 5, 5),
+    (0x94, SWAP5, 1, 6, 6),
+    (0x95, SWAP6, 1, 7, 7),
+    (0x96, SWAP7, 1, 8, 8),
+    (0x97, SWAP8, 1, 9, 9),
+    (0x98, SWAP9, 1, 10, 10),
+    (0x99, SWAP10, 1, 11, 11),
+    (0x9A, SWAP11, 1, 12, 12),
+    (0x9B, SWAP12, 1, 13, 13),
+    (0x9C, SWAP13, 1, 14, 14),
+    (0x9D, SWAP14, 1, 15, 15),
+    (0x9E, SWAP15, 1, 16, 16),
+    (0x9F, SWAP16, 1, 17, 17),
+    (0xA0, LOG0, 1, 2, 0),
+    (0xA1, LOG1, 1, 3, 0),
+    (0xA2, LOG2, 1, 4, 0),
+    (0xA3, LOG3, 1, 5, 0),
+    (0xA4, LOG4, 1, 6, 0),
+    (0xF0, CREATE, 1, 3, 1),
+    (0xF1, CALL, 1, 7, 1),
+    (0xF2, CALLCODE, 1, 7, 1),
+    (0xF3, RETURN, 1, 2, 0),
+    (0xF4, DELEGATECALL, 1, 6, 1),
+    (0xF5, CREATE2, 1, 4, 1),
+    (0xFA, STATICCALL, 1, 6, 1),
+    (0xFD, REVERT, 1, 2, 0),
+    (0xFE, INVALID, 1, 0, 0),
+    (0xFF, SELFDESTRUCT, 1, 1, 0),
+];
