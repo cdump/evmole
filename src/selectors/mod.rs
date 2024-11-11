@@ -6,8 +6,8 @@ use crate::evm::{
     U256, VAL_0_B, VAL_1_B,
 };
 use crate::Selector;
-use alloy_primitives::uint;
-use std::collections::BTreeSet;
+use alloy_primitives::{uint, hex};
+use std::collections::BTreeMap;
 
 mod calldata;
 use calldata::CallDataImpl;
@@ -17,13 +17,14 @@ enum Label {
     CallData,
     Signature,
     MulSig,
+    SelCmp(Selector, bool),
 }
 
 const VAL_FFFFFFFF_B: [u8; 32] = uint!(0xffffffff_U256).to_be_bytes();
 
 fn analyze(
     vm: &mut Vm<Label, CallDataImpl>,
-    selectors: &mut BTreeSet<Selector>,
+    selectors: &mut BTreeMap<Selector, usize>,
     ret: StepResult<Label>,
     gas_used: &mut u32,
     gas_limit: u32,
@@ -32,9 +33,21 @@ fn analyze(
           StepResult{op: op::XOR|op::EQ|op::SUB, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
         | StepResult{op: op::XOR|op::EQ|op::SUB, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
         {
-            selectors.insert(s1.data[28..32].try_into().expect("4 bytes slice is always convertable to Selector"));
-            let v = vm.stack.peek_mut()?;
-            v.data = if ret.op == op::EQ { VAL_0_B } else { VAL_1_B };
+            let selector: Selector = s1.data[28..32].try_into().expect("4 bytes slice is always convertable to Selector");
+            *vm.stack.peek_mut()? = Element{
+                data : if ret.op == op::EQ { VAL_0_B } else { VAL_1_B },
+                label : Some(Label::SelCmp(selector, ret.op == op::EQ)),
+            }
+        }
+
+        StepResult{op: op::JUMPI, fa: Some(fa), sa: Some(Element{label: Some(Label::SelCmp(selector, is_eq)), ..}), ..} =>
+        {
+            let pc = if is_eq {
+                usize::try_from(fa).expect("set to usize in vm.rs")
+            } else {
+                vm.pc + 1
+            };
+            selectors.insert(selector, pc);
         }
 
           StepResult{op: op::LT|op::GT, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
@@ -90,9 +103,16 @@ fn analyze(
             v.label = Some(Label::CallData);
         }
 
+        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::SelCmp(sel, is_eq)), ..}), ..} =>
+        {
+            let v = vm.stack.peek_mut()?;
+            v.label = Some(Label::SelCmp(sel, !is_eq));
+        }
+
         StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
         {
-            selectors.insert([0; 4]);
+            let v = vm.stack.peek_mut()?;
+            v.label = Some(Label::SelCmp([0; 4], false));
         }
 
         StepResult{op: op::MLOAD, ul: Some(used), ..} =>
@@ -110,7 +130,7 @@ fn analyze(
 
 fn process(
     mut vm: Vm<Label, CallDataImpl>,
-    selectors: &mut BTreeSet<Selector>,
+    selectors: &mut BTreeMap<Selector, usize>,
     gas_limit: u32,
 ) -> u32 {
     let mut gas_used = 0;
@@ -120,8 +140,8 @@ fn process(
                 "selectors: {:?}",
                 selectors
                     .iter()
-                    .map(|s| format!("{:02x}{:02x}{:02x}{:02x},", s[0], s[1], s[2], s[3]))
-                    .collect::<Vec<String>>()
+                    .map(|(s, p)| (hex::encode(s), *p))
+                    .collect::<Vec<(String, usize)>>()
             );
             println!("{:?}\n", vm);
         }
@@ -164,8 +184,14 @@ fn process(
 /// assert_eq!(selectors, vec![[0x21, 0x25, 0xb6, 0x5b], [0xb6, 0x9e, 0xf8, 0xa8]])
 /// ```
 pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
+    let selectors_with_pc = function_selectors_with_pc(code, gas_limit);
+    selectors_with_pc.into_keys().collect()
+}
+
+// not public for users yet
+pub fn function_selectors_with_pc(code: &[u8], gas_limit: u32) -> BTreeMap<Selector, usize> {
     let vm = Vm::new(code, &CallDataImpl {});
-    let mut selectors = BTreeSet::new();
+    let mut selectors = BTreeMap::new();
     process(
         vm,
         &mut selectors,
@@ -175,7 +201,7 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
             gas_limit
         },
     );
-    selectors.into_iter().collect()
+    selectors
 }
 
 #[cfg(test)]
