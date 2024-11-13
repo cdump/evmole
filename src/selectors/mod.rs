@@ -36,16 +36,16 @@ fn analyze(
             let selector: Selector = s1.data[28..32].try_into().expect("4 bytes slice is always convertable to Selector");
             *vm.stack.peek_mut()? = Element{
                 data : if ret.op == op::EQ { VAL_0_B } else { VAL_1_B },
-                label : Some(Label::SelCmp(selector, ret.op == op::EQ)),
+                label : Some(Label::SelCmp(selector, false)),
             }
         }
 
-        StepResult{op: op::JUMPI, fa: Some(fa), sa: Some(Element{label: Some(Label::SelCmp(selector, is_eq)), ..}), ..} =>
+        StepResult{op: op::JUMPI, fa: Some(fa), sa: Some(Element{label: Some(Label::SelCmp(selector, reversed)), ..}), ..} =>
         {
-            let pc = if is_eq {
-                usize::try_from(fa).expect("set to usize in vm.rs")
-            } else {
+            let pc = if reversed {
                 vm.pc + 1
+            } else {
+                usize::try_from(fa).expect("set to usize in vm.rs")
             };
             selectors.insert(selector, pc);
         }
@@ -103,10 +103,10 @@ fn analyze(
             v.label = Some(Label::CallData);
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::SelCmp(sel, is_eq)), ..}), ..} =>
+        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::SelCmp(sel, reversed)), ..}), ..} =>
         {
             let v = vm.stack.peek_mut()?;
-            v.label = Some(Label::SelCmp(sel, !is_eq));
+            v.label = Some(Label::SelCmp(sel, !reversed));
         }
 
         StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
