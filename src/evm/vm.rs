@@ -141,10 +141,7 @@ where
                 }
                 let mut args: [u8; 32] = [0; 32];
                 args[(32 - n)..].copy_from_slice(&self.code[self.pc + 1..self.pc + 1 + n]);
-                self.stack.push(Element {
-                    data: args,
-                    label: None,
-                });
+                self.stack.push_data(args);
                 self.pc += n;
                 Ok(StepResult::new(op, if n == 0 { 2 } else { 3 }))
             }
@@ -291,14 +288,7 @@ where
 
             op::ISZERO => {
                 let raws0 = self.stack.pop()?;
-                self.stack.push(Element {
-                    data: if raws0.data == VAL_0_B {
-                        VAL_1_B
-                    } else {
-                        VAL_0_B
-                    },
-                    label: None,
-                });
+                self.stack.push_data(if raws0.data == VAL_0_B { VAL_1_B } else { VAL_0_B });
                 let mut ret = StepResult::new(op, 3);
                 ret.fa = Some(raws0);
                 Ok(ret)
