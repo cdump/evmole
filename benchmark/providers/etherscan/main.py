@@ -1,6 +1,8 @@
 import json
 import os
+import re
 import sys
+import time
 
 from Crypto.Hash import keccak
 
@@ -20,16 +22,25 @@ def join_inputs(inputs) -> str:
         n += ','
     return n[:-1]
 
-def process(abi, mode) -> dict[str,str]:
+def process(data, mode):
     ret = {}
-    for x in abi:
+    for x in data['abi']:
         if x['type'] != 'function':
             continue
         args = join_inputs(x['inputs'])
         n = f'{x["name"]}({args})'
         sg = sign(n.encode('ascii'))
-        ret[sg] = args if mode == 'arguments' else x.get('stateMutability', '')
-    return ret
+        if mode == 'arguments' or mode == 'selectors':
+            ret[sg] = args
+        elif mode == 'mutability':
+            ret[sg] = x.get('stateMutability', '')
+        else:
+            raise Exception(f'Unknown mode {mode}')
+
+    if mode == 'selectors':
+        return list(ret.keys())
+    else:
+        return ret
 
 if len(sys.argv) < 4:
     print('Usage: python3 main.py MODE INPUT_DIR OUTPUT_FILE')
@@ -44,8 +55,10 @@ outfile = sys.argv[3]
 for fname in os.listdir(indir):
     with open(f'{indir}/{fname}', 'r') as fh:
         d = json.load(fh)
-        r = process(d['abi'], mode)
-        ret[fname] = list(r.keys()) if mode == 'selectors' else r
+        t0 = time.perf_counter()
+        r = process(d, mode)
+        duration_ms = int((time.perf_counter() - t0) * 1000)
+        ret[fname] = [duration_ms, r]
 
 with open(outfile, 'w') as fh:
     json.dump(ret, fh)

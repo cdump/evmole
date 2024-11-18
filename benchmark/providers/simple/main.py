@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import time
 
 
 def extract_selectors(code: bytes) -> list[str]:
@@ -35,13 +36,17 @@ for fname in os.listdir(indir):
     with open(f'{indir}/{fname}', 'r') as fh:
         d = json.load(fh)
         code = bytes.fromhex(d['code'][2:])
+        t0 = time.perf_counter()
         if mode == 'arguments':
-            r = {s: '' for s in selectors[fname]}
+            r = {s: '' for s in selectors[fname][1]}
         elif mode == 'mutability':
-            r = {s: 'nonpayable' for s in selectors[fname]}
-        else:
+            r = {s: 'nonpayable' for s in selectors[fname][1]}
+        elif mode == 'selectors':
             r = extract_selectors(code)
-        ret[fname] = r
+        else:
+            raise Exception(f'Unknown mode {mode}')
+        duration_ms = int((time.perf_counter() - t0) * 1000)
+        ret[fname] = [duration_ms, r]
 
 with open(outfile, 'w') as fh:
     json.dump(ret, fh)

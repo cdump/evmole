@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::io::{BufWriter, Write};
+use std::time::Instant;
 
 use clap::{Parser, ValueEnum};
 use hex::FromHex;
@@ -37,9 +38,11 @@ struct Args {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = Args::parse();
 
-    let selectors: HashMap<String, Vec<String>> = match cfg.mode {
+    type Meta = u64; // duration in ms
+
+    let selectors: HashMap<String, (Meta, Vec<String>)> = match cfg.mode {
         Mode::Selectors => HashMap::new(),
-        _ => {
+        Mode::Arguments | Mode::Mutability => {
             let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
             serde_json::from_str(&file_content)?
         }
@@ -51,8 +54,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![]
     };
 
-    let mut ret_selectors: HashMap<String, Vec<String>> = HashMap::new();
-    let mut ret_other: HashMap<String, HashMap<String, String>> = HashMap::new();
+    let mut ret_selectors: HashMap<String, (Meta, Vec<String>)> = HashMap::new();
+    let mut ret_other: HashMap<String, (Meta, HashMap<String, String>)> = HashMap::new();
 
     for entry in fs::read_dir(cfg.input_dir)? {
         let entry = entry?;
@@ -71,41 +74,80 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hex::decode(v.code.strip_prefix("0x").expect("0x prefix expected"))?
         };
 
-        // println!("processing {}", fname);
+        // eprintln!("processing {}", fname);
 
         match cfg.mode {
             Mode::Selectors => {
+                let now = Instant::now();
                 let r = evmole::function_selectors(&code, 0);
-                ret_selectors.insert(fname, r.iter().map(hex::encode).collect());
+                ret_selectors.insert(
+                    fname,
+                    (
+                        now.elapsed().as_millis() as u64,
+                        r.iter().map(hex::encode).collect(),
+                    ),
+                );
             }
-            Mode::Arguments | Mode::Mutability => {
+            Mode::Arguments => {
                 let fsel = if !only_selector.is_empty() {
                     &only_selector
                 } else {
-                    &selectors[&fname]
+                    &selectors[&fname].1
                 };
+                let now = Instant::now();
+                let args = fsel
+                    .iter()
+                    .map(|s| {
+                        let selector = <[u8; 4]>::from_hex(s).unwrap();
+                        (
+                            s.to_string(),
+                            evmole::function_arguments(&code, &selector, 0),
+                        )
+                    })
+                    .collect();
+
+                ret_other.insert(fname, (now.elapsed().as_millis() as u64, args));
+            }
+            Mode::Mutability => {
+                let fsel = if !only_selector.is_empty() {
+                    &only_selector
+                } else {
+                    &selectors[&fname].1
+                };
+
+                let now = Instant::now();
+                let res: HashMap<_, _> = fsel
+                    .iter()
+                    .map(|s| {
+                        let selector = <[u8; 4]>::from_hex(s).unwrap();
+                        (
+                            selector,
+                            evmole::function_state_mutability(&code, &selector, 0),
+                        )
+                    })
+                    .collect();
+                let dur = now.elapsed().as_millis() as u64;
 
                 ret_other.insert(
                     fname,
-                    fsel.iter()
-                        .map(|s| {
-                            let selector = <[u8; 4]>::from_hex(s).unwrap();
-                            (
-                                s.to_string(),
-                                match cfg.mode {
-                                    Mode::Arguments => {
-                                        evmole::function_arguments(&code, &selector, 0)
-                                    }
-                                    Mode::Mutability => {
-                                        evmole::function_state_mutability(&code, &selector, 0)
-                                            .as_json_str()
-                                            .to_string()
-                                    }
-                                    _ => panic!("impossible mode"),
-                                },
-                            )
-                        })
-                        .collect(),
+                    (
+                        dur,
+                        fsel.iter()
+                            .map(|s| {
+                                let selector = <[u8; 4]>::from_hex(s).unwrap();
+                                (
+                                    s.to_string(),
+                                    if let Some(sm) = res.get(&selector) {
+                                        sm.as_json_str().to_string()
+                                    } else {
+                                        "".to_string()
+                                    }, // evmole::function_state_mutability(&code, &selector, 0)
+                                       //     .as_json_str()
+                                       //     .to_string()
+                                )
+                            })
+                            .collect(),
+                    ),
                 );
             }
         }

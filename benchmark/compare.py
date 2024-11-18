@@ -19,11 +19,11 @@ def load_data(btype: str, dname: str, providers: list[str], results_dir: str) ->
 def process_selectors(dname: str, providers: list[str], results_dir: str):
     pdata, ptimes = load_data('selectors', dname, providers, results_dir)
     ret = []
-    for fname, gt in pdata[0].items():
+    for fname, (_meta, gt) in pdata[0].items():
         gt_set = set(gt)
         data = []
         for i in range(1, len(providers)): # skip ground_truth provider
-            d = set(pdata[i].get(fname, []))
+            d = set(pdata[i][fname][1])
             fp = list(d - gt_set)
             fn = list(gt_set - d)
             data.append([fp, fn])
@@ -192,7 +192,7 @@ def normalize_args(args: str, rules: set[str]|None) -> str:
 def process_functions(tname: str, dname: str, providers: list[str], results_dir: str, normalize_func):
     pdata, ptimes = load_data(tname, dname, providers, results_dir)
     ret = []
-    for fname, gt in pdata[0].items():
+    for fname, (_meta, gt) in pdata[0].items():
         func = []
         for sel, gt_val in gt.items():
             if gt_val == '' and tname == 'mutability':
@@ -201,7 +201,7 @@ def process_functions(tname: str, dname: str, providers: list[str], results_dir:
             data = []
             norm_gt_val = normalize_func(gt_val)
             for i in range(1, len(providers)): # skip ground_truth provider
-                val = pdata[i][fname][sel]
+                val = pdata[i][fname][1][sel]
                 norm_val = normalize_func(val)
                 if norm_val == norm_gt_val:
                     data.append([1])
@@ -272,10 +272,20 @@ if __name__ == '__main__':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'simple']
         elif cfg.mode == 'arguments':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'simple']
-        else: # mutability
+        elif cfg.mode == 'mutability':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'simple']
+        else:
+            cfg.providers = []
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
+
+    if cfg.mode == 'selectors':
+        results = [process_selectors(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
+
+        if cfg.markdown:
+            markdown_selectors(cfg.providers, results)
+        else:
+            show_selectors(cfg.providers, results, cfg.show_errors)
 
     if cfg.mode == 'arguments':
         results = [process_arguments(d, cfg.providers, cfg.results_dir, cfg.normalize_args) for d in cfg.datasets]
@@ -296,11 +306,3 @@ if __name__ == '__main__':
                 x['dataset'] += '/strict'
                 results.append(x)
             show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
-
-    else:
-        results = [process_selectors(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
-
-        if cfg.markdown:
-            markdown_selectors(cfg.providers, results)
-        else:
-            show_selectors(cfg.providers, results, cfg.show_errors)

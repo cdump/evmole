@@ -1,4 +1,5 @@
-import {readdirSync, readFileSync, writeFileSync} from 'fs'
+import { readdirSync, readFileSync, writeFileSync } from 'fs'
+import { hrtime } from 'process'
 
 import { whatsabi } from "@shazow/whatsabi";
 
@@ -9,24 +10,28 @@ if (argv.length < 5) {
 }
 
 const mode = argv[2];
-if (mode != 'selectors' && mode != 'mutability') {
-  console.log('Only "selectors" and "mutability" modes are supported, got ', mode)
-  process.exit(1)
-}
 const indir = argv[3];
 const outfile = argv[4];
 
-const selectors = mode === 'selectors' ? {} : JSON.parse(readFileSync(argv[5]));
+const selectors = mode === 'mutability' ? JSON.parse(readFileSync(argv[5])) : {};
+
+function timeit(fn) {
+  const start_ts = hrtime.bigint();
+  const r = fn();
+  const duration_ms = Number((hrtime.bigint() - start_ts) / 1000000n);
+  return [duration_ms, r]
+}
 
 function extract(code, mode, fname) {
-  if (mode == 'selectors') {
-    return whatsabi.selectorsFromBytecode(code).map(x => x.slice(2)); // remove '0x' prefix
-  } else { // mutability
-    const abi = whatsabi.abiFromBytecode(code);
+  if (mode === 'selectors') {
+    const [duration_ms, r] = timeit(() => whatsabi.selectorsFromBytecode(code))
+    return [duration_ms, r.map(x => x.slice(2))]; // remove '0x' prefix
+  } else if (mode === 'mutability') {
+    const [duration_ms, abi] = timeit(() => whatsabi.abiFromBytecode(code));
     const smut = Object.fromEntries(abi.filter((v) => v.type == 'function').map((v) => [v.selector, v.stateMutability]));
-    return Object.fromEntries(selectors[fname].map((s) => {
-      return [s, smut[`0x${s}`] || 'selnotfound'];
-    }));
+    return [duration_ms, Object.fromEntries(selectors[fname][1].map((s) => [s, smut[`0x${s}`] || 'selnotfound']))];
+  } else {
+    throw 'unsupported mode';
   }
 }
 

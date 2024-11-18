@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::io::{BufWriter, Write};
+use std::time::Instant;
 use std::{env, fs};
 
 #[derive(Debug, serde::Deserialize)]
@@ -22,7 +23,9 @@ fn main() -> std::io::Result<()> {
         std::process::exit(1);
     }
 
-    let mut ret: HashMap<String, Vec<String>> = HashMap::new();
+    type Meta = u64; // duration in ms
+    let mut ret: HashMap<String, (Meta, Vec<String>)> = HashMap::new();
+
     for entry in fs::read_dir(indir)? {
         let entry = entry?;
         let path = entry.path();
@@ -35,12 +38,12 @@ fn main() -> std::io::Result<()> {
             hex::decode(x).unwrap()
         };
 
-        let string_selectors: Vec<_> = evm_hound::selectors_from_bytecode(&code)
-            .into_iter()
-            .map(hex::encode)
-            .collect();
+        let now = Instant::now();
+        let r = evm_hound::selectors_from_bytecode(&code);
+        let duration_ms = now.elapsed().as_millis() as u64;
+        let string_selectors: Vec<_> = r.into_iter().map(hex::encode).collect();
 
-        ret.insert(fname, string_selectors);
+        ret.insert(fname, (duration_ms, string_selectors));
     }
 
     let file = fs::File::create(outfile)?;
