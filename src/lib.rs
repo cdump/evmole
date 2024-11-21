@@ -21,3 +21,6 @@ mod interface_py;
 
 #[cfg(feature = "javascript")]
 mod interface_js;
+
+#[cfg(feature = "wasm")]
+mod interface_wasm;
