@@ -71,7 +71,7 @@ jobs:
       - name: Build
         uses: PyO3/maturin-action@v1
         with:
-          maturin-version: 1.7.0
+          maturin-version: 1.7.6
           target: ${{ matrix.platform.target }}
           manylinux: auto
           args: -i ${{ matrix.python-version }} --release --out dist
@@ -98,7 +98,7 @@ jobs:
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
-          maturin-version: 1.7.0
+          maturin-version: 1.7.6
           command: sdist
           args: --out dist
       - name: Upload artifacts
