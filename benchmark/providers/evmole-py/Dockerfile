@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM rust:1.81 AS build
+FROM rust:1.82 AS build
 RUN  wget https://github.com/PyO3/maturin/releases/download/v1.7.0/maturin-musl_1.7.0_amd64.deb \
   && apt-get install ./maturin-*.deb
 COPY ./rust /workdir
