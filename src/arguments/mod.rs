@@ -550,6 +550,7 @@ fn analyze(
 ///
 /// assert_eq!(arguments, vec![DynSolType::Uint(32), DynSolType::Address, DynSolType::Uint(224)]);
 /// ```
+#[deprecated(since = "0.6.0", note = "Use contract_info(ContractInfoArgs(code).with_arguments()) instead")]
 pub fn function_arguments_alloy(
     code: &[u8],
     selector: &Selector,
@@ -629,7 +630,9 @@ pub fn function_arguments_alloy(
 ///
 /// assert_eq!(arguments, "uint32,address,uint224");
 /// ```
+#[deprecated(since = "0.6.0", note = "Use contract_info(ContractInfoArgs(code).with_arguments()) instead")]
 pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> String {
+    #[allow(deprecated)]
     function_arguments_alloy(code, selector, gas_limit)
         .into_iter()
         .map(|t| t.sol_type_name().to_string())

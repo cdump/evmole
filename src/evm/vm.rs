@@ -47,7 +47,7 @@ where
     pub calldata: &'a U,
 }
 
-impl<'a, T, U> fmt::Debug for Vm<'a, T, U>
+impl<T, U> fmt::Debug for Vm<'_, T, U>
 where
     T: Clone + std::fmt::Debug,
     U: CallData<T>,
@@ -55,7 +55,8 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Vm:\n .pc = 0x{:x} | {}\n .stack = {:?}\n .memory = {:?}",
+            "Vm:\n .pc = 0x{:x} ({}) | {}\n .stack = {:?}\n .memory = {:?}",
+            self.pc,
             self.pc,
             if !self.stopped {
                 op::info(self.code[self.pc]).name
@@ -85,7 +86,7 @@ where
     }
 
     // not Clone trait because Cow experiments
-    pub fn clone(&'a self) -> Self {
+    pub fn clone(&self) -> Self {
         Vm {
             code: self.code,
             pc: self.pc,
@@ -431,9 +432,11 @@ where
             }
 
             op::CODECOPY => {
-                let mem_off: u32 = self.stack.pop_uint()?.try_into()?;
+                let raws0 = self.stack.pop()?;
                 let src_off: usize = self.stack.pop_uint()?.try_into()?;
-                let size: usize = self.stack.pop_uint()?.try_into()?;
+                let raws2 = self.stack.pop()?;
+                let mem_off: u32 = (&raws0).try_into()?;
+                let size: usize = (&raws2).try_into()?;
 
                 if size > 32768 {
                     Err(UnsupportedOpError { op }.into())
@@ -444,8 +447,11 @@ where
                         let n = std::cmp::min(size, code_len - src_off);
                         data[0..n].copy_from_slice(&self.code[src_off..src_off + n]);
                     }
+                    let mut ret = StepResult::new(op, 3);
+                    ret.fa = Some(raws0);
+                    ret.sa = Some(raws2);
                     self.memory.store(mem_off, data, None);
-                    Ok(StepResult::new(op, 3))
+                    Ok(ret)
                 }
             }
 

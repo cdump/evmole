@@ -3,7 +3,7 @@ import json
 import os
 import time
 
-from evmole import function_arguments, function_selectors, function_state_mutability
+from evmole import contract_info
 
 parser = argparse.ArgumentParser()
 parser.add_argument('mode', choices=['selectors', 'arguments', 'mutability'])
@@ -24,16 +24,26 @@ for fname in os.listdir(cfg.input_dir):
         code = d['code']
         t0 = time.perf_counter()
         if cfg.mode == 'selectors':
-            r = function_selectors(code)
+            r = contract_info(code, selectors=True)
         elif cfg.mode == 'arguments':
-            fsel = selectors[fname][1]
-            r = {s: function_arguments(code, s) for s in fsel}
+            r = contract_info(code, arguments=True)
         elif cfg.mode == 'mutability':
-            fsel = selectors[fname][1]
-            r = {s: function_state_mutability(code, s) for s in fsel}
+            r = contract_info(code, state_mutability=True)
         else:
             raise Exception(f'Unknown mode {cfg.mode}')
         duration_ms = int((time.perf_counter() - t0) * 1000)
+
+        if cfg.mode == 'selectors':
+            r = [f.selector for f in r.functions]
+        elif cfg.mode == 'arguments':
+            by_sel = {f.selector: f.arguments for f in r.functions}
+            r = {s: by_sel.get(s, 'notfound') for s in selectors[fname][1]}
+        elif cfg.mode == 'mutability':
+            by_sel = {f.selector: f.state_mutability for f in r.functions}
+            r = {s: by_sel.get(s, 'notfound') for s in selectors[fname][1]}
+        else:
+            raise Exception(f'Unknown mode {cfg.mode}')
+
         ret[fname] = [duration_ms, r]
 
 with open(cfg.output_file, 'w') as fh:

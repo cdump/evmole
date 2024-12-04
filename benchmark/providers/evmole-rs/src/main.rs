@@ -8,7 +8,8 @@ use hex::FromHex;
 
 #[derive(serde::Deserialize)]
 struct Input {
-    code: String,
+    code: Option<String>,
+    runtimeBytecode: Option<String>,
 }
 
 #[derive(ValueEnum, Clone, PartialEq)]
@@ -16,6 +17,7 @@ enum Mode {
     Selectors,
     Arguments,
     Mutability,
+    Storage,
 }
 
 #[derive(Parser)]
@@ -41,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     type Meta = u64; // duration in ms
 
     let selectors: HashMap<String, (Meta, Vec<String>)> = match cfg.mode {
-        Mode::Selectors => HashMap::new(),
+        Mode::Selectors | Mode::Storage => HashMap::new(),
         Mode::Arguments | Mode::Mutability => {
             let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
             serde_json::from_str(&file_content)?
@@ -71,7 +73,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let code = {
             let file_content = fs::read_to_string(path)?;
             let v: Input = serde_json::from_str(&file_content)?;
-            hex::decode(v.code.strip_prefix("0x").expect("0x prefix expected"))?
+            let code = if v.runtimeBytecode.is_some() {
+                v.runtimeBytecode.unwrap()
+            } else {
+                v.code.unwrap()
+            };
+            hex::decode(code.strip_prefix("0x").expect("0x prefix expected"))?
         };
 
         // eprintln!("processing {}", fname);
@@ -79,12 +86,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match cfg.mode {
             Mode::Selectors => {
                 let now = Instant::now();
-                let r = evmole::function_selectors(&code, 0);
+                let info =
+                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_selectors());
+                let dur = now.elapsed().as_millis() as u64;
                 ret_selectors.insert(
                     fname,
                     (
-                        now.elapsed().as_millis() as u64,
-                        r.iter().map(hex::encode).collect(),
+                        dur,
+                        info.functions
+                            .unwrap()
+                            .iter()
+                            .map(|f| hex::encode(f.selector))
+                            .collect(),
                     ),
                 );
             }
@@ -94,19 +107,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 } else {
                     &selectors[&fname].1
                 };
+
                 let now = Instant::now();
-                let args = fsel
-                    .iter()
-                    .map(|s| {
-                        let selector = <[u8; 4]>::from_hex(s).unwrap();
+                let info =
+                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_arguments());
+                let dur = now.elapsed().as_millis() as u64;
+
+                let args: HashMap<String, String> = info
+                    .functions
+                    .unwrap()
+                    .into_iter()
+                    .map(|f| {
                         (
-                            s.to_string(),
-                            evmole::function_arguments(&code, &selector, 0),
+                            hex::encode(f.selector),
+                            f.arguments
+                                .unwrap()
+                                .iter()
+                                .map(|t| t.sol_type_name().to_string())
+                                .collect::<Vec<String>>()
+                                .join(","),
                         )
                     })
                     .collect();
 
-                ret_other.insert(fname, (now.elapsed().as_millis() as u64, args));
+                let res = fsel
+                    .iter()
+                    .map(|s| {
+                        (
+                            s.to_string(),
+                            match args.get(s) {
+                                Some(v) => v.to_string(),
+                                None => "not_found".to_string(),
+                            },
+                        )
+                    })
+                    .collect();
+
+                ret_other.insert(fname, (dur, res));
             }
             Mode::Mutability => {
                 let fsel = if !only_selector.is_empty() {
@@ -116,35 +153,53 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
 
                 let now = Instant::now();
-                let res: HashMap<_, _> = fsel
-                    .iter()
-                    .map(|s| {
-                        let selector = <[u8; 4]>::from_hex(s).unwrap();
+                let info = evmole::contract_info(
+                    evmole::ContractInfoArgs::new(&code).with_state_mutability(),
+                );
+                let dur = now.elapsed().as_millis() as u64;
+
+                let smut: HashMap<String, String> = info
+                    .functions
+                    .unwrap()
+                    .into_iter()
+                    .map(|f| {
                         (
-                            selector,
-                            evmole::function_state_mutability(&code, &selector, 0),
+                            hex::encode(f.selector),
+                            f.state_mutability.unwrap().as_json_str().to_string(),
                         )
                     })
                     .collect();
-                let dur = now.elapsed().as_millis() as u64;
 
+                let res = fsel
+                    .iter()
+                    .map(|s| {
+                        (
+                            s.to_string(),
+                            match smut.get(s) {
+                                Some(v) => v.to_string(),
+                                None => "not_found".to_string(),
+                            },
+                        )
+                    })
+                    .collect();
+
+                ret_other.insert(fname, (dur, res));
+            }
+
+            Mode::Storage => {
+                let now = Instant::now();
+                let info =
+                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_storage());
+                let dur = now.elapsed().as_millis() as u64;
                 ret_other.insert(
                     fname,
                     (
                         dur,
-                        fsel.iter()
-                            .map(|s| {
-                                let selector = <[u8; 4]>::from_hex(s).unwrap();
-                                (
-                                    s.to_string(),
-                                    if let Some(sm) = res.get(&selector) {
-                                        sm.as_json_str().to_string()
-                                    } else {
-                                        "".to_string()
-                                    }, // evmole::function_state_mutability(&code, &selector, 0)
-                                       //     .as_json_str()
-                                       //     .to_string()
-                                )
+                        info.storage
+                            .unwrap()
+                            .into_iter()
+                            .map(|sr| {
+                                (format!("{}_{}", hex::encode(sr.slot), sr.offset), sr.r#type)
                             })
                             .collect(),
                     ),

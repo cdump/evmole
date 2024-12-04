@@ -45,8 +45,8 @@
     "doc": "jsdoc2md --files ./dist/evmole.js --heading-depth 3"
   },
   "devDependencies": {
-    "jsdoc-to-markdown": "^8.0.3",
-    "rollup": "^4.21",
+    "jsdoc-to-markdown": "^9.1",
+    "rollup": "^4.28",
     "wasm-pack": "^0.13"
   }
 }

@@ -14,13 +14,13 @@ TODO: fix jsdelivr esm import
 import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole/+esm';
 -->
 ```html
-<div id="selectors"></div>
+<div id="info"></div>
 
 <script type="module">
-import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole@0.5.1/dist/evmole.mjs';
+import { contractInfo } from 'https://cdn.jsdelivr.net/npm/evmole@0.6.0/dist/evmole.mjs';
 
 const bytecode = '0x6080...'; // Replace with actual bytecode
-document.getElementById('selectors').textContent = functionSelectors(bytecode);
+document.getElementById('info').textContent = contractInfo(bytecode, {selectors: true, arguments: true, stateMutability: true});
 </script>
 ```
 
@@ -83,7 +83,7 @@ After that, you can use it as:
 const bytecode = '0x6080...'; // Replace with actual bytecode
 async function main() {
   await init();
-  console.log(functionSelectors(bytecode));
+  console.log(contractInfo(bytecode, {selectors: true}));
 }
 main()
 ```
@@ -91,7 +91,7 @@ or
 ```javascript
 const bytecode = '0x6080...'; // Replace with actual bytecode
 init().then() => {
-  console.log(functionSelectors(bytecode));
+  console.log(contractInfo(bytecode, {selectors: true}));
 }
 ```
 
@@ -100,21 +100,72 @@ See full example without Top Level Await in [Parcel example](./examples/parcel/s
 <!-- generated with `npm run doc` -->
 ### API
 
-<dl>
-<dt><a href="#functionSelectors">functionSelectors(code, gas_limit)</a> ⇒ <code>Array.&lt;string&gt;</code></dt>
-<dd><p>Extracts function selectors from the given bytecode.</p>
-</dd>
-<dt><a href="#functionArguments">functionArguments(code, selector, gas_limit)</a> ⇒ <code>string</code></dt>
-<dd><p>Extracts function arguments for a given selector from the bytecode.</p>
-</dd>
-<dt><a href="#functionStateMutability">functionStateMutability(code, selector, gas_limit)</a> ⇒ <code>string</code></dt>
-<dd><p>Extracts function state mutability for a given selector from the bytecode.</p>
-</dd>
-</dl>
+<a name="contractInfo"></a>
+
+### contractInfo(code, args) ⇒ [<code>Contract</code>](#Contract)
+Analyzes contract bytecode and returns contract information based on specified options.
+
+**Kind**: global function  
+**Returns**: [<code>Contract</code>](#Contract) - Analyzed contract information  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| code | <code>string</code> | Runtime bytecode as a hex string |
+| args | <code>Object</code> | Configuration options for the analysis |
+| [args.selectors] | <code>boolean</code> | When true, includes function selectors in the output |
+| [args.arguments] | <code>boolean</code> | When true, includes function arguments information |
+| [args.state_mutability] | <code>boolean</code> | When true, includes state mutability information for functions |
+| [args.storage] | <code>boolean</code> | When true, includes contract storage layout information |
+
+
+<a name="Contract"></a>
+
+### Contract : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| [functions] | [<code>Array.&lt;ContractFunction&gt;</code>](#ContractFunction) | Array of functions found in the contract. Not present if no functions were extracted |
+| [storage] | [<code>Array.&lt;StorageRecord&gt;</code>](#StorageRecord) | Array of storage records found in the contract. Not present if storage layout was not extracted |
+
+
+<a name="ContractFunction"></a>
+
+### ContractFunction : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| selector | <code>string</code> | Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd') |
+| bytecode_offset | <code>number</code> | Starting byte offset within the EVM bytecode for the function body |
+| [arguments] | <code>string</code> | Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted |
+| [state_mutability] | <code>string</code> | Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted |
+
+<a name="StorageRecord"></a>
+
+
+### StorageRecord : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| slot | <code>string</code> | Storage slot number as a hex string (e.g., '0', '1b') |
+| offset | <code>number</code> | Byte offset within the storage slot (0-31) |
+| type | <code>string</code> | Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32') |
+| reads | <code>Array.&lt;string&gt;</code> | Array of function selectors that read from this storage location |
+| writes | <code>Array.&lt;string&gt;</code> | Array of function selectors that write to this storage location |
+
+
+### Deprecated API
 
 <a name="functionSelectors"></a>
 
 ### functionSelectors(code, gas_limit) ⇒ <code>Array.&lt;string&gt;</code>
+**Please use [contractInfo(code, {selectors: true})](#contractInfo) instead**
+
 Extracts function selectors from the given bytecode.
 
 **Returns**: <code>Array.&lt;string&gt;</code> - Function selectors as a hex strings
@@ -127,6 +178,8 @@ Extracts function selectors from the given bytecode.
 <a name="functionArguments"></a>
 
 ### functionArguments(code, selector, gas_limit) ⇒ <code>string</code>
+**Please use [contractInfo(code, {arguments: true})](#contractInfo) instead**
+
 Extracts function arguments for a given selector from the bytecode.
 
 **Returns**: <code>string</code> - Function arguments (ex: 'uint32,address')
@@ -140,6 +193,8 @@ Extracts function arguments for a given selector from the bytecode.
 <a name="functionStateMutability"></a>
 
 ### functionStateMutability(code, selector, gas_limit) ⇒ <code>string</code>
+**Please use [contractInfo(code, {stateMutability: true})](#contractInfo) instead**
+
 Extracts function state mutability for a given selector from the bytecode.
 
 **Returns**: <code>string</code> - `payable` | `nonpayable` | `view` | `pure`

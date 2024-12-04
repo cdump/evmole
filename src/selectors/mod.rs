@@ -183,6 +183,7 @@ fn process(
 ///
 /// assert_eq!(selectors, vec![[0x21, 0x25, 0xb6, 0x5b], [0xb6, 0x9e, 0xf8, 0xa8]])
 /// ```
+#[deprecated(since = "0.6.0", note = "Use contract_info(ContractInfoArgs(code).with_selectors()) instead")]
 pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
     let selectors_with_pc = function_selectors_with_pc(code, gas_limit);
     selectors_with_pc.into_keys().collect()

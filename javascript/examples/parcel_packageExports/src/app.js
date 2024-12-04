@@ -1,4 +1,4 @@
-import init, { functionSelectors, functionArguments, functionStateMutability } from 'evmole/no_tla'
+import init, { contractInfo } from 'evmole/no_tla'
 // https://parceljs.org/blog/v2-9-0/#new-resolver
 
 document.body.innerHTML = `
@@ -14,9 +14,12 @@ const code = '6080604052348015600e575f80fd5b50600436106026575f3560e01c8063fae7ab
 // or: `init().then() => { }`
 async function main() {
   await init();
-  document.getElementById('selectors').innerText = functionSelectors(code);
-  document.getElementById('arguments').innerText = functionArguments(code, 'fae7ab82');
-  document.getElementById('state_mutability').innerText = functionStateMutability(code, 'fae7ab82');
+
+  const info = contractInfo(code, { selectors: false, arguments: true, stateMutability: true });
+
+  document.getElementById('selectors').innerText = info.functions[0].selector;
+  document.getElementById('arguments').innerText = info.functions[0].arguments;
+  document.getElementById('state_mutability').innerText = info.functions[0].stateMutability;
 }
 
 main();

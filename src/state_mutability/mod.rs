@@ -223,6 +223,7 @@ fn analyze_view_pure(vm: Vm<Label, CallDataImpl>, gas_limit: u32) -> ViewPureRes
 ///
 /// assert_eq!(state_mutability, StateMutability::Pure);
 /// ```
+#[deprecated(since = "0.6.0", note = "Use contract_info(ContractInfoArgs(code).with_state_mutability()) instead")]
 pub fn function_state_mutability(
     code: &[u8],
     selector: &Selector,

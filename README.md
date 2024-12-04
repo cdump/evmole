@@ -1,11 +1,11 @@
 # EVMole
 
-[![try it online](https://img.shields.io/badge/Try_It_Online-github.io-brightgreen)](https://cdump.github.io/evmole/)
+[![try it online](https://img.shields.io/badge/Try_It_Online-evmole.xyz-brightgreen)](https://evmole.xyz/)
 [![npm](https://img.shields.io/npm/v/evmole)](https://www.npmjs.com/package/evmole)
 [![Crates.io](https://img.shields.io/crates/v/evmole?color=e9b44f)](https://crates.io/crates/evmole)
 [![PyPI](https://img.shields.io/pypi/v/evmole?color=006dad)](https://pypi.org/project/evmole)
 
-EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, and [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), even for unverified contracts.
+EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), and storage layout, even for unverified contracts.
 
 
 ## Key Features
@@ -24,13 +24,28 @@ EVMole is a powerful library that extracts information from Ethereum Virtual Mac
 $ npm i evmole
 ```
 ```javascript
-import { functionSelectors, functionArguments, functionStateMutability } from 'evmole'
+import { contractInfo } from 'evmole'
 
 const code = '0x6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256'
 
-console.log(functionSelectors(code));                   // [ '2125b65b', 'b69ef8a8' ]
-console.log(functionArguments(code, '2125b65b'));       // 'uint32,address,uint224'
-console.log(functionStateMutability(code, '2125b65b')); // 'pure'
+console.log( contractInfo(code, {selectors:true, arguments:true, stateMutability:true}) )
+// {
+//   functions: [
+//     {
+//       selector: '2125b65b',
+//       bytecodeOffset: 52,
+//       arguments: 'uint32,address,uint224',
+//       stateMutability: 'pure'
+//     },
+//     {
+//       selector: 'b69ef8a8',
+//       bytecodeOffset: 68,
+//       arguments: '',
+//       stateMutability: 'pure'
+//     }
+//   ],
+//   storage: undefined
+// }
 ```
 
 ### Rust
@@ -38,12 +53,30 @@ Documentation is available on [docs.rs](https://docs.rs/evmole/latest/evmole/)
 ```rust
 let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256").unwrap();
 
-println!("{:x?} | {} | {:?}",
-    evmole::function_selectors(&code, 0),
-    evmole::function_arguments(&code, &[0x21, 0x25, 0xb6, 0x5b], 0),
-    evmole::function_state_mutability(&code, &[0x21, 0x25, 0xb6, 0x5b], 0),
+println!("{:?}", evmole::contract_info(
+    evmole::ContractInfoArgs::new(&code)
+        .with_selectors()
+        .with_arguments()
+        .with_state_mutability()
+    )
 );
-// [[21, 25, b6, 5b], [b6, 9e, f8, a8]] | uint32,address,uint224 | Pure
+// Contract {
+//     functions: Some([
+//         Function {
+//             selector: [33, 37, 182, 91],
+//             bytecode_offset: 52,
+//             arguments: Some([Uint(32), Address, Uint(224)]),
+//             state_mutability: Some(Pure)
+//         },
+//         Function {
+//             selector: [182, 158, 248, 168],
+//             bytecode_offset: 68,
+//             arguments: Some([]),
+//             state_mutability: Some(Pure)
+//         }
+//     ]),
+//     storage: None
+// }
 ```
 
 ### Python
@@ -52,13 +85,26 @@ println!("{:x?} | {} | {:?}",
 $ pip install evmole --upgrade
 ```
 ```python
-from evmole import function_selectors, function_arguments, function_state_mutability
+from evmole import contract_info
 
 code = '0x6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256'
 
-print(function_selectors(code))                    # ['2125b65b', 'b69ef8a8']
-print(function_arguments(code, '2125b65b'))        # uint32,address,uint224
-print(function_state_mutability(code, '2125b65b')) # pure
+print( contract_info(code, selectors=True, arguments=True, state_mutability=True) )
+# Contract(
+#     functions=[
+#     Function(
+#             selector=2125b65b,
+#             bytecode_offset=52,
+#             arguments=uint32,address,uint224,
+#             state_mutability=pure),
+#     Function(
+#             selector=b69ef8a8,
+#             bytecode_offset=68,
+#             arguments=,
+#             state_mutability=pure)
+#     ],
+#     storage=None
+# )
 ```
 
 ### Foundry

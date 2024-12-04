@@ -31,7 +31,7 @@ ifeq ($(GITHUB_ACTIONS),true)
 else
 	$(DOCKER) run --network=none --rm \
 		-v $(shell pwd)/:/mnt \
-		-it mcr.microsoft.com/playwright:v1.46.0-jammy \
+		-it mcr.microsoft.com/playwright:v1.49.0-jammy \
 		/bin/bash -c \
 		'cd /mnt/tests && npx playwright test'
 endif

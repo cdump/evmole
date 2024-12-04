@@ -8,3 +8,7 @@ pub trait CallData<T> {
     fn len(&self) -> U256;
     fn selector(&self) -> [u8; 4];
 }
+
+pub trait CallDataLabel {
+    fn label(n: usize, tp: &alloy_dyn_abi::DynSolType) -> Self;
+}

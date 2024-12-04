@@ -1,4 +1,4 @@
-export {functionSelectors, functionArguments, functionStateMutability} from "../dist/evmole.js";
+export {contractInfo, functionSelectors, functionArguments, functionStateMutability} from "../dist/evmole.js";
 import initEvmole from "../dist/evmole.js";
 
 import wasmUrl from "../dist/evmole_bg.wasm";
