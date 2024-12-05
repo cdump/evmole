@@ -269,11 +269,11 @@ if __name__ == '__main__':
     cfg = parser.parse_args()
     if cfg.providers is None:
         if cfg.mode == 'selectors':
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'simple']
+            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'heimdall-rs', 'simple']
         elif cfg.mode == 'arguments':
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'simple']
+            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'heimdall-rs', 'simple']
         elif cfg.mode == 'mutability':
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'simple']
+            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'heimdall-rs', 'simple']
         else:
             cfg.providers = []
     print('Config:')
