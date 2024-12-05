@@ -13,7 +13,7 @@ exclude = ["/javascript", "/python", "/benchmark", "/.github"]
 alloy-primitives = "0.8"
 alloy-dyn-abi = "0.8"
 
-pyo3 = { version = "0.23.2", features = ["extension-module"], optional = true }
+pyo3 = { version = "0.23.3", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 serde-wasm-bindgen = { version = "0.6.5", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
