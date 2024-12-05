@@ -4,7 +4,6 @@ use std::io::{BufWriter, Write};
 use std::time::Instant;
 
 use clap::{Parser, ValueEnum};
-use hex::FromHex;
 
 #[derive(serde::Deserialize)]
 struct Input {
