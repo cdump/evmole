@@ -51,4 +51,4 @@ $ ../.venv/bin/python3 compare.py --web-listen 127.0.0.1:8080
 
 
 ## How datasets was constructed
-See [datasets/README.md](datasets/ README)
+See [datasets/README.md](datasets README)
