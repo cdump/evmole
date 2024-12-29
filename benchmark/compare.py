@@ -229,6 +229,42 @@ def process_mutability(dname: str, providers: list[str], results_dir: str, stric
 def process_arguments(dname: str, providers: list[str], results_dir: str, normalize_rules: set[str]):
     return process_functions('arguments', dname, providers, results_dir, lambda x: normalize_args(x, normalize_rules))
 
+def process_storage(dname: str, providers: list[str], results_dir: str):
+    pdata, ptimes = load_data('storage', dname, providers, results_dir)
+    ret = []
+    for fname, (_meta, gt) in pdata[0].items():
+        func = []
+        for gt_slot, gt_type in gt.items():
+            data = []
+            for i in range(1, len(providers)): # skip ground_truth provider
+                vtype = pdata[i][fname][1].get(gt_slot)
+                if vtype == gt_type:
+                    data.append([1])
+                else:
+                    data.append([0, vtype])
+            func.append({'s': gt_slot, 'gt': gt_type, 'data': data})
+
+        qwe = set()
+        for i in range(1, len(providers)):
+            qwe |= set(pdata[i][fname][1].keys())
+
+        false_positive_slots = sorted(list(qwe - set(pdata[0][fname][1].keys())))
+        for slot in false_positive_slots:
+            data = []
+            for i in range(1, len(providers)): # skip ground_truth provider
+                vtype = pdata[i][fname][1].get(slot)
+                if vtype is None:
+                    data.append([1])
+                else:
+                    data.append([0, vtype])
+            func.append({'s': slot, 'gt': None, 'data': data})
+
+        ret.append({
+            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'func': func,
+        })
+    return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
+
 def show_arguments_or_mutability(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
         cnt_contracts = len(dataset_result['results'])
@@ -244,7 +280,7 @@ def show_arguments_or_mutability(providers: list[str], all_results: list, show_e
             if show_errors is not True:
                 continue
             print('  errors:')
-            for x in dataset_result['results']:
+            for x in sorted(dataset_result['results'], key=lambda x:x['addr']):
                 for y in x['func']:
                     if len(y['data'][provider_idx]) > 1:
                         assert y['data'][provider_idx][0] == 0
@@ -260,13 +296,15 @@ def show_arguments_or_mutability(providers: list[str], all_results: list, show_e
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', type=str, default=pathlib.Path(__file__).parent / 'results', help='results directory')
-    parser.add_argument('--mode', choices=['selectors', 'arguments', 'mutability'], default='selectors', help='mode')
+    parser.add_argument('--mode', choices=['selectors', 'arguments', 'mutability', 'storage'], default='selectors', help='mode')
     parser.add_argument('--providers', nargs='+', default=None)
-    parser.add_argument('--datasets', nargs='+', default=['largest1k', 'random50k', 'vyper'])
+    parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
     parser.add_argument('--show-errors', nargs='?', default=False, const=True, help='show errors')
     parser.add_argument('--normalize-args', nargs='+', required=False, choices=['fixed-size-array', 'tuples', 'string-bytes'], help='normalize arguments rules')
     cfg = parser.parse_args()
+    if cfg.datasets is None:
+        cfg.datasets = ['storage3k'] if cfg.mode == 'storage' else ['largest1k', 'random50k', 'vyper']
     if cfg.providers is None:
         if cfg.mode == 'selectors':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'heimdall-rs', 'simple']
@@ -274,8 +312,8 @@ if __name__ == '__main__':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'heimdall-rs', 'simple']
         elif cfg.mode == 'mutability':
             cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'heimdall-rs', 'simple']
-        else:
-            cfg.providers = []
+        elif cfg.mode == 'storage':
+            cfg.providers = ['etherscan', 'evmole-rs', 'smlxl']
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
 
@@ -306,3 +344,8 @@ if __name__ == '__main__':
                 x['dataset'] += '/strict'
                 results.append(x)
             show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
+
+    elif cfg.mode == 'storage':
+        # results = [process_storage(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
+        results = [process_storage('storage3k', cfg.providers, cfg.results_dir)]
+        show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)

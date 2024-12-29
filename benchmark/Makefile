@@ -2,9 +2,10 @@ PROVIDER_BASE = etherscan
 PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs sevm evmole-rs evmole-js evmole-py
 PROVIDERS_ARGUMENTS ?= simple evmole-rs evmole-js evmole-py
 PROVIDERS_MUTABILITY ?= simple whatsabi sevm evmole-rs evmole-js evmole-py
-#heimdall-rs
+PROVIDERS_STORAGE ?= evmole-rs smlxl
 
 DATASETS ?= largest1k random50k vyper
+DATASETS_STORAGE ?= storage3k
 DOCKER ?= docker
 DOCKER_CPUS ?= 1
 DOCKER_PREFIX ?= evmole-bench
@@ -12,27 +13,31 @@ DOCKER_PREFIX ?= evmole-bench
 PROVIDERS_SELECTORS := $(PROVIDER_BASE) $(PROVIDERS_SELECTORS)
 PROVIDERS_ARGUMENTS := $(PROVIDER_BASE) $(PROVIDERS_ARGUMENTS)
 PROVIDERS_MUTABILITY := $(PROVIDER_BASE) $(PROVIDERS_MUTABILITY)
-PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY))
+PROVIDERS_STORAGE := $(PROVIDER_BASE) $(PROVIDERS_STORAGE)
+PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE))
 
 DATASET := $(shell pwd)/datasets
 RES := $(shell pwd)/results
 
 BUILD_TARGETS := $(addsuffix .build, $(PROVIDERS_UNIQ))
-UNPACK_TARGETS := $(foreach d,$(DATASETS),$(addprefix datasets/, $(d)))
+UNPACK_TARGETS := $(foreach d,$(DATASETS) $(DATASETS_STORAGE),$(addprefix datasets/, $(d)))
 RUN_SELECTORS_TARGETS := $(foreach p,$(PROVIDERS_SELECTORS),$(addprefix $(p).selectors/, $(DATASETS)))
 RUN_ARGUMENTS_TARGETS := $(foreach p,$(PROVIDERS_ARGUMENTS),$(addprefix $(p).arguments/, $(DATASETS)))
 RUN_MUTABILITY_TARGETS := $(foreach p,$(PROVIDERS_MUTABILITY),$(addprefix $(p).mutability/, $(DATASETS)))
+RUN_STORAGE_TARGETS := $(foreach p,$(PROVIDERS_STORAGE),$(addprefix $(p).storage/, $(DATASETS_STORAGE)))
 
-RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS)
+RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS)
 
 benchmark-selectors: $(addsuffix .build, $(PROVIDERS_SELECTORS)) run-selectors
 benchmark-arguments: $(addsuffix .build, $(PROVIDERS_ARGUMENTS)) run-arguments
 benchmark-mutability: $(addsuffix .build, $(PROVIDERS_MUTABILITY)) run-mutability
+benchmark-storage: $(addsuffix .build, $(PROVIDERS_STORAGE)) run-storage
 
 build: $(BUILD_TARGETS)
 run-selectors: $(RUN_SELECTORS_TARGETS)
 run-arguments: $(RUN_ARGUMENTS_TARGETS)
 run-mutability: $(RUN_MUTABILITY_TARGETS)
+run-storage: $(RUN_STORAGE_TARGETS)
 
 $(BUILD_TARGETS):
 	$(info [*] Building $(basename $@)...)
