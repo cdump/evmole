@@ -33,7 +33,7 @@ fn analyze(
           StepResult{op: op::XOR|op::EQ|op::SUB, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
         | StepResult{op: op::XOR|op::EQ|op::SUB, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
         {
-            let selector: Selector = s1.data[28..32].try_into().expect("4 bytes slice is always convertable to Selector");
+            let selector: Selector = s1.data[28..32].try_into().expect("4 bytes slice is always convertible to Selector");
             *vm.stack.peek_mut()? = Element{
                 data : if ret.op == op::EQ { VAL_0_B } else { VAL_1_B },
                 label : Some(Label::SelCmp(selector, false)),
