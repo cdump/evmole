@@ -34,7 +34,7 @@ impl<T: fmt::Debug> fmt::Debug for Memory<T> {
 
 impl<T> Memory<T>
 where
-    T: fmt::Debug + Clone + Eq,
+    T: Clone + PartialEq,
 {
     pub fn new() -> Self {
         Self { data: Vec::new() }

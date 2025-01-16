@@ -35,9 +35,6 @@ impl<T> StepResult<T> {
 }
 
 pub struct Vm<'a, T, U>
-where
-    T: Clone + std::fmt::Debug,
-    U: CallData<T>,
 {
     pub code: &'a [u8],
     pub pc: usize,
@@ -49,8 +46,7 @@ where
 
 impl<T, U> fmt::Debug for Vm<'_, T, U>
 where
-    T: Clone + std::fmt::Debug,
-    U: CallData<T>,
+    T: std::fmt::Debug
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(

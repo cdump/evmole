@@ -9,6 +9,7 @@ use crate::evm::{
 };
 use std::error;
 
+#[derive(Debug)]
 pub struct CallDataImpl<T> {
     pub selector: [u8; 4],
     arg_types: BTreeMap<usize, DynSolType>,
@@ -64,12 +65,13 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
                 let nlen = std::cmp::min(data.len(), 4 - off);
                 data[..nlen].copy_from_slice(&self.selector[off..off + nlen]);
             } else {
-                if let Some(val) = self.arg_vals.get(&off) {
+                let xoff = off - 4;
+                if let Some(val) = self.arg_vals.get(&xoff) {
                     //TODO: look to the left to find proper element
                     data = U256::from(*val).to_be_bytes_vec();
                 }
-                if let Some(tp) = self.arg_types.get(&off) {
-                    label = Some(T::label(off - 4, tp));
+                if let Some(tp) = self.arg_types.get(&xoff) {
+                    label = Some(T::label(xoff, tp));
                 }
             }
         }
@@ -147,6 +149,8 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
                 // string '0x41' with len = 1
                 ret_nonzero.push((off, 32));
                 ret_nonzero.push((off + 32, 0x41)); // TODO: padd right, not left
+
+                ret_types.push((off, ty.clone())); // strlen
                 ret_types.push((off + 32, ty.clone()));
                 off += 64;
             }
