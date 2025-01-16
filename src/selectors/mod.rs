@@ -17,7 +17,7 @@ enum Label {
     CallData,
     Signature,
     MulSig,
-    SelCmp(Selector, bool),
+    SelCmp(Selector),
 }
 
 const VAL_FFFFFFFF_B: [u8; 32] = uint!(0xffffffff_U256).to_be_bytes();
@@ -36,17 +36,13 @@ fn analyze(
             let selector: Selector = s1.data[28..32].try_into().expect("4 bytes slice is always convertible to Selector");
             *vm.stack.peek_mut()? = Element{
                 data : if ret.op == op::EQ { VAL_0_B } else { VAL_1_B },
-                label : Some(Label::SelCmp(selector, false)),
+                label : Some(Label::SelCmp(selector)),
             }
         }
 
-        StepResult{op: op::JUMPI, fa: Some(fa), sa: Some(Element{label: Some(Label::SelCmp(selector, reversed)), ..}), ..} =>
+        StepResult{op: op::JUMPI, fa: Some(fa), sa: Some(Element{label: Some(Label::SelCmp(selector)), ..}), ..} =>
         {
-            let pc = if reversed {
-                vm.pc + 1
-            } else {
-                usize::try_from(fa).expect("set to usize in vm.rs")
-            };
+            let pc = usize::try_from(fa).expect("set to usize in vm.rs");
             selectors.insert(selector, pc);
         }
 
@@ -103,16 +99,16 @@ fn analyze(
             v.label = Some(Label::CallData);
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::SelCmp(sel, reversed)), ..}), ..} =>
+        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::SelCmp(selector)), ..}), ..} =>
         {
             let v = vm.stack.peek_mut()?;
-            v.label = Some(Label::SelCmp(sel, !reversed));
+            v.label = Some(Label::SelCmp(selector));
         }
 
         StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
         {
             let v = vm.stack.peek_mut()?;
-            v.label = Some(Label::SelCmp([0; 4], false));
+            v.label = Some(Label::SelCmp([0; 4]));
         }
 
         StepResult{op: op::MLOAD, ul: Some(used), ..} =>
