@@ -19,16 +19,16 @@ pub use selectors::function_selectors;
 pub use state_mutability::function_state_mutability;
 
 pub use contract_info::contract_info;
-pub use contract_info::{Contract, Function, ContractInfoArgs};
+pub use contract_info::{Contract, ContractInfoArgs, Function};
 pub use storage::StorageRecord;
 
 mod arguments;
+mod contract_info;
 mod evm;
 mod selectors;
 mod state_mutability;
-mod utils;
 mod storage;
-mod contract_info;
+mod utils;
 
 /// A 4-byte function selector
 pub type Selector = [u8; 4];
@@ -38,6 +38,9 @@ pub type Slot = [u8; 32];
 
 /// Function's state mutability
 pub type StateMutability = alloy_dyn_abi::parser::StateMutability;
+
+/// A dynamic Solidity type
+pub type DynSolType = alloy_dyn_abi::DynSolType;
 
 #[cfg(feature = "python")]
 mod interface_py;

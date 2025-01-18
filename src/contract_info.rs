@@ -1,9 +1,8 @@
 use crate::selectors::function_selectors_with_pc;
 #[allow(deprecated)]
 use crate::{
-    function_arguments_alloy, state_mutability, storage, Selector, StateMutability, StorageRecord,
+    function_arguments_alloy, state_mutability, storage, Selector, StateMutability, StorageRecord, DynSolType,
 };
-use alloy_dyn_abi::DynSolType;
 
 /// Represents a public smart contract function
 #[derive(Debug)]

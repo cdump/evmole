@@ -1,11 +1,12 @@
-use alloy_dyn_abi::DynSolType;
-use alloy_dyn_abi::DynSolType::*;
 use std::{collections::BTreeMap, marker::PhantomData};
 
-use crate::evm::{
-    calldata::{CallData, CallDataLabel},
-    element::Element,
-    U256, VAL_131072,
+use crate::{
+    evm::{
+        calldata::{CallData, CallDataLabel},
+        element::Element,
+        U256, VAL_131072,
+    },
+    DynSolType,
 };
 use std::error;
 
@@ -15,7 +16,7 @@ pub struct CallDataImpl<T> {
     arg_types: BTreeMap<usize, DynSolType>,
     arg_vals: BTreeMap<usize, usize>,
 
-    phantom: std::marker::PhantomData<T>,
+    _phantom: std::marker::PhantomData<T>,
 }
 
 impl<T> CallDataImpl<T> {
@@ -25,7 +26,7 @@ impl<T> CallDataImpl<T> {
             selector,
             arg_types: BTreeMap::from_iter(types),
             arg_vals: BTreeMap::from_iter(vals),
-            phantom: PhantomData,
+            _phantom: PhantomData,
         }
     }
 }
@@ -90,11 +91,15 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
 
 fn is_dynamic(ty: &DynSolType) -> bool {
     match ty {
-        Bool | Int(_) | Uint(_) | Address | FixedBytes(_) => false,
-        FixedArray(val, _) => is_dynamic(val),
-        Bytes | String | Array(_) => true,
-        Tuple(val) => val.iter().any(is_dynamic),
-        _ => panic!("Unexpected type {:?}", ty),
+        DynSolType::Bool
+        | DynSolType::Int(_)
+        | DynSolType::Uint(_)
+        | DynSolType::Address
+        | DynSolType::FixedBytes(_) => false,
+        DynSolType::FixedArray(val, _) => is_dynamic(val),
+        DynSolType::Bytes | DynSolType::String | DynSolType::Array(_) => true,
+        DynSolType::Tuple(val) => val.iter().any(is_dynamic),
+        _ => unreachable!("Unexpected type {:?}", ty),
     }
 }
 
@@ -119,14 +124,14 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
             off += 32;
         } else {
             match ty {
-                FixedArray(val, sz) => {
+                DynSolType::FixedArray(val, sz) => {
                     for _ in 0..*sz {
                         // sz or cnt?
                         ret_types.push((off, *val.clone()));
                         off += 32;
                     }
                 }
-                Tuple(val) => {
+                DynSolType::Tuple(val) => {
                     for v in val {
                         ret_types.push((off, v.clone()));
                         off += 32;
@@ -145,7 +150,7 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
         ret_nonzero.push((el_off, off));
 
         match ty {
-            Bytes | String => {
+            DynSolType::Bytes | DynSolType::String => {
                 // string '0x41' with len = 1
                 ret_nonzero.push((off, 32));
                 ret_nonzero.push((off + 32, 0x41)); // TODO: padd right, not left
@@ -154,7 +159,7 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
                 ret_types.push((off + 32, ty.clone()));
                 off += 64;
             }
-            Array(val) => {
+            DynSolType::Array(val) => {
                 // len = 1
                 ret_nonzero.push((off, 1));
                 off += 32;
@@ -165,7 +170,7 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
                 ret_nonzero.extend(dyn_ret_nonzero.into_iter().map(|(o, v)| (o + off, v)));
                 off += dyn_off;
             }
-            Tuple(val) => {
+            DynSolType::Tuple(val) => {
                 let (dyn_off, dyn_ret_types, dyn_ret_nonzero) = encode(val);
 
                 ret_types.extend(dyn_ret_types.into_iter().map(|(o, v)| (o + off, v)));
@@ -173,7 +178,7 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
                 off += dyn_off;
             }
 
-            FixedArray(val, sz) => {
+            DynSolType::FixedArray(val, sz) => {
                 let (dyn_off, dyn_ret_types, dyn_ret_nonzero) = encode(&[*val.clone()]);
 
                 let data_start = 32 * sz;

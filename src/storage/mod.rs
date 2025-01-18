@@ -1,13 +1,22 @@
 //! # Warning
 //! This code is in an experimental state and under active development.
 //! Code structure are subject to change.
-use std::{cell::RefCell, collections::{BTreeMap, BTreeSet, HashMap}, rc::Rc};
 use crate::{
     evm::{
-        calldata::CallDataLabel, element::Element, op, vm::{StepResult, Vm}, U256, VAL_1, VAL_1_B, VAL_32_B
-    }, utils::{and_mask_to_type, execute_until_function_start}, Selector, Slot,
+        calldata::CallDataLabel,
+        element::Element,
+        op,
+        vm::{StepResult, Vm},
+        U256, VAL_1, VAL_1_B, VAL_32_B,
+    },
+    utils::{and_mask_to_type, execute_until_function_start},
+    DynSolType, Selector, Slot,
 };
-use alloy_dyn_abi::DynSolType;
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet, HashMap},
+    rc::Rc,
+};
 
 mod calldata;
 use calldata::CallDataImpl;
@@ -46,7 +55,7 @@ enum Label {
 }
 
 impl CallDataLabel for Label {
-    fn label(_: usize, tp: &alloy_dyn_abi::DynSolType) -> Label {
+    fn label(_: usize, tp: &DynSolType) -> Label {
         Label::Typed(tp.clone())
     }
 }

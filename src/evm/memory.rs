@@ -71,7 +71,7 @@ where
             for (off, el) in self.data.iter().rev() {
                 if i >= *off && i < *off + el.data.len() as u32 {
                     if let Some(label) = &el.label {
-                        if used.last().map_or(true, |last| last != label) {
+                        if used.last() != Some(label) {
                             used.push(label.clone());
                         }
                     }

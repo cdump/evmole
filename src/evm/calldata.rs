@@ -1,4 +1,5 @@
 use super::{element::Element, U256};
+use crate::DynSolType;
 use std::error;
 
 pub trait CallData<T> {
@@ -10,5 +11,5 @@ pub trait CallData<T> {
 }
 
 pub trait CallDataLabel {
-    fn label(n: usize, tp: &alloy_dyn_abi::DynSolType) -> Self;
+    fn label(n: usize, tp: &DynSolType) -> Self;
 }

@@ -1,5 +1,7 @@
-use crate::evm::{calldata::CallData, op, vm::Vm, VAL_0_B, VAL_1, VAL_1_B, U256};
-use alloy_dyn_abi::DynSolType;
+use crate::{
+    evm::{calldata::CallData, op, vm::Vm, U256, VAL_0_B, VAL_1, VAL_1_B},
+    DynSolType,
+};
 
 // Executes the EVM until the start of a function is reached (vm.calldata selector)
 pub fn execute_until_function_start<T, U>(vm: &mut Vm<T, U>, gas_limit: u32) -> Option<u32>
