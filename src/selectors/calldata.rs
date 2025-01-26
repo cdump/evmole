@@ -99,6 +99,6 @@ mod tests {
 
         (data, label) = cd.load(U256::from(4), U256::from(0)).unwrap();
         assert_eq!(label, Some(Label::CallData));
-        assert_eq!(data, []);
+        assert!(data.is_empty());
     }
 }

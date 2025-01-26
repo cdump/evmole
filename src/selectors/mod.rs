@@ -166,27 +166,8 @@ fn process(
 ///
 /// * `code` - A slice of deployed contract bytecode
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
-///
-/// # Examples
-///
 /// ```
-/// use evmole::function_selectors;
-/// use alloy_primitives::hex;
-///
-/// let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256").unwrap();
-///
-/// let selectors: Vec<_> = function_selectors(&code, 0);
-///
-/// assert_eq!(selectors, vec![[0x21, 0x25, 0xb6, 0x5b], [0xb6, 0x9e, 0xf8, 0xa8]])
-/// ```
-#[deprecated(since = "0.6.0", note = "Use contract_info(ContractInfoArgs(code).with_selectors()) instead")]
-pub fn function_selectors(code: &[u8], gas_limit: u32) -> Vec<Selector> {
-    let selectors_with_pc = function_selectors_with_pc(code, gas_limit);
-    selectors_with_pc.into_keys().collect()
-}
-
-// not public for users yet
-pub fn function_selectors_with_pc(code: &[u8], gas_limit: u32) -> BTreeMap<Selector, usize> {
+pub fn function_selectors(code: &[u8], gas_limit: u32) -> BTreeMap<Selector, usize> {
     let vm = Vm::new(code, &CallDataImpl {});
     let mut selectors = BTreeMap::new();
     process(

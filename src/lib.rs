@@ -6,18 +6,6 @@
 //!
 //! Accuracy and speed comparison with other tools, as well as Python and JavaScript implementations, are available on [GitHub](https://github.com/cdump/evmole/tree/master#benchmark)
 
-#[allow(deprecated)]
-pub use arguments::function_arguments;
-
-#[allow(deprecated)]
-pub use arguments::function_arguments_alloy;
-
-#[allow(deprecated)]
-pub use selectors::function_selectors;
-
-#[allow(deprecated)]
-pub use state_mutability::function_state_mutability;
-
 pub use contract_info::contract_info;
 pub use contract_info::{Contract, ContractInfoArgs, Function};
 pub use storage::StorageRecord;

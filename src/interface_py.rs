@@ -176,71 +176,8 @@ fn contract_info(
     Ok(PyContract { functions, storage })
 }
 
-#[pyfunction]
-#[pyo3(signature = (code, gas_limit=500_000))]
-fn function_selectors(code: &Bound<'_, PyAny>, gas_limit: u32) -> PyResult<Vec<String>> {
-    let code_bytes = input_to_bytes(code)?;
-
-    #[allow(deprecated)]
-    Ok(crate::selectors::function_selectors(&code_bytes, gas_limit)
-        .into_iter()
-        .map(hex::encode)
-        .collect())
-}
-
-#[pyfunction]
-#[pyo3(signature = (code, selector, gas_limit=50_000))]
-fn function_arguments(
-    code: &Bound<'_, PyAny>,
-    selector: &Bound<'_, PyAny>,
-    gas_limit: u32,
-) -> PyResult<String> {
-    let code_bytes = input_to_bytes(code)?;
-    let selector_bytes = input_to_bytes(selector)?;
-    let selectors_ref = selector_bytes.as_ref();
-    let sel = if selectors_ref.len() != 4 {
-        return Err(PyValueError::new_err("selector should be 4 bytes length"));
-    } else {
-        <[u8; 4]>::try_from(selectors_ref).expect("len checked above")
-    };
-
-    #[allow(deprecated)]
-    Ok(crate::arguments::function_arguments(
-        &code_bytes,
-        &sel,
-        gas_limit,
-    ))
-}
-
-#[pyfunction]
-#[pyo3(signature = (code, selector, gas_limit=500_000))]
-fn function_state_mutability(
-    code: &Bound<'_, PyAny>,
-    selector: &Bound<'_, PyAny>,
-    gas_limit: u32,
-) -> PyResult<String> {
-    let code_bytes = input_to_bytes(code)?;
-    let selector_bytes = input_to_bytes(selector)?;
-    let selectors_ref = selector_bytes.as_ref();
-    let sel = if selectors_ref.len() != 4 {
-        return Err(PyValueError::new_err("selector should be 4 bytes length"));
-    } else {
-        <[u8; 4]>::try_from(selectors_ref).expect("len checked above")
-    };
-
-    #[allow(deprecated)]
-    Ok(
-        crate::state_mutability::function_state_mutability(&code_bytes, &sel, gas_limit)
-            .as_json_str()
-            .to_string(),
-    )
-}
-
 #[pymodule]
 fn evmole(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(contract_info, m)?)?;
-    m.add_function(wrap_pyfunction!(function_selectors, m)?)?;
-    m.add_function(wrap_pyfunction!(function_arguments, m)?)?;
-    m.add_function(wrap_pyfunction!(function_state_mutability, m)?)?;
     Ok(())
 }

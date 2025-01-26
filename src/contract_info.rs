@@ -1,7 +1,6 @@
-use crate::selectors::function_selectors_with_pc;
-#[allow(deprecated)]
+use crate::selectors::function_selectors;
 use crate::{
-    function_arguments_alloy, state_mutability, storage, Selector, StateMutability, StorageRecord, DynSolType,
+    arguments, state_mutability, storage, DynSolType, Selector, StateMutability, StorageRecord,
 };
 
 /// Represents a public smart contract function
@@ -123,18 +122,18 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
 
     let functions = if args.need_selectors {
         Some(
-            function_selectors_with_pc(args.code, GAS_LIMIT)
+            function_selectors(args.code, GAS_LIMIT)
                 .into_iter()
                 .map(|(selector, bytecode_offset)| Function {
                     selector,
                     arguments: if args.need_arguments {
-                        #[allow(deprecated)]
-                        Some(function_arguments_alloy(args.code, &selector, GAS_LIMIT))
+                        Some(arguments::function_arguments_alloy(
+                            args.code, &selector, GAS_LIMIT,
+                        ))
                     } else {
                         None
                     },
                     state_mutability: if args.need_state_mutability {
-                        #[allow(deprecated)]
                         Some(state_mutability::function_state_mutability(
                             args.code, &selector, GAS_LIMIT,
                         ))

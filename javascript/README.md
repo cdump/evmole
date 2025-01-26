@@ -17,7 +17,7 @@ import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole/+esm';
 <div id="info"></div>
 
 <script type="module">
-import { contractInfo } from 'https://cdn.jsdelivr.net/npm/evmole@0.6.0/dist/evmole.mjs';
+import { contractInfo } from 'https://cdn.jsdelivr.net/npm/evmole@0.6.2/dist/evmole.mjs';
 
 const bytecode = '0x6080...'; // Replace with actual bytecode
 document.getElementById('info').textContent = contractInfo(bytecode, {selectors: true, arguments: true, stateMutability: true});
@@ -157,50 +157,3 @@ Analyzes contract bytecode and returns contract information based on specified o
 | type | <code>string</code> | Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32') |
 | reads | <code>Array.&lt;string&gt;</code> | Array of function selectors that read from this storage location |
 | writes | <code>Array.&lt;string&gt;</code> | Array of function selectors that write to this storage location |
-
-
-### Deprecated API
-
-<a name="functionSelectors"></a>
-
-### functionSelectors(code, gas_limit) ⇒ <code>Array.&lt;string&gt;</code>
-**Please use [contractInfo(code, {selectors: true})](#contractInfo) instead**
-
-Extracts function selectors from the given bytecode.
-
-**Returns**: <code>Array.&lt;string&gt;</code> - Function selectors as a hex strings
-
-| Param | Type | Description |
-| --- | --- | --- |
-| code | <code>string</code> | Runtime bytecode as a hex string |
-| gas_limit | <code>number</code> | Maximum allowed gas usage; set to `0` to use defaults |
-
-<a name="functionArguments"></a>
-
-### functionArguments(code, selector, gas_limit) ⇒ <code>string</code>
-**Please use [contractInfo(code, {arguments: true})](#contractInfo) instead**
-
-Extracts function arguments for a given selector from the bytecode.
-
-**Returns**: <code>string</code> - Function arguments (ex: 'uint32,address')
-
-| Param | Type | Description |
-| --- | --- | --- |
-| code | <code>string</code> | Runtime bytecode as a hex string |
-| selector | <code>string</code> | Function selector as a hex string |
-| gas_limit | <code>number</code> | Maximum allowed gas usage; set to `0` to use defaults |
-
-<a name="functionStateMutability"></a>
-
-### functionStateMutability(code, selector, gas_limit) ⇒ <code>string</code>
-**Please use [contractInfo(code, {stateMutability: true})](#contractInfo) instead**
-
-Extracts function state mutability for a given selector from the bytecode.
-
-**Returns**: <code>string</code> - `payable` | `nonpayable` | `view` | `pure`
-
-| Param | Type | Description |
-| --- | --- | --- |
-| code | <code>string</code> | Runtime bytecode as a hex string |
-| selector | <code>string</code> | Function selector as a hex string |
-| gas_limit | <code>number</code> | Maximum allowed gas usage; set to `0` to use defaults |

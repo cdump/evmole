@@ -209,21 +209,7 @@ fn analyze_view_pure(vm: Vm<Label, CallDataImpl>, gas_limit: u32) -> ViewPureRes
 /// * `code` - A slice of deployed contract bytecode
 /// * `selector` - A function selector
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
-///
-/// # Examples
-///
 /// ```
-/// use evmole::{function_state_mutability, StateMutability};
-/// use alloy_primitives::hex;
-///
-/// let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256").unwrap();
-/// let selector = [0x21, 0x25, 0xb6, 0x5b];
-///
-/// let state_mutability = function_state_mutability(&code, &selector, 0);
-///
-/// assert_eq!(state_mutability, StateMutability::Pure);
-/// ```
-#[deprecated(since = "0.6.0", note = "Use contract_info(ContractInfoArgs(code).with_state_mutability()) instead")]
 pub fn function_state_mutability(
     code: &[u8],
     selector: &Selector,
