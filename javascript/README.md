@@ -74,7 +74,7 @@ After that, [import and use EVMole](./examples/esbuild/main.js) as usual.
 If you can't use [Top Level Await](https://caniuse.com/mdn-javascript_operators_await_top_level), you can import EVMole as:
 
 ```js
-import init, { functionSelectors } from 'evmole/no_tla`
+import init, { contractInfo } from 'evmole/no_tla`
 // or: from 'evmole/dist/evmole.js' (supported, but not recommended)
 ```
 
