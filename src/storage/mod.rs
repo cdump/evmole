@@ -475,8 +475,8 @@ fn analyze(
 
             vm.stack.peek_mut()?.label = Some(Label::Keccak(0, vec![]));
             if sz == 64 {
-                let (val, used) = vm.memory.load(off); // value
-                let (sval, sused) = vm.memory.load(off + 32); // slot
+                let (val, used) = vm.memory.load_element(off); // value
+                let (sval, sused) = vm.memory.load_element(off + 32); // slot
 
                 let mut depth = 0;
                 let mut first = Element{data: val.data, label: None};
@@ -502,7 +502,7 @@ fn analyze(
                 }
             } else if sz == 32 {
                 let mut depth = 0;
-                let (mut val, _used) = vm.memory.load(off); // value
+                let (mut val, _used) = vm.memory.load_element(off); // value
                 if _used.len() == 1 {
                     let lb = _used.first().unwrap().clone();
                     if let Label::Keccak(d, _) = lb {
@@ -561,7 +561,7 @@ fn analyze_rec(
             },
             Ok(Some(other_pc)) => {
                 if depth < 8 && other_pc < vm.code.len()  {
-                    let mut cloned = vm.clone();
+                    let mut cloned = vm.fork();
                     cloned.pc = other_pc;
                     gas_used += analyze_rec(cloned, st, (gas_limit - gas_used) / 2, depth + 1);
                 }

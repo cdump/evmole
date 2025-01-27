@@ -166,7 +166,7 @@ fn analyze_view_pure_internal(
                     let other_pc = usize::try_from(other_pc_elem).expect("set to usize in vm.rs");
 
                     if depth < 8 && gas_used < gas_limit {
-                        let mut cloned = vm.clone();
+                        let mut cloned = vm.fork();
                         cloned.pc = other_pc;
                         gas_used += analyze_view_pure_internal(
                             cloned,
@@ -226,7 +226,7 @@ pub fn function_state_mutability(
         gas_limit
     };
 
-    let (is_payable, gas_used) = analyze_payable(vm.clone(), real_gas_limit / 2, 1);
+    let (is_payable, gas_used) = analyze_payable(vm.fork(), real_gas_limit / 2, 1);
     if is_payable {
         StateMutability::Payable
     } else {

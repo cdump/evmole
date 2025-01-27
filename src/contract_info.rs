@@ -121,8 +121,9 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
     const GAS_LIMIT: u32 = 0;
 
     let functions = if args.need_selectors {
+        let (selectors, _selectors_gas_used) = function_selectors(args.code, GAS_LIMIT);
         Some(
-            function_selectors(args.code, GAS_LIMIT)
+            selectors
                 .into_iter()
                 .map(|(selector, bytecode_offset)| Function {
                     selector,

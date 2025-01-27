@@ -25,10 +25,8 @@ const VAL_FFFFFFFF_B: [u8; 32] = uint!(0xffffffff_U256).to_be_bytes();
 fn analyze(
     vm: &mut Vm<Label, CallDataImpl>,
     selectors: &mut BTreeMap<Selector, usize>,
-    ret: StepResult<Label>,
-    gas_used: &mut u32,
-    gas_limit: u32,
-) -> Result<(), Box<dyn std::error::Error>> {
+    ret: StepResult<Label>
+) -> Result<u8, Box<dyn std::error::Error>> {
     match ret {
           StepResult{op: op::XOR|op::EQ|op::SUB, fa: Some(Element{label: Some(Label::Signature), ..}), sa: Some(s1), ..}
         | StepResult{op: op::XOR|op::EQ|op::SUB, sa: Some(Element{label: Some(Label::Signature), ..}), fa: Some(s1), ..} =>
@@ -49,9 +47,8 @@ fn analyze(
           StepResult{op: op::LT|op::GT, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
         | StepResult{op: op::LT|op::GT, sa: Some(Element{label: Some(Label::Signature), ..}), ..} =>
         {
-            *gas_used += process(vm.clone(), selectors, (gas_limit - *gas_used) / 2);
-            let v = vm.stack.peek_mut()?;
-            v.data = if v.data == VAL_0_B { VAL_1_B } else { VAL_0_B };
+            vm.stack.peek_mut()?.data = VAL_0_B;
+            return Ok(2);
         }
 
           StepResult{op: op::MUL, fa: Some(Element{label: Some(Label::Signature), ..}), ..}
@@ -71,15 +68,8 @@ fn analyze(
                 vm.stack.peek_mut()?.label = Some(Label::Signature);
             } else if let Ok(ma) = u8::try_from(ot) {
                 let to = if op == op::MOD { ma } else { ma + 1 };
-                for m in 1..to {
-                    let mut vm_clone = vm.clone();
-                    vm_clone.stack.peek_mut()?.data = U256::from(m).to_be_bytes();
-                    *gas_used += process(vm_clone, selectors, (gas_limit - *gas_used) / (ma as u32));
-                    if *gas_used > gas_limit {
-                        break;
-                    }
-                }
                 vm.stack.peek_mut()?.data = VAL_0_B;
+                return Ok(to);
             }
         }
 
@@ -119,9 +109,14 @@ fn analyze(
             }
         }
 
+        StepResult{op: op::GAS, ..} =>
+        {
+            vm.stopped = true;
+        }
+
         _ => {}
     }
-    Ok(())
+    Ok(0)
 }
 
 fn process(
@@ -144,17 +139,34 @@ fn process(
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
-                // eprintln!("{}", _e);
+                // eprintln!("vm error: {:?}", _e);
                 break;
             }
         };
         gas_used += ret.gas_used;
         if gas_used > gas_limit {
+            // eprintln!("gas overflow");
             break;
         }
 
-        if analyze(&mut vm, selectors, ret, &mut gas_used, gas_limit).is_err() {
-            break;
+        match analyze(&mut vm, selectors, ret) {
+            Ok(0) => {},
+            Ok(to) => {
+                for m in 1..to {
+                    let mut vm_clone = vm.fork();
+                    vm_clone.stack.peek_mut().expect("already unwraped").data = U256::from(m).to_be_bytes();
+                    let gas = process(vm_clone, selectors, (gas_limit - gas_used) / (to as u32));
+                    gas_used += gas;
+                    if gas_used > gas_limit {
+                        // eprintln!("gas overflow");
+                        return gas_used;
+                    }
+                }
+            },
+            Err(_e) => {
+                // eprintln!("analyze error: {:?}", _e);
+                return gas_used
+            },
         }
     }
     gas_used
@@ -167,10 +179,10 @@ fn process(
 /// * `code` - A slice of deployed contract bytecode
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
 /// ```
-pub fn function_selectors(code: &[u8], gas_limit: u32) -> BTreeMap<Selector, usize> {
+pub fn function_selectors(code: &[u8], gas_limit: u32) -> (BTreeMap<Selector, usize>, u32) {
     let vm = Vm::new(code, &CallDataImpl {});
     let mut selectors = BTreeMap::new();
-    process(
+    let gas_used = process(
         vm,
         &mut selectors,
         if gas_limit == 0 {
@@ -179,7 +191,7 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> BTreeMap<Selector, usi
             gas_limit
         },
     );
-    selectors
+    (selectors, gas_used)
 }
 
 #[cfg(test)]
@@ -188,7 +200,7 @@ mod tests {
 
     #[test]
     fn test_empty_code() {
-        let s = function_selectors(&[], 0);
+        let (s, _) = function_selectors(&[], 0);
         assert_eq!(s.len(), 0);
     }
 }

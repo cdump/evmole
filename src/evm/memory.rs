@@ -58,7 +58,29 @@ where
         None
     }
 
-    pub fn load(&self, offset: u32) -> (Element<T>, Vec<T>) {
+    pub fn load(&self, offset: u32, size: u32) -> (Vec<u8>, Vec<T>) {
+        let mut data = vec![0; size as usize];
+        let mut used = vec![];
+
+        #[allow(clippy::needless_range_loop)]
+        for idx in 0usize..size as usize {
+            let i = idx as u32 + offset;
+            for (off, el) in self.data.iter().rev() {
+                if i >= *off && i < *off + el.data.len() as u32 {
+                    if let Some(label) = &el.label {
+                        if used.last() != Some(label) {
+                            used.push(label.clone());
+                        }
+                    }
+                    data[idx] = el.data[(i - off) as usize];
+                    break;
+                }
+            }
+        }
+        (data, used)
+    }
+
+    pub fn load_element(&self, offset: u32) -> (Element<T>, Vec<T>) {
         let mut r = Element {
             data: [0; 32],
             label: None,

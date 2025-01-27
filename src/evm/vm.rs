@@ -81,8 +81,7 @@ where
         }
     }
 
-    // not Clone trait because Cow experiments
-    pub fn clone(&self) -> Self {
+    pub fn fork(&self) -> Self {
         Vm {
             code: self.code,
             pc: self.pc,
@@ -471,15 +470,21 @@ where
             }
 
             op::RETURNDATACOPY => {
-                let mem_off: u32 = self.stack.pop_uint()?.try_into()?;
+                let raws0 = self.stack.pop()?;
+                let mem_off: U256 = (&raws0).into();
+                let mem_off32: u32 = mem_off.try_into()?;
+
                 self.stack.pop()?;
                 let size: usize = self.stack.pop_uint()?.try_into()?;
                 if size > 1024 {
                     Err(UnsupportedOpError { op }.into())
                 } else {
                     let data: Vec<u8> = vec![0; size];
-                    self.memory.store(mem_off, data, None);
-                    Ok(StepResult::new(op, 3))
+                    self.memory.store(mem_off32, data, None);
+
+                    let mut ret = StepResult::new(op, 3);
+                    ret.fa = Some(raws0);
+                    Ok(ret)
                 }
             }
 
@@ -506,11 +511,14 @@ where
             }
 
             op::MLOAD => {
-                let off: u32 = self.stack.pop_uint()?.try_into()?;
-                let (val, used) = self.memory.load(off);
+                let raws0 = self.stack.pop()?;
+                let s0: U256 = (&raws0).into();
+                let off: u32 = s0.try_into()?;
+                let (val, used) = self.memory.load_element(off);
 
                 self.stack.push(val);
                 let mut ret = StepResult::new(op, 4);
+                ret.fa = Some(raws0);
                 ret.ul = Some(used);
                 Ok(ret)
             }
@@ -548,6 +556,25 @@ where
                 ret.fa = Some(self.stack.pop()?); // slot
                 ret.sa = Some(self.stack.pop()?); // value
                 Ok(ret)
+            }
+
+            op::MCOPY => {
+                let dest_offset: u32 = self.stack.pop_uint()?.try_into()?;
+                let offset: u32 = self.stack.pop_uint()?.try_into()?;
+                let size: u32 = self.stack.pop_uint()?.try_into()?;
+                if size > 512 {
+                    return Err(UnsupportedOpError { op }.into());
+                }
+                let (data, labels) = self.memory.load(offset, size);
+                let label = if labels.len() == 1 {
+                    Some(labels[0].clone())
+                } else {
+                    None
+                };
+                self.memory.store(dest_offset, data, label);
+
+                let gas_used: u32 = 3 + 3 * ((size+31) / 32);
+                Ok(StepResult::new(op, gas_used))
             }
 
             op::GAS => {
