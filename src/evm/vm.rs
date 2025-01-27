@@ -17,9 +17,9 @@ impl std::error::Error for UnsupportedOpError {}
 pub struct StepResult<T> {
     pub op: op::OpCode,
     pub gas_used: u32,
-    pub fa: Option<Element<T>>,
-    pub sa: Option<Element<T>>,
-    pub ul: Option<Vec<T>>,
+    pub args: [Element<T>; 2],
+    pub exargs: Vec<Element<T>>, // extended args for CALL, Vec is 30% faster on arguments/random50k benchmark vs 4 elements in 'args' field
+    pub ul: Vec<T>,
 }
 
 impl<T> StepResult<T> {
@@ -27,15 +27,19 @@ impl<T> StepResult<T> {
         Self {
             op,
             gas_used,
-            fa: None,
-            sa: None,
-            ul: None,
+            args: [const {
+                Element {
+                    data: [0; 32],
+                    label: None,
+                }
+            }; 2],
+            exargs: Vec::new(),
+            ul: Vec::new(),
         }
     }
 }
 
-pub struct Vm<'a, T, U>
-{
+pub struct Vm<'a, T, U> {
     pub code: &'a [u8],
     pub pc: usize,
     pub stack: Stack<T>,
@@ -46,7 +50,7 @@ pub struct Vm<'a, T, U>
 
 impl<T, U> fmt::Debug for Vm<'_, T, U>
 where
-    T: std::fmt::Debug
+    T: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
@@ -123,8 +127,8 @@ where
 
         self.stack.push_uint(res);
         let mut ret = StepResult::new(op, gas_used);
-        ret.fa = Some(raws0);
-        ret.sa = Some(raws1);
+        ret.args[0] = raws0;
+        ret.args[1] = raws1;
         Ok(ret)
     }
 
@@ -157,26 +161,26 @@ where
                 let cres = usize::try_from(s0);
                 let mut ret = StepResult::new(op, if op == op::JUMP { 8 } else { 10 });
                 if op == op::JUMPI {
-                    ret.sa = Some(self.stack.peek()?.clone());
+                    ret.args[1] = self.stack.peek()?.clone();
                     let s1 = self.stack.pop_uint()?;
                     if s1.is_zero() {
                         self.pc += 1;
                         if let Ok(other_pc) = cres {
                             if other_pc < self.code.len() {
-                                ret.fa = Some(Element {
+                                ret.args[0] = Element {
                                     data: s0.to_be_bytes(),
                                     label: None,
-                                });
+                                };
                             }
                         }
                         return Ok(ret);
                     } else {
                         let other_pc = self.pc + 1;
                         if other_pc < self.code.len() {
-                            ret.fa = Some(Element {
+                            ret.args[0] = Element {
                                 data: U256::from(other_pc).to_be_bytes(),
                                 label: None,
-                            });
+                            };
                         }
                     }
                 }
@@ -284,9 +288,13 @@ where
 
             op::ISZERO => {
                 let raws0 = self.stack.pop()?;
-                self.stack.push_data(if raws0.data == VAL_0_B { VAL_1_B } else { VAL_0_B });
+                self.stack.push_data(if raws0.data == VAL_0_B {
+                    VAL_1_B
+                } else {
+                    VAL_0_B
+                });
                 let mut ret = StepResult::new(op, 3);
-                ret.fa = Some(raws0);
+                ret.args[0] = raws0;
                 Ok(ret)
             }
 
@@ -301,7 +309,7 @@ where
                 let v: U256 = (&raws0).into();
                 self.stack.push_uint(!v);
                 let mut ret = StepResult::new(op, 3);
-                ret.fa = Some(raws0);
+                ret.args[0] = raws0;
                 Ok(ret)
             }
 
@@ -359,8 +367,8 @@ where
                         .try_into()
                         .unwrap_or(5_000_000));
                 let mut ret = StepResult::new(op, gas_used);
-                ret.fa = Some(offset);
-                ret.sa = Some(size);
+                ret.args[0] = offset;
+                ret.args[1] = size;
                 self.stack.push_data(VAL_1_B);
                 Ok(ret)
             }
@@ -393,7 +401,7 @@ where
                 let offset: U256 = (&raws0).into();
                 self.stack.push(self.calldata.load32(offset));
                 let mut ret = StepResult::new(op, 3);
-                ret.fa = Some(raws0);
+                ret.args[0] = raws0;
                 Ok(ret)
             }
 
@@ -416,8 +424,8 @@ where
                 self.memory.store(mem_off32, data, label);
 
                 let mut ret = StepResult::new(op, 4);
-                ret.fa = Some(raws1); // calldata offset, like in CALLDATALOAD
-                ret.sa = Some(raws0); // memory off
+                ret.args[0] = raws1; // calldata offset, like in CALLDATALOAD
+                ret.args[1] = raws0; // memory off
                 Ok(ret)
             }
 
@@ -443,8 +451,8 @@ where
                         data[0..n].copy_from_slice(&self.code[src_off..src_off + n]);
                     }
                     let mut ret = StepResult::new(op, 3);
-                    ret.fa = Some(raws0);
-                    ret.sa = Some(raws2);
+                    ret.args[0] = raws0;
+                    ret.args[1] = raws2;
                     self.memory.store(mem_off, data, None);
                     Ok(ret)
                 }
@@ -483,7 +491,7 @@ where
                     self.memory.store(mem_off32, data, None);
 
                     let mut ret = StepResult::new(op, 3);
-                    ret.fa = Some(raws0);
+                    ret.args[0] = raws0;
                     Ok(ret)
                 }
             }
@@ -518,8 +526,8 @@ where
 
                 self.stack.push(val);
                 let mut ret = StepResult::new(op, 4);
-                ret.fa = Some(raws0);
-                ret.ul = Some(used);
+                ret.args[0] = raws0;
+                ret.ul = used;
                 Ok(ret)
             }
 
@@ -546,15 +554,15 @@ where
 
             op::SLOAD | op::TLOAD => {
                 let mut ret = StepResult::new(op, 100);
-                ret.fa = Some(self.stack.pop()?); // slot
+                ret.args[0] = self.stack.pop()?; // slot
                 self.stack.push_data(VAL_0_B);
                 Ok(ret)
             }
 
             op::SSTORE | op::TSTORE => {
                 let mut ret = StepResult::new(op, 100);
-                ret.fa = Some(self.stack.pop()?); // slot
-                ret.sa = Some(self.stack.pop()?); // value
+                ret.args[0] = self.stack.pop()?; // slot
+                ret.args[1] = self.stack.pop()?; // value
                 Ok(ret)
             }
 
@@ -573,7 +581,7 @@ where
                 };
                 self.memory.store(dest_offset, data, label);
 
-                let gas_used: u32 = 3 + 3 * ((size+31) / 32);
+                let gas_used: u32 = 3 + 3 * ((size + 31) / 32);
                 Ok(StepResult::new(op, gas_used))
             }
 
@@ -612,14 +620,22 @@ where
                 let _gas = self.stack.pop()?;
                 let address = self.stack.pop()?;
                 let p2 = self.stack.pop()?;
-                let _p3 = self.stack.pop()?;
-                let _p4 = self.stack.pop()?;
+                let p3 = self.stack.pop()?;
+                let p4 = self.stack.pop()?;
                 self.stack.pop()?;
 
-                ret.fa = Some(address);
+                ret.exargs.reserve(2);
+
+                ret.args[0] = address;
                 if op == op::CALL || op == op::CALLCODE {
                     self.stack.pop()?;
-                    ret.sa = Some(p2);
+                    ret.args[1] = p2; // value
+                    ret.exargs.push(p3); // args offset
+                    ret.exargs.push(p4); // args offset
+                } else {
+                    // args[1] (value) is alredy set to zero
+                    ret.exargs.push(p2); // args offset
+                    ret.exargs.push(p3); // args offset
                 }
 
                 self.stack.push_data(VAL_1_B); // success
@@ -632,8 +648,8 @@ where
                 let offset = self.stack.pop()?;
                 let size = self.stack.pop()?;
                 let mut ret = StepResult::new(op, 5);
-                ret.fa = Some(offset);
-                ret.sa = Some(size);
+                ret.args[0] = offset;
+                ret.args[1] = size;
                 Ok(ret)
             }
 

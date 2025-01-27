@@ -5,9 +5,8 @@ use crate::{
         vm::{StepResult, Vm},
         U256, VAL_0_B, VAL_1, VAL_1_B, VAL_32_B,
     },
-    utils::{execute_until_function_start, and_mask_to_type},
-    Selector,
-    DynSolType,
+    utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two},
+    DynSolType, Selector,
 };
 use alloy_primitives::uint;
 use std::{
@@ -119,7 +118,13 @@ impl Info {
                         return vec![DynSolType::Array(Box::new(DynSolType::Uint(256)))];
                     }
                     if self.children.len() == 1
-                        && self.children.first_key_value().expect("len checked above").1.tinfo.is_none()
+                        && self
+                            .children
+                            .first_key_value()
+                            .expect("len checked above")
+                            .1
+                            .tinfo
+                            .is_none()
                     {
                         return vec![DynSolType::Array(Box::new(q[1].clone()))];
                     }
@@ -196,7 +201,8 @@ impl ArgsResult {
     }
 
     fn set_info(&mut self, path: &[u32], tinfo: InfoVal) {
-        if path.is_empty() { // root
+        if path.is_empty() {
+            // root
             return;
         }
         let el = self.get_or_create(path);
@@ -230,8 +236,17 @@ fn analyze(
     ret: StepResult<Label>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match ret {
-        StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),  fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, ..})), ..}), sa, ..} =>
-        {
+        StepResult {
+            op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),
+            args:
+                [elabel!(Label::Arg(Val {
+                    offset,
+                    path,
+                    add_val,
+                    ..
+                })), sa, ..],
+            ..
+        } => {
             if add_val >= 4 && (add_val - 4) % 32 == 0 {
                 let mut full_path = path.clone();
                 full_path.push(offset);
@@ -252,8 +267,7 @@ fn analyze(
                 args.set_info(&full_path, InfoVal::Dynamic(new_off / 32));
 
                 let mem_offset = if op == op::CALLDATACOPY {
-                    u32::try_from(sa.expect("always set for DATACOPY in vm.rs"))
-                        .expect("set as u32 in vm.rs")
+                    u32::try_from(sa).expect("set as u32 in vm.rs")
                 } else {
                     0
                 };
@@ -289,8 +303,11 @@ fn analyze(
             }
         }
 
-        StepResult{op: op @ (op::CALLDATALOAD | op::CALLDATACOPY), fa: Some(el), sa, ..} =>
-        {
+        StepResult {
+            op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),
+            args: [el, sa, ..],
+            ..
+        } => {
             if let Ok(off) = u32::try_from(el) {
                 if (4..131072 - 1024).contains(&off) {
                     // 131072 is constant from ./calldata.rs
@@ -306,9 +323,7 @@ fn analyze(
                     match op {
                         op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
                         op::CALLDATACOPY => {
-                            let mem_offset =
-                                u32::try_from(sa.expect("always set for DATACOPY in vm.rs"))
-                                    .expect("set as u32 in vm.rs");
+                            let mem_offset = u32::try_from(sa).expect("set as u32 in vm.rs");
                             if let Some(v) = vm.memory.get_mut(mem_offset) {
                                 v.label = new_label;
                             }
@@ -319,12 +334,22 @@ fn analyze(
             }
         }
 
-        StepResult{
+        StepResult {
             op: op::ADD,
-            fa: Some(Element{label: Some(Label::Arg(Val{offset: f_offset, path: f_path, add_val: f_add_val, and_mask: f_and_mask})), ..}),
-            sa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: s_and_mask})), ..}),
-            ..} =>
-        {
+            args:
+                [elabel!(Label::Arg(Val {
+                    offset: f_offset,
+                    path: f_path,
+                    add_val: f_add_val,
+                    and_mask: f_and_mask,
+                })), elabel!(Label::Arg(Val {
+                    offset: s_offset,
+                    path: s_path,
+                    add_val: s_add_val,
+                    and_mask: s_and_mask,
+                })), ..],
+            ..
+        } => {
             args.mark_not_bool(&f_path, f_offset);
             args.mark_not_bool(&s_path, s_offset);
             vm.stack.peek_mut()?.label = Some(Label::Arg(if f_path.len() > s_path.len() {
@@ -344,9 +369,24 @@ fn analyze(
             }));
         }
 
-          StepResult{op: op::ADD, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask})), data, ..}), sa: Some(ot), ..}
-        | StepResult{op: op::ADD, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask})), data, ..}), fa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op::ADD,
+            args:
+                match_first_two!(
+                    Element {
+                        label: Some(Label::Arg(Val {
+                            offset,
+                            path,
+                            add_val,
+                            and_mask,
+                        })),
+                        data,
+                        ..
+                    },
+                    ot
+                ),
+            ..
+        } => {
             args.mark_not_bool(&path, offset);
             if offset == 0
                 && add_val == 0
@@ -366,10 +406,31 @@ fn analyze(
             }
         }
 
-          StepResult{op: op @ op::MUL, fa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), sa: Some(ot), ..}
-        | StepResult{op: op @ op::MUL, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), fa: Some(ot), ..}
-        | StepResult{op: op @ op::SHL, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, ..})), ..}), fa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op @ op::MUL,
+            args:
+                match_first_two!(
+                    elabel!(Label::Arg(Val {
+                        offset: 0,
+                        path,
+                        add_val: 0,
+                        ..
+                    })),
+                    ot
+                ),
+            ..
+        }
+        | StepResult {
+            op: op @ op::SHL,
+            args:
+                [ot, elabel!(Label::Arg(Val {
+                    offset: 0,
+                    path,
+                    add_val: 0,
+                    ..
+                })), ..],
+            ..
+        } => {
             args.mark_not_bool(&path, 0);
             if let Some(Label::Arg(Val {
                 offset: o1,
@@ -431,9 +492,28 @@ fn analyze(
         }
 
         // 0 < arr.len || arr.len > 0
-          StepResult{op: op::LT, sa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, and_mask: None})), ..}), fa: Some(ot), ..}
-        | StepResult{op: op::GT, fa: Some(Element{label: Some(Label::Arg(Val{offset: 0, path, add_val: 0, and_mask: None})), ..}), sa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op::LT,
+            args:
+                [ot, elabel!(Label::Arg(Val {
+                    offset: 0,
+                    path,
+                    add_val: 0,
+                    and_mask: None,
+                })), ..],
+            ..
+        }
+        | StepResult {
+            op: op::GT,
+            args:
+                [elabel!(Label::Arg(Val {
+                    offset: 0,
+                    path,
+                    add_val: 0,
+                    and_mask: None,
+                })), ot, ..],
+            ..
+        } => {
             args.mark_not_bool(&path, 0);
             // 31 = string for storage
             if ot.data == VAL_0_B || ot.data == VAL_31_B {
@@ -441,15 +521,28 @@ fn analyze(
             }
         }
 
-          StepResult{op: op::LT|op::GT|op::MUL, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..}
-        | StepResult{op: op::LT|op::GT|op::MUL, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..} =>
-        {
+        StepResult {
+            op: op::LT | op::GT | op::MUL,
+            args: match_first_two!(elabel!(Label::Arg(Val { offset, path, .. })), _),
+            ..
+        } => {
             args.mark_not_bool(&path, offset);
         }
 
-          StepResult{op: op::AND, fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}), sa: Some(ot), ..}
-        | StepResult{op: op::AND, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}), fa: Some(ot), ..} =>
-        {
+        StepResult {
+            op: op::AND,
+            args:
+                match_first_two!(
+                    elabel!(Label::Arg(Val {
+                        offset,
+                        path,
+                        add_val,
+                        and_mask: None,
+                    })),
+                    ot
+                ),
+            ..
+        } => {
             args.mark_not_bool(&path, offset);
             let mask: U256 = ot.into();
             if let Some(t) = and_mask_to_type(mask) {
@@ -463,15 +556,25 @@ fn analyze(
             }
         }
 
-          StepResult{op: op::EQ,
-            fa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}),
-            sa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: Some(mask)})), ..}),
-        ..} |
-          StepResult{op: op::EQ,
-            sa: Some(Element{label: Some(Label::Arg(Val{offset, path, add_val, and_mask: None})), ..}),
-            fa: Some(Element{label: Some(Label::Arg(Val{offset: s_offset, path: s_path, add_val: s_add_val, and_mask: Some(mask)})), ..}),
-        ..} =>
-        {
+        StepResult {
+            op: op::EQ,
+            args:
+                match_first_two!(
+                    elabel!(Label::Arg(Val {
+                        offset,
+                        path,
+                        add_val,
+                        and_mask: None,
+                    })),
+                    elabel!(Label::Arg(Val {
+                        offset: s_offset,
+                        path: s_path,
+                        add_val: s_add_val,
+                        and_mask: Some(mask),
+                    }))
+                ),
+            ..
+        } => {
             if (s_offset == offset) && (s_path == path) && (s_add_val == add_val) {
                 if let Some(t) = and_mask_to_type(mask) {
                     args.set_tname(&path, offset, t, 20);
@@ -479,13 +582,19 @@ fn analyze(
             }
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::Arg(val)), ..}), ..} =>
-        {
+        StepResult {
+            op: op::ISZERO,
+            args: [elabel!(Label::Arg(val)), ..],
+            ..
+        } => {
             vm.stack.peek_mut()?.label = Some(Label::IsZeroResult(val));
         }
 
-        StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::IsZeroResult(val)), ..}), ..} =>
-        {
+        StepResult {
+            op: op::ISZERO,
+            args: [elabel!(Label::IsZeroResult(val)), ..],
+            ..
+        } => {
             // Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
             // for solidity < 0.6.0
             let mut is_bool = true;
@@ -510,16 +619,22 @@ fn analyze(
             }
         }
 
-        StepResult{op: op::SIGNEXTEND, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), fa: Some(s0), ..} =>
-        {
+        StepResult {
+            op: op::SIGNEXTEND,
+            args: [s0, elabel!(Label::Arg(Val { offset, path, .. })), ..],
+            ..
+        } => {
             if s0.data < VAL_32_B {
                 let s0: u8 = s0.data[31];
                 args.set_tname(&path, offset, DynSolType::Int((s0 as usize + 1) * 8), 20);
             }
         }
 
-        StepResult{op: op::BYTE, sa: Some(Element{label: Some(Label::Arg(Val{offset, path, ..})), ..}), ..} =>
-        {
+        StepResult {
+            op: op::BYTE,
+            args: [_, elabel!(Label::Arg(Val { offset, path, .. })), ..],
+            ..
+        } => {
             args.set_tname(&path, offset, DynSolType::FixedBytes(32), 4);
         }
 
@@ -528,7 +643,7 @@ fn analyze(
     Ok(())
 }
 
-/// Extracts function arguments and returns them as Alloy types
+/// Extracts function arguments
 ///
 /// # Arguments
 ///
@@ -536,7 +651,7 @@ fn analyze(
 /// * `selector` - A function selector
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
 /// ```
-pub fn function_arguments_alloy(
+pub fn function_arguments(
     code: &[u8],
     selector: &Selector,
     gas_limit: u32,
@@ -547,7 +662,9 @@ pub fn function_arguments_alloy(
             selector[0], selector[1], selector[2], selector[3]
         );
     }
-    let calldata = CallDataImpl { selector: *selector };
+    let calldata = CallDataImpl {
+        selector: *selector,
+    };
     let mut vm = Vm::new(code, &calldata);
     let mut args = ArgsResult::new();
     let mut gas_used = 0;
@@ -596,7 +713,7 @@ pub fn function_arguments_alloy(
 
 #[cfg(test)]
 mod tests {
-    use super::function_arguments_alloy;
+    use super::function_arguments;
     use crate::selectors::function_selectors;
     use alloy_primitives::hex;
 
@@ -609,7 +726,7 @@ mod tests {
         let code = hex::decode("6000608052600060a052600060c052600060e05260006101005260006101205260006101405260006101605260006101805260006101a05260006101c05260006101e05260006102005260006102205260006102405260006102605260006102805260006102a05260006102c05260006102e05260006103005260006103205260006103405260006103605260006103805260006103a05260006103c05260006103e0526000610400526000610420526000610440527f66702d66702d7075662d763100000000000000000000000000000000000000006000554360018060000101556101806103dc610200396102005160045561022051600855610240516006556102605160075561028051600a556102a051600b556102c0516001556102e0516010556103005160115561032051601455610340516080906103dc9060208101101561014c57600080fd5b602061034051016103dc01101561016257600080fd5b6103405160208101101561017557600080fd5b602061034051016103dc0161038039610380516012556103a0516013556103c0516015556103e051601655610360516020906103dc90810110156101b857600080fd5b610360516103dc016104003961040051600c556103dc610240810110156101de57600080fd5b6102406103dc016103605260006104605261040051610480525b610480511561033157602061036051600160006104605114610218575060005b6102405760206104605160206104605102041461023457600080fd5b60206104605102610243565b60005b6103605101101561025357600080fd5b600160006104605114610264575060005b61028c5760206104605160206104605102041461028057600080fd5b6020610460510261028f565b60005b6103605101610420396104205161044051810110156102ad57600080fd5b610440516104205101610440527f7061796d656e740000000000000000000000000000000000000000000000000060c0526104605160e05261042051604060c020556104605160016104605101101561030557600080fd5b6001610460510161046052610480516001111561032157600080fd5b60016104805103610480526101f8565b341561033c57600080fd5b60016003557f587ece4cd19692c5be1a4184503d607d45542d2aca0698c0068f52e09ccb541c6040610200a16066806103766000396000f3007c010000000000000000000000000000000000000000000000000000000060003504608081905263696eb8fb1415603e576000546104a0908152602090f35b366000803760008036600060016000015460155a03f4605c57600080fd5b3d6000803e3d6000f3").unwrap();
 
         for sig in function_selectors(&code, 0).0.keys() {
-            let _ = function_arguments_alloy(&code, sig, 0);
+            let _ = function_arguments(&code, sig, 0);
         }
     }
 }

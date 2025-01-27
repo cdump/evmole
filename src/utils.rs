@@ -3,6 +3,25 @@ use crate::{
     DynSolType,
 };
 
+macro_rules! match_first_two {
+    ($pattern:pat, $other:pat) => {
+        [$pattern, $other, ..] | [$other, $pattern, ..]
+    };
+}
+
+macro_rules! elabel {
+    ($label:pat) => {
+        Element {
+            label: Some($label),
+            ..
+        }
+    };
+}
+
+pub(crate) use match_first_two;
+pub(crate) use elabel;
+
+
 // Executes the EVM until the start of a function is reached (vm.calldata selector)
 pub fn execute_until_function_start<T, U>(vm: &mut Vm<T, U>, gas_limit: u32) -> Option<u32>
 where
@@ -34,12 +53,10 @@ where
                 .peek()
                 .expect("always safe unless bug in vm.rs")
                 .data;
-            if (ret.op == op::EQ && p == VAL_1_B) || (ret.op != op::EQ && p == VAL_0_B) {
-                if let Some(v) = ret.fa {
-                    if v.data[28..32] == vm.calldata.selector() {
-                        found = true;
-                    }
-                }
+            if ((ret.op == op::EQ && p == VAL_1_B) || (ret.op != op::EQ && p == VAL_0_B))
+                && ret.args[0].data[28..32] == vm.calldata.selector()
+            {
+                found = true;
             }
         }
     }

@@ -5,7 +5,7 @@ use crate::{
         vm::{StepResult, Vm},
         U256, VAL_0_B,
     },
-    utils::execute_until_function_start,
+    utils::{elabel, execute_until_function_start},
     Selector, StateMutability,
 };
 
@@ -86,8 +86,9 @@ fn analyze_payable(
         }
 
         match ret {
-            StepResult{op: op::CALLVALUE, ..} =>
-            {
+            StepResult {
+                op: op::CALLVALUE, ..
+            } => {
                 if let Ok(s) = vm.stack.peek_mut() {
                     s.data = U256::from(call_value).to_be_bytes();
                     s.label = Some(Label::CallValue);
@@ -96,22 +97,31 @@ fn analyze_payable(
                 }
             }
 
-            StepResult{op: op::ISZERO, fa: Some(Element{label: Some(Label::CallValue), ..}), ..} =>
-            {
+            StepResult {
+                op: op::ISZERO,
+                args: [elabel!(Label::CallValue), ..],
+                ..
+            } => {
                 vm.stack
                     .peek_mut()
                     .expect("results is always pushed in vm.rs")
                     .label = Some(Label::IsZero);
             }
 
-            StepResult{op: op::JUMPI, sa: Some(sa), ..} =>
-            {
+            StepResult {
+                op: op::JUMPI,
+                args: [_, sa, ..],
+                ..
+            } => {
                 last_jumpi_callvalue =
                     sa.label == Some(Label::IsZero) || sa.label == Some(Label::CallValue);
             }
 
-            StepResult{op: op::REVERT, sa: Some(sa), ..} =>
-            {
+            StepResult {
+                op: op::REVERT,
+                args: [_, sa, ..],
+                ..
+            } => {
                 if last_jumpi_callvalue && sa.data == VAL_0_B {
                     return (false, gas_used);
                 }
@@ -162,21 +172,19 @@ fn analyze_view_pure_internal(
 
         match ret.op {
             op::JUMPI => {
-                if let Some(other_pc_elem) = ret.fa {
-                    let other_pc = usize::try_from(other_pc_elem).expect("set to usize in vm.rs");
+                let other_pc = usize::try_from(&ret.args[0]).expect("set to usize in vm.rs");
 
-                    if depth < 8 && gas_used < gas_limit {
-                        let mut cloned = vm.fork();
-                        cloned.pc = other_pc;
-                        gas_used += analyze_view_pure_internal(
-                            cloned,
-                            vpr,
-                            (gas_limit - gas_used) / 2,
-                            depth + 1,
-                        );
-                    } else {
-                        // println!("depth overflow");
-                    }
+                if depth < 8 && gas_used < gas_limit {
+                    let mut cloned = vm.fork();
+                    cloned.pc = other_pc;
+                    gas_used += analyze_view_pure_internal(
+                        cloned,
+                        vpr,
+                        (gas_limit - gas_used) / 2,
+                        depth + 1,
+                    );
+                } else {
+                    // println!("depth overflow");
                 }
             }
 

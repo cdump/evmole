@@ -1,7 +1,8 @@
-use crate::selectors::function_selectors;
 use crate::{
-    arguments, state_mutability, storage, DynSolType, Selector, StateMutability, StorageRecord,
+    arguments::function_arguments, selectors::function_selectors,
+    state_mutability::function_state_mutability, storage::contract_storage,
 };
+use crate::{DynSolType, Selector, StateMutability, StorageRecord};
 
 /// Represents a public smart contract function
 #[derive(Debug)]
@@ -128,16 +129,12 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
                 .map(|(selector, bytecode_offset)| Function {
                     selector,
                     arguments: if args.need_arguments {
-                        Some(arguments::function_arguments_alloy(
-                            args.code, &selector, GAS_LIMIT,
-                        ))
+                        Some(function_arguments(args.code, &selector, GAS_LIMIT))
                     } else {
                         None
                     },
                     state_mutability: if args.need_state_mutability {
-                        Some(state_mutability::function_state_mutability(
-                            args.code, &selector, GAS_LIMIT,
-                        ))
+                        Some(function_state_mutability(args.code, &selector, GAS_LIMIT))
                     } else {
                         None
                     },
@@ -156,7 +153,7 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
             .expect("enabled on with_storage()")
             .iter()
             .map(|f| (f.selector, f.bytecode_offset, f.arguments.as_ref().unwrap()));
-        Some(storage::contract_storage(args.code, fns, GAS_LIMIT))
+        Some(contract_storage(args.code, fns, GAS_LIMIT))
     } else {
         None
     };
