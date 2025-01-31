@@ -2,7 +2,7 @@
 
 pub type OpCode = u8;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct OpCodeInfo {
     pub name: &'static str,
     pub known: bool,

@@ -50,14 +50,6 @@ struct Info {
 }
 
 impl Info {
-    fn new() -> Self {
-        Self {
-            tinfo: None,
-            tname: None,
-            children: BTreeMap::new(),
-        }
-    }
-
     fn to_alloy_type(&self, is_root: bool) -> Vec<DynSolType> {
         if let Some((name, _)) = &self.tname {
             if matches!(name, DynSolType::Bytes) {
@@ -136,20 +128,13 @@ impl Info {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 struct ArgsResult {
     data: Info,
     not_bool: BTreeSet<Vec<u32>>,
 }
 
 impl ArgsResult {
-    fn new() -> Self {
-        Self {
-            data: Info::new(),
-            not_bool: BTreeSet::new(),
-        }
-    }
-
     fn get_or_create(&mut self, path: &[u32]) -> &mut Info {
         path.iter().fold(&mut self.data, |node, &key| {
             node.children.entry(key).or_default()
@@ -666,7 +651,7 @@ pub fn function_arguments(
         selector: *selector,
     };
     let mut vm = Vm::new(code, &calldata);
-    let mut args = ArgsResult::new();
+    let mut args = ArgsResult::default();
     let mut gas_used = 0;
     let real_gas_limit = if gas_limit == 0 {
         5e4 as u32

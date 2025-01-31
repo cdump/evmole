@@ -18,8 +18,7 @@ pub struct StepResult<T> {
     pub op: op::OpCode,
     pub gas_used: u32,
     pub args: [Element<T>; 2],
-    pub exargs: Vec<Element<T>>, // extended args for CALL, Vec is 30% faster on arguments/random50k benchmark vs 4 elements in 'args' field
-    pub ul: Vec<T>,
+    pub exargs: Vec<Element<T>>,
 }
 
 impl<T> StepResult<T> {
@@ -34,7 +33,6 @@ impl<T> StepResult<T> {
                 }
             }; 2],
             exargs: Vec::new(),
-            ul: Vec::new(),
         }
     }
 }
@@ -522,12 +520,11 @@ where
                 let raws0 = self.stack.pop()?;
                 let s0: U256 = (&raws0).into();
                 let off: u32 = s0.try_into()?;
-                let (val, used) = self.memory.load_element(off);
-
-                self.stack.push(val);
+                let (val, _used) = self.memory.load_element(off);
                 let mut ret = StepResult::new(op, 4);
+                ret.exargs = _used.into_iter().map(|lb| Element{data: [0;32], label: Some(lb)}).collect();
+                self.stack.push(val);
                 ret.args[0] = raws0;
-                ret.ul = used;
                 Ok(ret)
             }
 

@@ -142,11 +142,13 @@ fn analyze(
 
         StepResult {
             op: op::MLOAD,
-            ul: used,
+            exargs,
             ..
         } => {
             let v = vm.stack.peek_mut()?;
-            if used.contains(&Label::CallData) && v.data[28..32] == vm.calldata.selector() {
+            if exargs.iter().any(|e| e.label == Some(Label::CallData))
+                && v.data[28..32] == vm.calldata.selector()
+            {
                 v.label = Some(Label::Signature);
             }
         }
