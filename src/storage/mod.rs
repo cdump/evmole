@@ -26,8 +26,10 @@ use keccak_precalc::KEC_PRECALC;
 
 /// Represents a storage variable record in a smart contract's storage layout.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StorageRecord {
     /// Storage slot location for the variable
+    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::serialize::slot"))]
     pub slot: Slot,
 
     /// Byte offset within the storage slot (0-31)
@@ -37,9 +39,11 @@ pub struct StorageRecord {
     pub r#type: String,
 
     /// Function selectors that read from this storage location
+    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::serialize::vec_selector"))]
     pub reads: Vec<Selector>,
 
     /// Function selectors that write to this storage location
+    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::serialize::vec_selector"))]
     pub writes: Vec<Selector>,
 }
 

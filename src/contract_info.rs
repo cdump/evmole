@@ -1,28 +1,45 @@
 use crate::{
-    arguments::function_arguments, selectors::function_selectors,
+    arguments::function_arguments, evm::code_iterator::disassemble, selectors::function_selectors,
     state_mutability::function_state_mutability, storage::contract_storage,
-    evm::code_iterator::disassemble,
 };
 use crate::{DynSolType, Selector, StateMutability, StorageRecord};
 
 /// Represents a public smart contract function
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Function {
     /// Function selector (4 bytes)
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "crate::serialize::selector")
+    )]
     pub selector: Selector,
 
     /// The starting byte offset within the EVM bytecode for the function body
+    #[cfg_attr(feature = "serde", serde(rename = "bytecodeOffset"))]
     pub bytecode_offset: usize,
 
     /// Function arguments
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "crate::serialize::arguments")
+    )]
     pub arguments: Option<Vec<DynSolType>>,
 
     /// State mutability
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            serialize_with = "crate::serialize::state_mutability",
+            rename = "stateMutability"
+        )
+    )]
     pub state_mutability: Option<StateMutability>,
 }
 
 /// Contains analyzed information about a smart contract
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Contract {
     /// List of contract functions with their metadata
     pub functions: Option<Vec<Function>>,
@@ -176,5 +193,9 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         None
     };
 
-    Contract { functions, storage, disassembled }
+    Contract {
+        functions,
+        storage,
+        disassembled,
+    }
 }

@@ -18,6 +18,9 @@ mod state_mutability;
 mod storage;
 mod utils;
 
+#[cfg(feature = "serde")]
+mod serialize;
+
 /// A 4-byte function selector
 pub type Selector = [u8; 4];
 

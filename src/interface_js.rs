@@ -1,5 +1,5 @@
 use alloy_primitives::hex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
 fn decode_hex_code(input: &str) -> Result<Vec<u8>, JsError> {
@@ -29,18 +29,6 @@ export type ContractFunction = {
 /// @property {string} [state_mutability] - Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_function() {}
-#[derive(Serialize)]
-struct JsFunction {
-    selector: String,
-
-    #[serde(default, rename = "bytecodeOffset")]
-    bytecode_offset: usize,
-
-    arguments: Option<String>,
-
-    #[serde(default, rename = "stateMutability")]
-    state_mutability: Option<String>,
-}
 
 #[wasm_bindgen(typescript_custom_section)]
 const DOC_STORAGE: &'static str = r#"
@@ -68,14 +56,6 @@ export type StorageRecord = {
 /// @property {string[]} writes - Array of function selectors that write to this storage location
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_storage_record() {}
-#[derive(Serialize)]
-struct JsStorageRecord {
-    slot: String,
-    offset: u8,
-    r#type: String,
-    reads: Vec<String>,
-    writes: Vec<String>,
-}
 
 #[wasm_bindgen(typescript_custom_section)]
 const DOC_CONTRACT: &'static str = r#"
@@ -83,6 +63,7 @@ const DOC_CONTRACT: &'static str = r#"
  * Contains the analysis results of a contract
  * @property functions - Array of functions found in the contract. Not present if no functions were extracted.
  * @property storage - Array of storage records found in the contract. Not present if storage layout was not extracted.
+ * @property disassembled - Array of disassembled bytecode, first element is bytecode offset, second element is operation string
  * @see ContractFunction
  * @see StorageRecord
  */
@@ -94,14 +75,9 @@ export type Contract = {
 /// @typedef {Object} Contract
 /// @property {ContractFunction[]} [functions] - Array of functions found in the contract. Not present if no functions were extracted
 /// @property {StorageRecord[]} [storage] - Array of storage records found in the contract. Not present if storage layout was not extracted
+/// @property {} [disassembled] - Array of disassembled bytecode, first element is bytecode offset, second element is operation string
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_contract() {}
-#[derive(Serialize)]
-struct JsContract {
-    functions: Option<Vec<JsFunction>>,
-    storage: Option<Vec<JsStorageRecord>>,
-    disassembled: Option<Vec<(usize, String)>>,
-}
 
 #[derive(Deserialize)]
 struct ContractInfoArgs {
@@ -177,39 +153,5 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     }
 
     let info = crate::contract_info(cargs);
-
-    let functions = info.functions.map(|fns| {
-        fns.into_iter()
-            .map(|f| JsFunction {
-                selector: hex::encode(f.selector),
-                bytecode_offset: f.bytecode_offset,
-                arguments: f.arguments.map(|fargs| {
-                    fargs
-                        .into_iter()
-                        .map(|t| t.sol_type_name().to_string())
-                        .collect::<Vec<String>>()
-                        .join(",")
-                }),
-                state_mutability: f.state_mutability.map(|sm| sm.as_json_str().to_string()),
-            })
-            .collect()
-    });
-
-    let storage = info.storage.map(|st| {
-        st.into_iter()
-            .map(|v| JsStorageRecord {
-                slot: hex::encode(v.slot),
-                offset: v.offset,
-                r#type: v.r#type,
-                reads: v.reads.into_iter().map(hex::encode).collect(),
-                writes: v.writes.into_iter().map(hex::encode).collect(),
-            })
-            .collect()
-    });
-
-    Ok(serde_wasm_bindgen::to_value(&JsContract {
-        functions,
-        storage,
-        disassembled: info.disassembled,
-    })?)
+    Ok(serde_wasm_bindgen::to_value(&info)?)
 }

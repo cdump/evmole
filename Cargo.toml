@@ -19,8 +19,9 @@ serde-wasm-bindgen = { version = "0.6", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
 
 [features]
+serde = ["dep:serde"]
 python = ["dep:pyo3"]
-javascript = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "dep:serde"]
+javascript = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "serde"]
 
 # for dev
 trace_selectors = []

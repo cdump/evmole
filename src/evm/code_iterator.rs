@@ -9,8 +9,8 @@ pub struct CodeOp<'a> {
     pub arg: &'a [u8],
 }
 
-pub fn iterate_code(code: &[u8]) -> impl Iterator<Item = (usize, CodeOp)> {
-    let mut pc = 0;
+pub fn iterate_code(code: &[u8], start_pc: usize) -> impl Iterator<Item = (usize, CodeOp)> {
+    let mut pc = start_pc;
     let code_len = code.len();
     std::iter::from_fn(move || {
         if pc >= code_len {
@@ -35,7 +35,7 @@ pub fn iterate_code(code: &[u8]) -> impl Iterator<Item = (usize, CodeOp)> {
 }
 
 pub fn disassemble(code: &[u8]) -> Vec<(usize, String)> {
-    iterate_code(code)
+    iterate_code(code, 0)
         .map(|(pc, op)| {
             (
                 pc,
