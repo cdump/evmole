@@ -100,6 +100,7 @@ pub fn dummy_contract() {}
 struct JsContract {
     functions: Option<Vec<JsFunction>>,
     storage: Option<Vec<JsStorageRecord>>,
+    disassembled: Option<Vec<(usize, String)>>,
 }
 
 #[derive(Deserialize)]
@@ -115,6 +116,9 @@ struct ContractInfoArgs {
 
     #[serde(default)]
     storage: bool,
+
+    #[serde(default)]
+    disassemble: bool,
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -128,13 +132,15 @@ const DOC_CONTRACT_INFO: &'static str = r#"
  * @param args.arguments - When true, includes function arguments information
  * @param args.state_mutability - When true, includes state mutability information for functions
  * @param args.storage - When true, includes contract storage layout information
+ * @param args.disassemble - When true, includes disassembled bytecode
  * @returns Analyzed contract information
  */
 export function contractInfo(code: string, {
     selectors?: boolean,
     arguments?: boolean,
     state_mutability?: boolean,
-    storage?: boolean
+    storage?: boolean,
+    disassemble?: boolean
 }): Contract;
 "#;
 /// Analyzes contract bytecode and returns contract information based on specified options.
@@ -145,6 +151,7 @@ export function contractInfo(code: string, {
 /// @param {boolean} [args.arguments] - When true, includes function arguments information
 /// @param {boolean} [args.state_mutability] - When true, includes state mutability information for functions
 /// @param {boolean} [args.storage] - When true, includes contract storage layout information
+/// @param {boolean} [args.disassemble] - When true, includes disassembled bytecode
 /// @returns {Contract} Analyzed contract information
 #[wasm_bindgen(js_name = contractInfo, skip_typescript, skip_jsdoc)]
 pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
@@ -164,6 +171,9 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     }
     if args.storage {
         cargs = cargs.with_storage();
+    }
+    if args.disassemble {
+        cargs = cargs.with_disassemble();
     }
 
     let info = crate::contract_info(cargs);
@@ -200,5 +210,6 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     Ok(serde_wasm_bindgen::to_value(&JsContract {
         functions,
         storage,
+        disassembled: info.disassembled,
     })?)
 }

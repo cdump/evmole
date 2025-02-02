@@ -90,6 +90,9 @@ struct PyContract {
 
     #[pyo3(get)]
     storage: Option<Vec<PyStorageRecord>>,
+
+    #[pyo3(get)]
+    disassembled: Option<Vec<(usize, String)>>,
 }
 
 #[pymethods]
@@ -118,13 +121,14 @@ impl PyContract {
 }
 
 #[pyfunction]
-#[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, storage=false))]
+#[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, storage=false, disassemble=false))]
 fn contract_info(
     code: &Bound<'_, PyAny>,
     selectors: bool,
     arguments: bool,
     state_mutability: bool,
     storage: bool,
+    disassemble: bool,
 ) -> PyResult<PyContract> {
     let code_bytes = input_to_bytes(code)?;
     let mut args = crate::ContractInfoArgs::new(&code_bytes);
@@ -140,6 +144,9 @@ fn contract_info(
     }
     if storage {
         args = args.with_storage();
+    }
+    if disassemble {
+        args = args.with_disassemble();
     }
 
     let info = crate::contract_info(args);
@@ -173,7 +180,11 @@ fn contract_info(
             .collect()
     });
 
-    Ok(PyContract { functions, storage })
+    Ok(PyContract {
+        functions,
+        storage,
+        disassembled: info.disassembled,
+    })
 }
 
 #[pymodule]

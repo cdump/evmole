@@ -1,6 +1,7 @@
 use crate::{
     arguments::function_arguments, selectors::function_selectors,
     state_mutability::function_state_mutability, storage::contract_storage,
+    evm::code_iterator::disassemble,
 };
 use crate::{DynSolType, Selector, StateMutability, StorageRecord};
 
@@ -28,6 +29,9 @@ pub struct Contract {
 
     /// Contract storage layout
     pub storage: Option<Vec<StorageRecord>>,
+
+    /// Disassembled code
+    pub disassembled: Option<Vec<(usize, String)>>,
 }
 
 /// Builder for configuring contract analysis parameters
@@ -40,6 +44,7 @@ pub struct ContractInfoArgs<'a> {
     need_arguments: bool,
     need_state_mutability: bool,
     need_storage: bool,
+    need_disassemble: bool,
 }
 
 impl<'a> ContractInfoArgs<'a> {
@@ -55,6 +60,7 @@ impl<'a> ContractInfoArgs<'a> {
             need_arguments: false,
             need_state_mutability: false,
             need_storage: false,
+            need_disassemble: false,
         }
     }
 
@@ -83,6 +89,12 @@ impl<'a> ContractInfoArgs<'a> {
         self.need_selectors = true;
         self.need_arguments = true;
         self.need_storage = true;
+        self
+    }
+
+    /// Enables disassemble bytecodes into individual opcodes
+    pub fn with_disassemble(mut self) -> Self {
+        self.need_disassemble = true;
         self
     }
 }
@@ -158,5 +170,11 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         None
     };
 
-    Contract { functions, storage }
+    let disassembled = if args.need_disassemble {
+        Some(disassemble(args.code))
+    } else {
+        None
+    };
+
+    Contract { functions, storage, disassembled }
 }
