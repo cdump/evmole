@@ -29,9 +29,10 @@ test: evmole.latest.tgz $(NODE_MODULES_TARGETS)
 ifeq ($(GITHUB_ACTIONS),true)
 	cd tests && npx playwright test
 else
+	npm install
 	$(DOCKER) run --network=none --rm \
 		-v $(shell pwd)/:/mnt \
-		-it mcr.microsoft.com/playwright:v1.49.0-jammy \
+		-it mcr.microsoft.com/playwright:v1.50.1-noble \
 		/bin/bash -c \
 		'cd /mnt/tests && npx playwright test'
 endif

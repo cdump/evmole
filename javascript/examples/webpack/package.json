@@ -5,9 +5,9 @@
     "build": "webpack"
   },
   "devDependencies": {
-    "html-webpack-plugin": "^5.6.0",
-    "webpack": "^5.93.0",
-    "webpack-cli": "^5.1.4"
+    "html-webpack-plugin": "^5.6",
+    "webpack": "^5.97",
+    "webpack-cli": "^6.0"
   },
   "dependencies": {
     "evmole": "file:../../evmole.latest.tgz"

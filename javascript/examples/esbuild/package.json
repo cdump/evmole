@@ -5,7 +5,7 @@
     "build": "esbuild main.js --format=esm --loader:.wasm=file --bundle --outdir=dist && cp index.html dist/"
   },
   "devDependencies": {
-    "esbuild": "0.23.1"
+    "esbuild": "0.24"
   },
   "dependencies": {
     "evmole": "file:../../evmole.latest.tgz"

@@ -24,5 +24,8 @@ import { test, expect } from '@playwright/test';
 
     const m = await page.locator('#state_mutability')
     await expect(m).toHaveText('pure');
+
+    const d = await page.locator('#disassembled')
+    await expect(d).toHaveText(/0 PUSH1 80.*/);
   });
 });
