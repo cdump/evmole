@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Optional, Tuple, Union
 
 class Function:
     """
@@ -45,10 +45,13 @@ class Contract:
             None if no functions were extracted
         storage (Optional[List[StorageRecord]]): List of contract storage records.
             None if storage layout was not extracted
+        disassembled (Optional[List[Tuple[int, str]]]): List of bytecode instructions, where each element is [offset, instruction].
+            None if disassembly was not requested
     """
 
     functions: Optional[List[Function]]
     storage: Optional[List[StorageRecord]]
+    disassembled: Optional[List[Tuple[int, str]]]
 
 def contract_info(
     code: Union[bytes, str],
@@ -57,6 +60,7 @@ def contract_info(
     arguments: bool = False,
     state_mutability: bool = False,
     storage: bool = False,
+    disassemble: bool = False,
 ) -> Contract:
     """
     Extracts information about a smart contract from its EVM bytecode.
@@ -69,6 +73,8 @@ def contract_info(
         state_mutability (bool, optional): When True, extracts function state mutability.
             Defaults to False.
         storage (bool, optional): When True, extracts the contract's storage layout.
+            Defaults to False.
+        disassemble (bool, optional): When True, includes disassembled bytecode.
             Defaults to False.
 
     Returns:

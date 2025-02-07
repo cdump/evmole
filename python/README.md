@@ -19,7 +19,8 @@ def contract_info(code: Union[bytes, str],
                   selectors: bool = False,
                   arguments: bool = False,
                   state_mutability: bool = False,
-                  storage: bool = False) -> Contract
+                  storage: bool = False,
+                  disassemble: bool = False) -> Contract
 ```
 
 Extracts information about a smart contract from its EVM bytecode.
@@ -32,6 +33,7 @@ Extracts information about a smart contract from its EVM bytecode.
 - `arguments` - When True, extracts function arguments.
 - `state_mutability` - When True, extracts function state mutability.
 - `storage` - When True, extracts the contract's storage layout.
+- `disassemble` When True, includes disassembled bytecode.
   
 
 **Returns**:
@@ -45,6 +47,7 @@ Extracts information about a smart contract from its EVM bytecode.
 class Contract():
     functions: Optional[List[Function]]
     storage: Optional[List[StorageRecord]]
+    disassembled: Optional[List[Tuple[int, str]]]
 ```
 
 Contains analyzed information about a smart contract.
@@ -53,6 +56,7 @@ Contains analyzed information about a smart contract.
 
 - `functions` - List of detected contract functions. None if no functions were extracted
 - `storage` - List of contract storage records. None if storage layout was not extracted
+- `disassembled` - List of bytecode instructions, where each element is [offset, instruction]. None if disassembly was not requested
 
 ### Function
 

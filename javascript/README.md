@@ -116,6 +116,7 @@ Analyzes contract bytecode and returns contract information based on specified o
 | [args.arguments] | <code>boolean</code> | When true, includes function arguments information |
 | [args.state_mutability] | <code>boolean</code> | When true, includes state mutability information for functions |
 | [args.storage] | <code>boolean</code> | When true, includes contract storage layout information |
+| [args.disassemble] | <code>boolean</code> | When true, includes disassembled bytecode |
 
 
 <a name="Contract"></a>
@@ -128,6 +129,7 @@ Analyzes contract bytecode and returns contract information based on specified o
 | --- | --- | --- |
 | [functions] | [<code>Array.&lt;ContractFunction&gt;</code>](#ContractFunction) | Array of functions found in the contract. Not present if no functions were extracted |
 | [storage] | [<code>Array.&lt;StorageRecord&gt;</code>](#StorageRecord) | Array of storage records found in the contract. Not present if storage layout was not extracted |
+| [disassembled] | <code>Array.&lt;Array.&lt;(number\|string)&gt;&gt;</code> | Array of bytecode instructions, where each element is [offset, instruction] |
 
 
 <a name="ContractFunction"></a>

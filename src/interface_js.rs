@@ -63,19 +63,20 @@ const DOC_CONTRACT: &'static str = r#"
  * Contains the analysis results of a contract
  * @property functions - Array of functions found in the contract. Not present if no functions were extracted.
  * @property storage - Array of storage records found in the contract. Not present if storage layout was not extracted.
- * @property disassembled - Array of disassembled bytecode, first element is bytecode offset, second element is operation string
+ * @property disassembled - Array of bytecode instructions, where each element is a tuple of [offset: number, instruction: string]
  * @see ContractFunction
  * @see StorageRecord
  */
 export type Contract = {
     functions?: ContractFunction[],
     storage?: StorageRecord[],
+    disassembled?: [number, string][],
 };
 "#;
 /// @typedef {Object} Contract
 /// @property {ContractFunction[]} [functions] - Array of functions found in the contract. Not present if no functions were extracted
 /// @property {StorageRecord[]} [storage] - Array of storage records found in the contract. Not present if storage layout was not extracted
-/// @property {} [disassembled] - Array of disassembled bytecode, first element is bytecode offset, second element is operation string
+/// @property {Array<Array<number|string>>} [disassembled] - Array of bytecode instructions, where each element is [offset, instruction]
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_contract() {}
 
