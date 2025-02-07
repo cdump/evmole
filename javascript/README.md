@@ -17,7 +17,7 @@ import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole/+esm';
 <div id="info"></div>
 
 <script type="module">
-import { contractInfo } from 'https://cdn.jsdelivr.net/npm/evmole@0.6.2/dist/evmole.mjs';
+import { contractInfo } from 'https://cdn.jsdelivr.net/npm/evmole@0.7.0/dist/evmole.mjs';
 
 const bytecode = '0x6080...'; // Replace with actual bytecode
 document.getElementById('info').textContent = contractInfo(bytecode, {selectors: true, arguments: true, stateMutability: true});

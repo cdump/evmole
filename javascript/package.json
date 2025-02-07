@@ -1,7 +1,7 @@
 {
   "name": "evmole",
   "description": "Extracts function selectors and arguments from EVM bytecode",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "license": "MIT",
   "collaborators": [
     "Maxim Andreev <andreevmaxim@gmail.com>"
