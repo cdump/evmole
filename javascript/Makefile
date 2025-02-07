@@ -18,6 +18,8 @@ evmole.latest.tgz: evmole-%.tgz
 	ln -f -s evmole-*.tgz evmole.latest.tgz
 
 test: evmole.latest.tgz $(NODE_MODULES_TARGETS)
+	npx tsc ./dist/evmole.d.ts
+
 	for dir in $(EXAMPLES_DIR); do \
 		npm --prefix $$dir install --force --no-save ./evmole.latest.tgz; \
 	done

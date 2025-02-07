@@ -33,6 +33,7 @@ jobs:
           cp ../README.md ./
           npm ci
           npm run build
+          npx tsc ./dist/evmole.d.ts
           npm pack
       - name: Install test dependencies
         working-directory: javascript/tests

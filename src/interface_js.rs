@@ -112,7 +112,7 @@ const DOC_CONTRACT_INFO: &'static str = r#"
  * @param args.disassemble - When true, includes disassembled bytecode
  * @returns Analyzed contract information
  */
-export function contractInfo(code: string, {
+export function contractInfo(code: string, args: {
     selectors?: boolean,
     arguments?: boolean,
     state_mutability?: boolean,
