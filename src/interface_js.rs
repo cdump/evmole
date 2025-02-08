@@ -11,22 +11,22 @@ const DOC_FUNCTION: &'static str = r#"
 /**
  * Represents a function found in the contract bytecode
  * @property selector - Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd').
- * @property bytecode_offset - Starting byte offset within the EVM bytecode for the function body.
+ * @property bytecodeOffset - Starting byte offset within the EVM bytecode for the function body.
  * @property arguments - Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted
- * @property state_mutability - Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted
+ * @property stateMutability - Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted
  */
 export type ContractFunction = {
     selector: string,
-    bytecode_offset: number,
+    bytecodeOffset: number,
     arguments?: string,
-    state_mutability?: string,
+    stateMutability?: string,
 };
 "#;
 /// @typedef {Object} ContractFunction
 /// @property {string} selector - Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd')
-/// @property {number} bytecode_offset - Starting byte offset within the EVM bytecode for the function body
+/// @property {number} bytecodeOffset - Starting byte offset within the EVM bytecode for the function body
 /// @property {string} [arguments] - Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted
-/// @property {string} [state_mutability] - Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted
+/// @property {string} [stateMutability] - Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_function() {}
 
@@ -115,7 +115,7 @@ const DOC_CONTRACT_INFO: &'static str = r#"
 export function contractInfo(code: string, args: {
     selectors?: boolean,
     arguments?: boolean,
-    state_mutability?: boolean,
+    stateMutability?: boolean,
     storage?: boolean,
     disassemble?: boolean
 }): Contract;
@@ -126,7 +126,7 @@ export function contractInfo(code: string, args: {
 /// @param {Object} args - Configuration options for the analysis
 /// @param {boolean} [args.selectors] - When true, includes function selectors in the output
 /// @param {boolean} [args.arguments] - When true, includes function arguments information
-/// @param {boolean} [args.state_mutability] - When true, includes state mutability information for functions
+/// @param {boolean} [args.stateMutability] - When true, includes state mutability information for functions
 /// @param {boolean} [args.storage] - When true, includes contract storage layout information
 /// @param {boolean} [args.disassemble] - When true, includes disassembled bytecode
 /// @returns {Contract} Analyzed contract information
