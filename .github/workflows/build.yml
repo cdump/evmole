@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+env:
+  MATURIN_VERSION: 1.8.1
+
 jobs:
   rust-test:
     runs-on: ubuntu-latest
@@ -72,7 +75,7 @@ jobs:
       - name: Build
         uses: PyO3/maturin-action@v1
         with:
-          maturin-version: 1.8.1
+          maturin-version: ${{ env.MATURIN_VERSION }}
           target: ${{ matrix.platform.target }}
           manylinux: auto
           args: -i ${{ matrix.python-version }} --release --out dist
@@ -99,7 +102,7 @@ jobs:
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
-          maturin-version: 1.7.6
+          maturin-version: ${{ env.MATURIN_VERSION }}
           command: sdist
           args: --out dist
       - name: Upload artifacts
