@@ -265,6 +265,76 @@ def process_storage(dname: str, providers: list[str], results_dir: str):
 
     return { 'dataset': dname, 'results': ret, 'timings': ptimes[1:] }
 
+
+def flow_filter_reachable(edges: list) -> list:
+    """
+    Finds all reachable edges (edges whose source node is reachable from node 0)
+    Example: [(0,1), (1,2), (3,4)] => [(0,1), (1,2)]
+    """
+    graph = defaultdict(list)
+    for src, dst in edges:
+        graph[src].append(dst)
+
+    reachable = set()
+    stack = [0]  # start from entry point (node 0)
+
+    while stack:
+        current = stack.pop()
+        if current not in reachable:
+            reachable.add(current)
+            stack.extend(graph[current])
+
+    return sorted(e for e in edges if e[0] in reachable)
+
+def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
+    pdata, ptimes = load_data('flow', dname, providers, results_dir)
+    results = []
+
+    for fname, (_, reference_data) in pdata[0].items():
+        provider_stats = []
+
+        reference_flows = set(tuple(tuple(v) for v in flow_filter_reachable(reference_data)))
+
+        for provider_data in pdata:
+            curr_data = provider_data[fname][1]
+            curr_edges = set(tuple(tuple(v) for v in flow_filter_reachable(curr_data)))
+
+            blocks = set()
+            for (a, b) in curr_edges:
+                blocks.add(a)
+                blocks.add(b)
+
+            total_blocks = len(blocks)
+
+            total_edges = len(curr_edges)
+            missing_edges = len(reference_flows - curr_edges)
+            extra_edges = len(curr_edges - reference_flows)
+
+            provider_stats.append((total_blocks, total_edges, missing_edges, extra_edges))
+
+        print(fname, provider_stats)
+        results.append({
+            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'results': provider_stats,
+        })
+
+    return {'dataset': dname, 'results': results, 'timings': ptimes}
+
+def show_flow(providers: list[str], all_results: list, show_errors: bool):
+    for dataset_result in all_results:
+        cnt_contracts = len(dataset_result['results'])
+        for provider_idx, name in enumerate(providers):
+            blocks = sum(y['results'][provider_idx][0] for y in dataset_result['results'])
+            edges = sum(y['results'][provider_idx][1] for y in dataset_result['results'])
+            e1 = sum(y['results'][provider_idx][2] for y in dataset_result['results'])
+            e2 = sum(y['results'][provider_idx][3] for y in dataset_result['results'])
+            print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts), {name}:')
+            print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
+            print(f'  blks: {blocks}')
+            print(f' edges: {edges}')
+            print(f'  miss:  {e1}')
+            print(f'  extr:  {e2}')
+
 def show_arguments_or_mutability(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
         cnt_contracts = len(dataset_result['results'])
@@ -296,7 +366,7 @@ def show_arguments_or_mutability(providers: list[str], all_results: list, show_e
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', type=str, default=pathlib.Path(__file__).parent / 'results', help='results directory')
-    parser.add_argument('--mode', choices=['selectors', 'arguments', 'mutability', 'storage'], default='selectors', help='mode')
+    parser.add_argument('--mode', choices=['selectors', 'arguments', 'mutability', 'storage', 'flow'], default='selectors', help='mode')
     parser.add_argument('--providers', nargs='+', default=None)
     parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
@@ -321,6 +391,10 @@ if __name__ == '__main__':
             'datasets': ['largest1k', 'random50k', 'vyper'],
             'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'heimdall-rs', 'simple']
         },
+        'flow': {
+            'datasets': ['largest1k', 'random50k', 'vyper'],
+            'providers': ['evmole-rs', 'evm-cfg', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
+        }
     }
 
     if cfg.datasets is None:
@@ -364,3 +438,8 @@ if __name__ == '__main__':
         # results = [process_storage(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
         results = [process_storage('storage3k', cfg.providers, cfg.results_dir)]
         show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
+
+    elif cfg.mode == 'flow':
+        assert len(cfg.datasets) == 1
+        results = [process_flow(cfg.datasets[0], cfg.providers, cfg.results_dir)]
+        show_flow(cfg.providers, results, cfg.show_errors)

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{BufWriter, Write};
 use std::time::Instant;
@@ -17,6 +17,7 @@ enum Mode {
     Arguments,
     Mutability,
     Storage,
+    Flow,
 }
 
 #[derive(Parser)]
@@ -42,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     type Meta = u64; // duration in ms
 
     let selectors: HashMap<String, (Meta, Vec<String>)> = match cfg.mode {
-        Mode::Selectors | Mode::Storage => HashMap::new(),
+        Mode::Selectors | Mode::Storage | Mode::Flow => HashMap::new(),
         Mode::Arguments | Mode::Mutability => {
             let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
             serde_json::from_str(&file_content)?
@@ -57,6 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut ret_selectors: HashMap<String, (Meta, Vec<String>)> = HashMap::new();
     let mut ret_other: HashMap<String, (Meta, HashMap<String, String>)> = HashMap::new();
+    let mut ret_flow: HashMap<String, (Meta, BTreeSet<(usize, usize)>)> = HashMap::new();
 
     for entry in fs::read_dir(cfg.input_dir)? {
         let entry = entry?;
@@ -204,6 +206,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ),
                 );
             }
+
+            Mode::Flow => {
+                let now = Instant::now();
+                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_control_flow_graph());
+                let dur = now.elapsed().as_millis() as u64;
+                let mut flow: BTreeSet<(usize, usize)> = BTreeSet::new();
+                // TODO
+                ret_flow.insert(fname, (dur, flow));
+            }
         }
     }
 
@@ -211,6 +222,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bw = BufWriter::new(file);
     if cfg.mode == Mode::Selectors {
         let _ = serde_json::to_writer(&mut bw, &ret_selectors);
+    } else if cfg.mode == Mode::Flow {
+        let _ = serde_json::to_writer(&mut bw, &ret_flow);
     } else {
         let _ = serde_json::to_writer(&mut bw, &ret_other);
     }

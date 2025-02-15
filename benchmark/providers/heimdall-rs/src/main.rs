@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::io::{BufWriter, Write};
 use std::time::Instant;
@@ -17,6 +17,7 @@ enum Mode {
     Selectors,
     Arguments,
     Mutability,
+    Flow,
 }
 
 #[derive(Parser)]
@@ -37,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     type Meta = u64; // duration in ms
 
     let selectors: HashMap<String, (Meta, Vec<String>)> = match cfg.mode {
-        Mode::Selectors => HashMap::new(),
+        Mode::Selectors | Mode::Flow => HashMap::new(),
         Mode::Arguments | Mode::Mutability => {
             let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
             serde_json::from_str(&file_content)?
@@ -46,6 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut ret_selectors: HashMap<String, (Meta, Vec<String>)> = HashMap::new();
     let mut ret_other: HashMap<String, (Meta, HashMap<String, String>)> = HashMap::new();
+    let mut ret_flow: HashMap<String, (Meta, BTreeSet<(usize, usize)>)> = HashMap::new();
 
     for entry in fs::read_dir(cfg.input_dir)? {
         let entry = entry?;
@@ -174,6 +176,68 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
                 ret_other.insert(fname, (duration_ms, r));
             }
+            Mode::Flow => {
+                let cfg_args = heimdall_core::heimdall_cfg::CfgArgsBuilder::new()
+                    .target(hex_code)
+                    .build()?;
+
+                let now = Instant::now();
+                let cfg = heimdall_core::heimdall_cfg::cfg(cfg_args).await?;
+                let duration_ms = now.elapsed().as_millis() as u64;
+
+                let mut jump_dest_mapping: HashMap<usize, usize> = HashMap::new();
+                let mut control_flow: BTreeSet<(usize, usize)> = BTreeSet::new();
+
+                // Helper function to parse hex addresses
+                fn parse_hex_address(hex_str: &str) -> usize {
+                    let s = hex_str.strip_prefix("0x").unwrap();
+                    usize::from_str_radix(s, 16).unwrap()
+                }
+
+                // Split blocks by JUMPDEST
+                for node in cfg.graph.raw_nodes() {
+                    let instructions: Vec<_> = node.weight
+                        .lines()
+                        .filter_map(|line| {
+                            let (pc_hex, op) = line.trim_end().split_once(" ")?;
+                            let pc = parse_hex_address(pc_hex);
+                            Some((pc, op))
+                        })
+                        .collect();
+
+                    let mut current_pc = instructions[0].0;
+                    for (pc, op) in instructions.iter().skip(1) {
+                        if *op == "JUMPDEST" {
+                            jump_dest_mapping.insert(instructions[0].0, *pc);
+                            control_flow.insert((current_pc, *pc));
+                            current_pc = *pc;
+                        }
+                    }
+                }
+
+                // Process edges
+                control_flow.extend(cfg.graph.raw_edges().iter().map(|edge| {
+                    let source = cfg.graph.node_weight(edge.source())
+                        .and_then(|s| s.split_once(" "))
+                        .map(|(hex, _)| parse_hex_address(hex))
+                        .unwrap();
+
+                    let target = cfg.graph.node_weight(edge.target())
+                        .and_then(|s| s.split_once(" "))
+                        .map(|(hex, _)| parse_hex_address(hex))
+                        .unwrap();
+
+                    let from = jump_dest_mapping.get(&source).copied().unwrap_or(source);
+                    (from, target)
+                }));
+
+                // -1 bug in heimdall-rs: https://github.com/Jon-Becker/heimdall-rs/issues/499
+                control_flow = control_flow.into_iter()
+                    .map(|(from, to)| (from - 1, to - 1))
+                    .collect();
+
+                ret_flow.insert(fname, (duration_ms, control_flow));
+            }
         }
     }
 
@@ -181,6 +245,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bw = BufWriter::new(file);
     if cfg.mode == Mode::Selectors {
         let _ = serde_json::to_writer(&mut bw, &ret_selectors);
+    } else if cfg.mode == Mode::Flow {
+        let _ = serde_json::to_writer(&mut bw, &ret_flow);
     } else {
         let _ = serde_json::to_writer(&mut bw, &ret_other);
     }

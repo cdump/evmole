@@ -41,6 +41,37 @@ function extract(code, mode, fname) {
         return [s, fn.constant ? 'view' : (fn.payable ? 'payable' : 'nonpayable')];
       }
     }))];
+  } else if (mode === 'flow') {
+    let res = new Map();
+    const add = (from, to) => {
+      res.set(`${from}|${to}`, [from, to]);
+    };
+    for (const [pc, block] of (contract ? contract.blocks : [])) {
+      for (const {opcode} of block.opcodes.slice(1)) { // skip first
+        if (opcode.opcode === 91) {
+          throw 'JUMPDEST inside block';
+        }
+      }
+      for (const state of block.states) {
+        switch (state.last?.name) {
+          case 'Jumpi':
+            add(pc, state.last.destBranch.pc);
+            add(pc, state.last.fallBranch.pc);
+            break;
+          case 'SigCase':
+            add(pc, state.last.fallBranch.pc);
+            break;
+          case 'Jump':
+            add(pc, state.last.destBranch.pc);
+            break;
+          case 'JumpDest':
+            add(pc, state.last.fallBranch.pc);
+            break;
+          default:
+        }
+      }
+    }
+    return [duration_ms, Array.from(res.values())];
   } else {
     throw 'unsupported mode';
   }
