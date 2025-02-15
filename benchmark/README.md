@@ -1,54 +1,67 @@
 # Benchmarks
 
-Test accuracy and speed of different function-signature and arguments extractors
+Test accuracy and speed of different EVM bytecode analysis tools
 
 For results, refer to the [main README.md](../README.md#Benchmark).
 
 ## Methodology
 1. Get N Etherscan-verified contracts, save the bytecode and ABI to `datasets/NAME/ADDR.json`.
-2. Extract function signatures/arguments/state mutability from the bytecode. Each tool runs inside a Docker container and is limited to 1 CPU (see `providers/NAME` and `Makefile`).
+2. Extract information from the bytecode using different tools. Each tool runs inside a Docker container and is limited to 1 CPU (see `providers/NAME` and `Makefile`).
 3. Assume Etherscan's ABI as ground truth.
-4. Compare the results with it and count [False Positives and False Negatives](https://en.wikipedia.org/wiki/False_positives_and_false_negatives) for signatures and count correct results (strings equal) for arguments and state mutability.
+4. Compare the results:
+   - For selectors: Count [False Positives and False Negatives](https://en.wikipedia.org/wiki/False_positives_and_false_negatives)
+   - For arguments/mutability: Count exact matches
 
 ## Reproduce
-Set the performance mode using `sudo cpupower frequency-set -g performance` and run `make benchmark-selectors` or `make benchmark-arguments` ([GNU Make](https://www.gnu.org/software/make/)) inside the `benchmark/` directory.
+Set the performance mode using `sudo cpupower frequency-set -g performance` and run benchmarks ([GNU Make](https://www.gnu.org/software/make/)) inside the `benchmark/` directory:
 
-To use [Podman](https://podman.io/) instead of Docker: `DOCKER=podman make benchmark-selectors`
+```sh
+make benchmark-selectors    # Run function selector tests
+make benchmark-arguments   # Run argument extraction tests
+make benchmark-mutability  # Run state mutability tests
+```
 
+To use [Podman](https://podman.io/) instead of Docker:
+```sh
+DOCKER=podman make benchmark-selectors
+```
 
-You can run only specific step; for example:
+You can run specific steps; for example:
 ```sh
 # Only build docker-images
 $ make build
 
-# Only run tests for selectors (assume that docker-images are already built)
+# Only run tests for selectors (assume docker-images are built)
 $ make run-selectors
 
-# Build `etherscan` docker image
+# Build specific provider
 $ make etherscan.build
 
-# Run `etherscan` on dataset `largest1k` to extract function selectors
+# Run specific provider/mode/dataset
 $ make etherscan.selectors/largest1k
-
-# Run `etherscan` on dataset `largest1k` to extract function arguments
 $ make etherscan.arguments/largest1k
 ```
 
-To process results run `compare.py`:
+## Process Results
+Use `compare.py` to analyze results:
+
 ```sh
-# default mode: compare 'selectors' results
+# Default mode (selectors)
 $ python3 compare.py
 
-# compare 'arguments' results
+# Compare specific mode
 $ python3 compare.py --mode=arguments
+$ python3 compare.py --mode=mutability
 
-# compare 'arguments' results for specified providers and datasets, show errors
-$ python3 compare.py --mode=arguments --datasets largest1k --providers etherscan evmole-py --show-errors
+# Filter by dataset/provider and show errors
+python3 compare.py --mode=arguments --datasets largest1k --providers etherscan evmole-py --show-errors
 
-# compare in web-browser
-$ ../.venv/bin/python3 compare.py --web-listen 127.0.0.1:8080 
+# Normalize argument comparisons
+python3 compare.py --mode=arguments --normalize-args fixed-size-array tuples string-bytes
+
+# Output markdown tables
+python3 compare.py --mode=selectors --markdown
 ```
 
-
-## How datasets was constructed
-See [datasets/README.md](datasets README)
+## Datasets
+See [datasets/README.md](datasets/README.md) for information about how the test datasets were constructed.

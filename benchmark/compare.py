@@ -3,6 +3,7 @@ import json
 import math
 import pathlib
 import re
+from collections import defaultdict
 
 
 def load_data(btype: str, dname: str, providers: list[str], results_dir: str) -> tuple[list, list]:
@@ -15,25 +16,27 @@ def load_data(btype: str, dname: str, providers: list[str], results_dir: str) ->
             times.append(float(fh.read()))
     return data, times
 
-
 def process_selectors(dname: str, providers: list[str], results_dir: str):
     pdata, ptimes = load_data('selectors', dname, providers, results_dir)
-    ret = []
-    for fname, (_meta, gt) in pdata[0].items():
-        gt_set = set(gt)
-        data = []
-        for i in range(1, len(providers)): # skip ground_truth provider
-            d = set(pdata[i][fname][1])
-            fp = list(d - gt_set)
-            fn = list(gt_set - d)
-            data.append([fp, fn])
-        ret.append({
-            'addr': fname[2:-5], # '0xFF.json' => 'FF'
-            'ground_truth': gt,
-            'data': data,
-        })
-    return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
+    results = []
+    ground_truth_provider = pdata[0]
+    for fname, (_, ground_truth) in ground_truth_provider.items():
+        ground_truth_set = set(ground_truth)
+        provider_comparisons = []
 
+        for provider_data in pdata[1:]:
+            provider_set = set(provider_data[fname][1])
+            false_positives = list(provider_set - ground_truth_set)
+            false_negatives = list(ground_truth_set - provider_set)
+            provider_comparisons.append([false_positives, false_negatives])
+
+        results.append({
+            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'ground_truth': ground_truth,
+            'data': provider_comparisons,
+        })
+
+    return { 'dataset': dname, 'results': results, 'timings': ptimes[1:] }
 
 def format_time(val: float) -> str:
     return f'{val:.1f}s' if val < 10 else f'{val:.0f}s'
@@ -232,38 +235,35 @@ def process_arguments(dname: str, providers: list[str], results_dir: str, normal
 def process_storage(dname: str, providers: list[str], results_dir: str):
     pdata, ptimes = load_data('storage', dname, providers, results_dir)
     ret = []
-    for fname, (_meta, gt) in pdata[0].items():
+
+    for fname, (_, ground_truth) in pdata[0].items():
         func = []
-        for gt_slot, gt_type in gt.items():
+        for gt_slot, gt_type in ground_truth.items():
             data = []
             for i in range(1, len(providers)): # skip ground_truth provider
                 vtype = pdata[i][fname][1].get(gt_slot)
-                if vtype == gt_type:
-                    data.append([1])
-                else:
-                    data.append([0, vtype])
+                data.append([1] if vtype == gt_type else [0, vtype])
             func.append({'s': gt_slot, 'gt': gt_type, 'data': data})
 
-        qwe = set()
-        for i in range(1, len(providers)):
-            qwe |= set(pdata[i][fname][1].keys())
+        all_provider_slots = {
+            slot for i in range(1, len(providers))
+            for slot in pdata[i][fname][1].keys()
+        }
+        false_positive_slots = sorted(all_provider_slots - set(ground_truth.keys()))
 
-        false_positive_slots = sorted(list(qwe - set(pdata[0][fname][1].keys())))
         for slot in false_positive_slots:
             data = []
             for i in range(1, len(providers)): # skip ground_truth provider
                 vtype = pdata[i][fname][1].get(slot)
-                if vtype is None:
-                    data.append([1])
-                else:
-                    data.append([0, vtype])
+                data.append([1] if vtype is None else [0, vtype])
             func.append({'s': slot, 'gt': None, 'data': data})
 
         ret.append({
             'addr': fname[2:-5], # '0xFF.json' => 'FF'
             'func': func,
         })
-    return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
+
+    return { 'dataset': dname, 'results': ret, 'timings': ptimes[1:] }
 
 def show_arguments_or_mutability(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
@@ -303,17 +303,32 @@ if __name__ == '__main__':
     parser.add_argument('--show-errors', nargs='?', default=False, const=True, help='show errors')
     parser.add_argument('--normalize-args', nargs='+', required=False, choices=['fixed-size-array', 'tuples', 'string-bytes'], help='normalize arguments rules')
     cfg = parser.parse_args()
+
+    MODE_DEFAULTS = {
+        'storage': {
+            'datasets': ['storage3k'],
+            'providers': ['etherscan', 'evmole-rs', 'smlxl']
+        },
+        'selectors': {
+            'datasets': ['largest1k', 'random50k', 'vyper'],
+            'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'heimdall-rs', 'simple']
+        },
+        'arguments': {
+            'datasets': ['largest1k', 'random50k', 'vyper'],
+            'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'heimdall-rs', 'simple']
+        },
+        'mutability': {
+            'datasets': ['largest1k', 'random50k', 'vyper'],
+            'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'heimdall-rs', 'simple']
+        },
+    }
+
     if cfg.datasets is None:
-        cfg.datasets = ['storage3k'] if cfg.mode == 'storage' else ['largest1k', 'random50k', 'vyper']
+        cfg.datasets = MODE_DEFAULTS[cfg.mode]['datasets']
+
     if cfg.providers is None:
-        if cfg.mode == 'selectors':
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'heimdall-rs', 'simple']
-        elif cfg.mode == 'arguments':
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'heimdall-rs', 'simple']
-        elif cfg.mode == 'mutability':
-            cfg.providers = ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'heimdall-rs', 'simple']
-        elif cfg.mode == 'storage':
-            cfg.providers = ['etherscan', 'evmole-rs', 'smlxl']
+        cfg.providers = MODE_DEFAULTS[cfg.mode]['providers']
+
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
 

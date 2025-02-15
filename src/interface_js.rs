@@ -107,7 +107,7 @@ const DOC_CONTRACT_INFO: &'static str = r#"
  * @param args - Configuration options for the analysis
  * @param args.selectors - When true, includes function selectors in the output
  * @param args.arguments - When true, includes function arguments information
- * @param args.state_mutability - When true, includes state mutability information for functions
+ * @param args.stateMutability - When true, includes state mutability information for functions
  * @param args.storage - When true, includes contract storage layout information
  * @param args.disassemble - When true, includes disassembled bytecode
  * @returns Analyzed contract information
