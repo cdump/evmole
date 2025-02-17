@@ -16,3 +16,19 @@ assert info.disassembled is not None
 assert info.disassembled[0] == (0, 'PUSH1 80')
 
 print(f'Success #1, {info}')
+
+from evmole import ControlFlowGraph, Block, BlockType, DynamicJump
+info = contract_info(code, basic_blocks=True, control_flow_graph=True, selectors=True)
+assert isinstance(info.basic_blocks, list)
+assert isinstance(info.basic_blocks[0], tuple)
+
+assert isinstance(info.control_flow_graph, ControlFlowGraph)
+assert isinstance(info.control_flow_graph.blocks, list)
+assert isinstance(info.control_flow_graph.blocks[0], Block)
+
+b = info.control_flow_graph.blocks[0]
+assert isinstance(b.btype, BlockType)
+assert isinstance(b.btype, BlockType.Jumpi)
+assert isinstance(b.btype.true_to, int)
+
+print(f'Success #2, {info}')

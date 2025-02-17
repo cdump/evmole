@@ -36,6 +36,66 @@ class StorageRecord:
     reads: List[str]
     writes: List[str]
 
+class DynamicJump:
+    """
+    Represents a dynamic jump destination in the control flow.
+
+    Attributes:
+        path (List[int]): Path of basic blocks leading to this jump.
+        to (Optional[int]): Target basic block offset if known, None otherwise.
+    """
+    path: List[int]
+    to: Optional[int]
+
+class BlockType:
+    """
+    Represents the type of a basic block and its control flow.
+    This is an enum-like class, all child classes are derived from BlockType class
+    """
+    class Terminate:
+        """Block terminates execution"""
+        success: bool  # True for normal termination (STOP/RETURN), False for REVERT/INVALID
+
+    class Jump:
+        """Block ends with unconditional jump"""
+        to: int  # Destination basic block offset
+
+    class Jumpi:
+        """Block ends with conditional jump"""
+        true_to: int   # Destination if condition is true
+        false_to: int  # Destination if condition is false (fall-through)
+
+    class DynamicJump:
+        """Block ends with jump to computed destination"""
+        to: List[DynamicJump]  # Possible computed jump destinations
+
+    class DynamicJumpi:
+        """Block ends with conditional jump to computed destination"""
+        true_to: List[DynamicJump]  # Possible computed jump destinations if true
+        false_to: int               # Destination if condition is false (fall-through)
+
+class Block:
+    """
+    Represents a basic block in the control flow graph.
+
+    Attributes:
+        start (int): Byte offset where the block's first opcode begins
+        end (int): Byte offset where the block's last opcode begins
+        btype (BlockType): Type of the block and its control flow.
+    """
+    start: int
+    end: int
+    btype: BlockType
+
+class ControlFlowGraph:
+    """
+    Represents the control flow graph of the contract bytecode.
+
+    Attributes:
+        blocks (List[Block]): List of basic blocks in the control flow graph.
+    """
+    blocks: List[Block]
+
 class Contract:
     """
     Contains analyzed information about a smart contract.
@@ -47,11 +107,17 @@ class Contract:
             None if storage layout was not extracted
         disassembled (Optional[List[Tuple[int, str]]]): List of bytecode instructions, where each element is [offset, instruction].
             None if disassembly was not requested
+        basic_blocks (Optional[List[Tuple[int, int]]]): List of basic block ranges as (first_op, last_op) offsets.
+            None if basic blocks were not requested
+        control_flow_graph (Optional[ControlFlowGraph]): Control flow graph of the contract.
+            None if control flow analysis was not requested
     """
 
     functions: Optional[List[Function]]
     storage: Optional[List[StorageRecord]]
     disassembled: Optional[List[Tuple[int, str]]]
+    basic_blocks: Optional[List[Tuple[int, int]]]
+    control_flow_graph: Optional[ControlFlowGraph]
 
 def contract_info(
     code: Union[bytes, str],
@@ -61,6 +127,8 @@ def contract_info(
     state_mutability: bool = False,
     storage: bool = False,
     disassemble: bool = False,
+    basic_blocks: bool = False,
+    control_flow_graph: bool = False,
 ) -> Contract:
     """
     Extracts information about a smart contract from its EVM bytecode.
@@ -75,6 +143,10 @@ def contract_info(
         storage (bool, optional): When True, extracts the contract's storage layout.
             Defaults to False.
         disassemble (bool, optional): When True, includes disassembled bytecode.
+            Defaults to False.
+        basic_blocks (bool, optional): When True, extracts basic block ranges.
+            Defaults to False.
+        control_flow_graph (bool, optional): When True, builds control flow graph.
             Defaults to False.
 
     Returns:

@@ -114,14 +114,17 @@ Analyzes contract bytecode and returns contract information based on specified o
 | args | <code>Object</code> | Configuration options for the analysis |
 | [args.selectors] | <code>boolean</code> | When true, includes function selectors in the output |
 | [args.arguments] | <code>boolean</code> | When true, includes function arguments information |
-| [args.state_mutability] | <code>boolean</code> | When true, includes state mutability information for functions |
+| [args.stateMutability] | <code>boolean</code> | When true, includes state mutability information for functions |
 | [args.storage] | <code>boolean</code> | When true, includes contract storage layout information |
 | [args.disassemble] | <code>boolean</code> | When true, includes disassembled bytecode |
-
+| [args.basicBlocks] | <code>boolean</code> | When true, includes basic block analysis |
+| [args.controlFlowGraph] | <code>boolean</code> | When true, includes control flow graph analysis |
 
 <a name="Contract"></a>
 
 ### Contract : <code>Object</code>
+Contains the analysis results of a contract
+
 **Kind**: global typedef  
 **Properties**
 
@@ -130,25 +133,29 @@ Analyzes contract bytecode and returns contract information based on specified o
 | [functions] | [<code>Array.&lt;ContractFunction&gt;</code>](#ContractFunction) | Array of functions found in the contract. Not present if no functions were extracted |
 | [storage] | [<code>Array.&lt;StorageRecord&gt;</code>](#StorageRecord) | Array of storage records found in the contract. Not present if storage layout was not extracted |
 | [disassembled] | <code>Array.&lt;Array.&lt;(number\|string)&gt;&gt;</code> | Array of bytecode instructions, where each element is [offset, instruction] |
-
+| [basicBlocks] | <code>Array.&lt;Array.&lt;number&gt;&gt;</code> | Array of basic blocks found in the contract. Not present if basic blocks were not analyzed. |
+| [controlFlowGraph] | [<code>ControlFlowGraph</code>](#ControlFlowGraph) | Control flow graph representation. Not present if CFG was not generated. |
 
 <a name="ContractFunction"></a>
 
 ### ContractFunction : <code>Object</code>
+Represents a function found in the contract bytecode
+
 **Kind**: global typedef  
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
 | selector | <code>string</code> | Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd') |
-| bytecode_offset | <code>number</code> | Starting byte offset within the EVM bytecode for the function body |
+| bytecodeOffset | <code>number</code> | Starting byte offset within the EVM bytecode for the function body |
 | [arguments] | <code>string</code> | Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted |
-| [state_mutability] | <code>string</code> | Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted |
+| [stateMutability] | <code>string</code> | Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted |
 
 <a name="StorageRecord"></a>
 
-
 ### StorageRecord : <code>Object</code>
+Represents a storage record found in the contract
+
 **Kind**: global typedef  
 **Properties**
 
@@ -159,3 +166,95 @@ Analyzes contract bytecode and returns contract information based on specified o
 | type | <code>string</code> | Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32') |
 | reads | <code>Array.&lt;string&gt;</code> | Array of function selectors that read from this storage location |
 | writes | <code>Array.&lt;string&gt;</code> | Array of function selectors that write to this storage location |
+
+<a name="ControlFlowGraph"></a>
+
+### ControlFlowGraph : <code>Object</code>
+Represents the control flow graph of the contract bytecode
+
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| blocks | [<code>Array.&lt;Block&gt;</code>](#Block) | List of basic blocks in the control flow graph |
+
+<a name="Block"></a>
+
+### Block : <code>Object</code>
+Represents a basic block in the control flow graph
+
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| start | <code>number</code> | Byte offset where the block's first opcode begins |
+| end | <code>number</code> | Byte offset where the block's last opcode begins |
+| type | <code>&#x27;Terminate&#x27;</code> \| <code>&#x27;Jump&#x27;</code> \| <code>&#x27;Jumpi&#x27;</code> \| <code>&#x27;DynamicJump&#x27;</code> \| <code>&#x27;DynamicJumpi&#x27;</code> | Block type |
+| data | [<code>DataTerminate</code>](#DataTerminate) \| [<code>DataJump</code>](#DataJump) \| [<code>DataJumpi</code>](#DataJumpi) \| [<code>DataDynamicJump</code>](#DataDynamicJump) \| [<code>DataDynamicJumpi</code>](#DataDynamicJumpi) | Type Type-specific block data |
+
+<a name="DataTerminate"></a>
+
+### DataTerminate : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| success | <code>boolean</code> | true for normal termination (STOP/RETURN), false for REVERT/INVALID |
+
+<a name="DataJump"></a>
+
+### DataJump : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| to | <code>number</code> | Destination basic block offset |
+
+<a name="DataJumpi"></a>
+
+### DataJumpi : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| true_to | <code>number</code> | Destination if condition is true |
+| false_to | <code>number</code> | Destination if condition is false (fall-through) |
+
+<a name="DataDynamicJump"></a>
+
+### DataDynamicJump : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| to | [<code>DynamicJump</code>](#DynamicJump) | Possible computed jump destinations |
+
+<a name="DataDynamicJumpi"></a>
+
+### DataDynamicJumpi : <code>Object</code>
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| true_to | [<code>DynamicJump</code>](#DynamicJump) | Possible computed jump destinations if true |
+| false_to | <code>number</code> | Destination if condition is false (fall-through) |
+
+<a name="DynamicJump"></a>
+
+### DynamicJump : <code>Object</code>
+Represents a dynamic jump destination in the control flow
+
+**Kind**: global typedef  
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| path | <code>Array.&lt;number&gt;</code> | Path of basic blocks leading to this jump |
+| [to] | <code>number</code> | Target basic block offset if known. Optional |

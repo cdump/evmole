@@ -1,6 +1,9 @@
-use crate::{DynSolType, Selector, Slot, StateMutability};
+use std::collections::BTreeMap;
+
 use alloy_primitives::hex;
 use serde::{ser::SerializeSeq, Serializer};
+
+use crate::{control_flow_graph::Block, DynSolType, Selector, Slot, StateMutability};
 
 pub fn selector<S: Serializer>(val: &Selector, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str(&hex::encode(val))
@@ -41,6 +44,17 @@ pub fn vec_selector<S: Serializer>(val: &Vec<Selector>, serializer: S) -> Result
     let mut s = serializer.serialize_seq(Some(val.len()))?;
     for sel in val {
         s.serialize_element(&hex::encode(sel))?;
+    }
+    s.end()
+}
+
+pub fn blocks<S: Serializer>(
+    val: &BTreeMap<usize, Block>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut s = serializer.serialize_seq(Some(val.len()))?;
+    for b in val.values() {
+        s.serialize_element(b)?;
     }
     s.end()
 }
