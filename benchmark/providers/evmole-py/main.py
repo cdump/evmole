@@ -3,10 +3,10 @@ import json
 import os
 import time
 
-from evmole import contract_info
+from evmole import contract_info, BlockType
 
 parser = argparse.ArgumentParser()
-parser.add_argument('mode', choices=['selectors', 'arguments', 'mutability'])
+parser.add_argument('mode', choices=['selectors', 'arguments', 'mutability', 'flow'])
 parser.add_argument('input_dir')
 parser.add_argument('output_file')
 parser.add_argument('selectors_file', nargs='*')
@@ -24,23 +24,45 @@ for fname in os.listdir(cfg.input_dir):
         code = d['code']
         t0 = time.perf_counter()
         if cfg.mode == 'selectors':
-            r = contract_info(code, selectors=True)
+            info = contract_info(code, selectors=True)
         elif cfg.mode == 'arguments':
-            r = contract_info(code, arguments=True)
+            info = contract_info(code, arguments=True)
         elif cfg.mode == 'mutability':
-            r = contract_info(code, state_mutability=True)
+            info = contract_info(code, state_mutability=True)
+        elif cfg.mode == 'flow':
+            info = contract_info(code, control_flow_graph=True)
         else:
             raise Exception(f'Unknown mode {cfg.mode}')
         duration_ms = int((time.perf_counter() - t0) * 1000)
 
         if cfg.mode == 'selectors':
-            r = [f.selector for f in r.functions]
+            r = [f.selector for f in info.functions]
         elif cfg.mode == 'arguments':
-            by_sel = {f.selector: f.arguments for f in r.functions}
+            by_sel = {f.selector: f.arguments for f in info.functions}
             r = {s: by_sel.get(s, 'notfound') for s in selectors[fname][1]}
         elif cfg.mode == 'mutability':
-            by_sel = {f.selector: f.state_mutability for f in r.functions}
+            by_sel = {f.selector: f.state_mutability for f in info.functions}
             r = {s: by_sel.get(s, 'notfound') for s in selectors[fname][1]}
+        elif cfg.mode == 'flow':
+            r = []
+            for bl in info.control_flow_graph.blocks:
+                match bl.btype:
+                    case BlockType.Jump(to):
+                        r.append((bl.start, to))
+                    case BlockType.Jumpi(true_to, false_to):
+                        r.append((bl.start, true_to))
+                        r.append((bl.start, false_to))
+                    case BlockType.DynamicJump(to):
+                        for v in to:
+                            if v.to is not None:
+                                r.append((bl.start, v.to))
+                    case BlockType.DynamicJumpi(true_to, false_to):
+                        for v in true_to:
+                            if v.to is not None:
+                                r.append((bl.start, v.to))
+                        r.append((bl.start, false_to))
+                    case BlockType.Terminate:
+                        pass
         else:
             raise Exception(f'Unknown mode {cfg.mode}')
 

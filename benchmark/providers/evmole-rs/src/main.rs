@@ -3,7 +3,7 @@ use std::fs;
 use std::io::{BufWriter, Write};
 use std::time::Instant;
 
-use evmole::BlockType;
+use evmole::control_flow_graph::BlockType;
 
 use clap::{Parser, ValueEnum};
 

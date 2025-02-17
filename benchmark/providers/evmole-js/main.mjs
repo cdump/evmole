@@ -38,6 +38,38 @@ function extract(code, mode, fname) {
     return [duration_ms, Object.fromEntries(
       selectors[fname][1].map((s) => [s, by_sel.get(s) ?? 'notfound'])
     )];
+  } else if (mode === 'flow') {
+    let [duration_ms, r] = timeit(() => contractInfo(code, {controlFlowGraph: true}));
+    let ret = []
+    for (const b of r.controlFlowGraph.blocks) {
+      let bt = b.get('type');
+      let start = b.get('start');
+      let data = b.get('data');
+      if (bt === 'Jump') {
+        ret.push([start, data.to])
+      } else if (bt === 'Jumpi') {
+        ret.push([start, data.true_to])
+        ret.push([start, data.false_to])
+      } else if (bt === 'DynamicJump') {
+        for (let v of data.to) {
+          if(v.to) {
+            ret.push([start, v.to])
+          }
+        }
+      } else if (bt === 'DynamicJumpi') {
+        for (let v of data.true_to) {
+          if(v.to) {
+            ret.push([start, v.to])
+          }
+        }
+        ret.push([start, data.false_to])
+      } else if (bt === 'Terminate') {
+        // do nothing
+      } else {
+        throw `unknown block type ${bt}`;
+      }
+    }
+    return [duration_ms, ret];
   } else {
     throw 'unsupported mode';
   }

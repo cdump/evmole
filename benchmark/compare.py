@@ -312,7 +312,7 @@ def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
 
             provider_stats.append((total_blocks, total_edges, missing_edges, extra_edges))
 
-        print(fname, provider_stats)
+        # print(fname, provider_stats)
         results.append({
             'addr': fname[2:-5], # '0xFF.json' => 'FF'
             'results': provider_stats,
@@ -440,6 +440,6 @@ if __name__ == '__main__':
         show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
 
     elif cfg.mode == 'flow':
-        assert len(cfg.datasets) == 1
+        # assert len(cfg.datasets) == 1
         results = [process_flow(cfg.datasets[0], cfg.providers, cfg.results_dir)]
         show_flow(cfg.providers, results, cfg.show_errors)
