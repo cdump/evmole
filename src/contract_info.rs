@@ -56,9 +56,11 @@ pub struct Contract {
     pub disassembled: Option<Vec<(usize, String)>>,
 
     /// Basic blocks representing sequences of instructions that execute sequentially
+    #[cfg_attr(feature = "serde", serde(rename = "basicBlocks"))]
     pub basic_blocks: Option<Vec<(usize, usize)>>,
 
     /// Control flow graph representing the program's execution paths
+    #[cfg_attr(feature = "serde", serde(rename = "controlFlowGraph"))]
     pub control_flow_graph: Option<ControlFlowGraph>,
 }
 
