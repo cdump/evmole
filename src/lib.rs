@@ -17,6 +17,7 @@ mod selectors;
 mod state_mutability;
 mod storage;
 mod utils;
+pub mod control_flow_graph;
 
 #[cfg(feature = "serde")]
 mod serialize;

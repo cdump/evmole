@@ -3,6 +3,8 @@ use std::fs;
 use std::io::{BufWriter, Write};
 use std::time::Instant;
 
+use evmole::BlockType;
+
 use clap::{Parser, ValueEnum};
 
 #[derive(serde::Deserialize)]
@@ -209,11 +211,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Mode::Flow => {
                 let now = Instant::now();
+                let info =
                     evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_control_flow_graph());
                 let dur = now.elapsed().as_millis() as u64;
                 let mut flow: BTreeSet<(usize, usize)> = BTreeSet::new();
-                // TODO
-                ret_flow.insert(fname, (dur, flow));
+                for block in info.control_flow_graph.unwrap().blocks.values() {
+                    match block.btype {
+                        BlockType::Jump{to} => {
+                            flow.insert((block.start, to));
+                        },
+                        BlockType::Jumpi{true_to, false_to} => {
+                            flow.insert((block.start, true_to));
+                            flow.insert((block.start, false_to));
+                        },
+                        BlockType::DynamicJump { ref to } => {
+                            for x in to {
+                                if let Some(v) = x.to {
+                                    flow.insert((block.start, v));
+                                }
+                            }
+                        },
+                        BlockType::DynamicJumpi { ref true_to, false_to } => {
+                            for x in true_to {
+                                if let Some(v) = x.to {
+                                    flow.insert((block.start, v));
+                                }
+                            }
+                            flow.insert((block.start, false_to));
+                        },
+                        BlockType::Terminate{..} => {},
+                    }
+                }
+                ret_flow.insert(fname, ( dur, flow));
             }
         }
     }

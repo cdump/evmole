@@ -1,6 +1,11 @@
 use crate::{
-    arguments::function_arguments, evm::code_iterator::disassemble, selectors::function_selectors,
-    state_mutability::function_state_mutability, storage::contract_storage,
+    arguments::function_arguments,
+    control_flow_graph::basic_blocks,
+    control_flow_graph::{control_flow_graph, ControlFlowGraph},
+    evm::code_iterator::disassemble,
+    selectors::function_selectors,
+    state_mutability::function_state_mutability,
+    storage::contract_storage,
 };
 use crate::{DynSolType, Selector, StateMutability, StorageRecord};
 
@@ -49,6 +54,12 @@ pub struct Contract {
 
     /// Disassembled code
     pub disassembled: Option<Vec<(usize, String)>>,
+
+    /// Basic blocks representing sequences of instructions that execute sequentially
+    pub basic_blocks: Option<Vec<(usize, usize)>>,
+
+    /// Control flow graph representing the program's execution paths
+    pub control_flow_graph: Option<ControlFlowGraph>,
 }
 
 /// Builder for configuring contract analysis parameters
@@ -62,6 +73,8 @@ pub struct ContractInfoArgs<'a> {
     need_state_mutability: bool,
     need_storage: bool,
     need_disassemble: bool,
+    need_basic_blocks: bool,
+    need_control_flow_graph: bool,
 }
 
 impl<'a> ContractInfoArgs<'a> {
@@ -78,6 +91,8 @@ impl<'a> ContractInfoArgs<'a> {
             need_state_mutability: false,
             need_storage: false,
             need_disassemble: false,
+            need_basic_blocks: false,
+            need_control_flow_graph: false,
         }
     }
 
@@ -112,6 +127,19 @@ impl<'a> ContractInfoArgs<'a> {
     /// Enables disassemble bytecodes into individual opcodes
     pub fn with_disassemble(mut self) -> Self {
         self.need_disassemble = true;
+        self
+    }
+
+    /// Enables the extraction of basic blocks from the bytecode
+    pub fn with_basic_blocks(mut self) -> Self {
+        self.need_basic_blocks = true;
+        self
+    }
+
+    /// Enables the generation of a control flow graph (CFG)
+    pub fn with_control_flow_graph(mut self) -> Self {
+        self.need_basic_blocks = true;
+        self.need_control_flow_graph = true;
         self
     }
 }
@@ -193,9 +221,24 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         None
     };
 
+    let (basic_blocks, control_flow_graph) = if args.need_basic_blocks {
+        let bb = basic_blocks(args.code);
+        let blocks = Some(bb.values().map(|bl| (bl.start, bl.end)).collect());
+        let cfg = if args.need_control_flow_graph {
+            Some(control_flow_graph(args.code, bb))
+        } else {
+            None
+        };
+        (blocks, cfg)
+    } else {
+        (None, None)
+    };
+
     Contract {
         functions,
         storage,
         disassembled,
+        basic_blocks,
+        control_flow_graph,
     }
 }
