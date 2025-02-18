@@ -57,7 +57,7 @@ mod evmole {
     // }}}
 
     // {{{ StorageRecord
-    #[pyclass(name = "StorageRecord")]
+    #[pyclass(name = "StorageRecord", get_all)]
     #[derive(Clone)]
     struct PyStorageRecord {
         slot: String,
