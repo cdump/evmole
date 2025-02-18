@@ -1,10 +1,9 @@
 //! Analyzes EVM bytecode to extract contract information, even for unverified contracts.
 //!
-//! The library can extract function selectors, function arguments, state mutability, and storage layout.
+//! Use the [`contract_info()`] function with its builder pattern to analyze contracts.
 //!
-//! Use the [`contract_info()`] function with its builder pattern to analyze contracts. See its documentation for usage examples.
-//!
-//! Accuracy and speed comparison with other tools, as well as Python and JavaScript implementations, are available on [GitHub](https://github.com/cdump/evmole/tree/master#benchmark)
+//! Accuracy and speed comparison with other tools, as well as Python and JavaScript libraries,
+//! are available on [GitHub](https://github.com/cdump/evmole/tree/master#benchmark)
 
 pub use contract_info::contract_info;
 pub use contract_info::{Contract, ContractInfoArgs, Function};
