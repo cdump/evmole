@@ -102,6 +102,15 @@ pub fn and_mask_to_type(mask: U256) -> Option<DynSolType> {
     None
 }
 
+#[allow(dead_code)]
+pub fn log(s: String) {
+    #[cfg(feature = "javascript")]
+    crate::interface_js::log(&s);
+
+    #[cfg(not(feature = "javascript"))]
+    eprintln!("{}", s);
+}
+
 #[cfg(test)]
 mod tests {
     use alloy_primitives::uint;

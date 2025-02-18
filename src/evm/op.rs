@@ -33,7 +33,7 @@ macro_rules! declare_opcodes {
     };
 }
 
-pub fn info(op: OpCode) -> &'static OpCodeInfo {
+pub const fn info(op: OpCode) -> &'static OpCodeInfo {
     &INFOS[op as usize]
 }
 

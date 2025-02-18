@@ -1,5 +1,6 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 
+use crate::collections::{HashMap, HashSet, IndexMap};
 
 use super::{
     reachable::get_reachable_nodes,
@@ -13,7 +14,7 @@ struct RevIdx {
     states: HashMap<usize /*start*/, State>,
 
     /// Maps a destination to all parent paths (each as a vector of block addresses) and their associated state.
-    parents: HashMap<usize /*to*/, HashMap<Vec<usize> /*path*/, State>>,
+    parents: HashMap<usize /*to*/, IndexMap<Vec<usize> /*path*/, State>>,
 
     /// Intermediate states: maps a block (by its last element) to states and the set of jump symbols encountered so far.
     istate: HashMap<usize, HashMap<State, HashSet<StackSym>>>,
@@ -99,7 +100,7 @@ impl RevIdx {
             }
             st.insert(jmp.to_owned());
         } else {
-            entry.insert(state.to_owned(), HashSet::from([jmp.to_owned()]));
+            entry.insert(state.to_owned(), HashSet::from_iter([jmp.to_owned()]));
         }
         true
     }
@@ -121,7 +122,7 @@ fn resolve_dynamic_jump_path(rev_idx: &mut RevIdx, path: Vec<usize>, stack_pos: 
 
     let parents = rev_idx.get_parents(current);
 
-    // eprintln!("parents for {} : {:?}", cur, parents);
+    // crate::utils::log(format!("parents for {} : {:?}", current, parents));
 
     for (parent_path, parent_state) in parents.into_iter() {
         energy_used += 1;
@@ -162,7 +163,7 @@ fn resolve_dynamic_jump_path(rev_idx: &mut RevIdx, path: Vec<usize>, stack_pos: 
             }
 
             StackSym::Jumpdest(to) => {
-                // eprintln!("found {} from {:?}", to, newpath);
+                // crate::utils::log(format!("found {} from {:?}", to, new_path));
                 if rev_idx.insert_path_parent(to, &new_path, new_state) {
                     dynamic_jumps.push(DynamicJump {
                         path: new_path,
@@ -205,10 +206,10 @@ fn resolve_dynamic_jump_path(rev_idx: &mut RevIdx, path: Vec<usize>, stack_pos: 
 pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) -> BTreeMap<usize, Block> {
 
     // Map block start addresses to the initial stack position extracted from the block.
-    let mut stack_pos: HashMap<usize, usize> = HashMap::new();
+    let mut stack_pos: Vec<(usize, usize)> = Vec::default();
 
     let mut rev_idx = RevIdx::default();
-    rev_idx.set_reachable0(HashSet::from([0]));
+    rev_idx.set_reachable0(HashSet::from_iter([0]));
 
     // First stage resolve
     for block in blocks.values_mut() {
@@ -227,7 +228,7 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
                 }
             }
             Some(StackSym::Before(new_stack_pos)) => {
-                stack_pos.insert(block.start, new_stack_pos);
+                stack_pos.push((block.start, new_stack_pos));
             }
             _ => {}
         }
@@ -270,18 +271,18 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
 
         let mut found_new_paths = false;
 
-        for (&start, &stack_pos) in &stack_pos {
-            if !reachable.contains(&start) {
+        for (start, stack_pos) in &stack_pos {
+            if !reachable.contains(start) {
                 continue;
             }
 
-            let state = rev_idx.get_state(code, start).to_owned();
-            let (jumps, energy_used) = resolve_dynamic_jump_path(&mut rev_idx, vec![start], stack_pos, state, ENERGY_LIMIT - total_energy_used);
+            let state = rev_idx.get_state(code, *start).to_owned();
+            let (jumps, energy_used) = resolve_dynamic_jump_path(&mut rev_idx, vec![*start], *stack_pos, state, ENERGY_LIMIT - total_energy_used);
             total_energy_used += energy_used;
 
             if !jumps.is_empty() {
                 found_new_paths = true;
-                match blocks.get_mut(&start).unwrap().btype {
+                match blocks.get_mut(start).unwrap().btype {
                     BlockType::DynamicJump{ref mut to} => {
                         to.extend(jumps);
                     }
@@ -299,10 +300,10 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
     }
 
     // Merge jump targets if all resolved dynamic jumps from a block lead to the same target.
-    for start in stack_pos.keys() {
+    for (start, _) in stack_pos {
         let mut one_to = None;
 
-        if let BlockType::DynamicJump{to: ref dj} = blocks.get(start).unwrap().btype {
+        if let BlockType::DynamicJump{to: ref dj} = blocks.get(&start).unwrap().btype {
             if !dj.is_empty() && dj.iter().all(|v| v.to.is_some()) {
                 let first_to = dj[0].to;
                 if dj.iter().all(|v| v.to == first_to) {
@@ -311,7 +312,7 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
             }
         }
         if let Some(to) = one_to {
-            blocks.get_mut(start).unwrap().btype = BlockType::Jump{to};
+            blocks.get_mut(&start).unwrap().btype = BlockType::Jump{to};
         }
     }
 

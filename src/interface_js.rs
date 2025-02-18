@@ -2,6 +2,12 @@ use alloy_primitives::hex;
 use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+}
+
 fn decode_hex_code(input: &str) -> Result<Vec<u8>, JsError> {
     hex::decode(input).map_err(|e| JsError::new(&format!("Failed to decode code hex input: {e}")))
 }

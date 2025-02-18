@@ -17,6 +17,7 @@ mod selectors;
 mod state_mutability;
 mod storage;
 mod utils;
+mod collections;
 pub mod control_flow_graph;
 
 #[cfg(feature = "serde")]

@@ -310,6 +310,9 @@ def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
             missing_edges = len(reference_flows - curr_edges)
             extra_edges = len(curr_edges - reference_flows)
 
+            # if missing_edges > 0:
+            #     print(fname, total_edges, reference_flows - curr_edges)
+
             provider_stats.append((total_blocks, total_edges, missing_edges, extra_edges))
 
         # print(fname, provider_stats)
@@ -332,8 +335,8 @@ def show_flow(providers: list[str], all_results: list, show_errors: bool):
             print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
             print(f'  blks: {blocks}')
             print(f' edges: {edges}')
-            print(f'  miss:  {e1}')
-            print(f'  extr:  {e2}')
+            print(f'  miss: {e1}')
+            print(f'  extr: {e2}')
 
 def show_arguments_or_mutability(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:

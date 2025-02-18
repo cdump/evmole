@@ -12,6 +12,8 @@ exclude = ["/javascript", "/python", "/benchmark", "/.github"]
 [dependencies]
 alloy-primitives = "0.8"
 alloy-dyn-abi = "0.8"
+ahash = { version = "0.8", default-features = false  }
+indexmap = "2.7"
 
 pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }

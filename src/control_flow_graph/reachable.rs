@@ -1,4 +1,6 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
+
+use crate::collections::HashSet;
 
 use super::{Block, BlockType, INVALID_JUMP_START};
 
@@ -10,7 +12,7 @@ pub fn get_reachable_nodes(
     let mut global_visited = initial_visited.unwrap_or_default();
     loop {
         let before = global_visited.len();
-        let mut visited = HashSet::new();
+        let mut visited = HashSet::default();
         let mut queue = vec![from];
         while let Some(current) = queue.pop() {
             if current >= INVALID_JUMP_START {
@@ -78,7 +80,7 @@ mod tests {
         blocks.insert(1, create_basic_block(BlockType::Terminate { success: false }));
 
         let reachable = get_reachable_nodes(&blocks, 0, None);
-        assert_eq!(reachable, HashSet::from([0, 1]));
+        assert_eq!(reachable, HashSet::from_iter([0, 1]));
     }
 
     #[test]
@@ -89,7 +91,7 @@ mod tests {
         blocks.insert(2, create_basic_block(BlockType::Terminate { success: false }));
 
         let reachable = get_reachable_nodes(&blocks, 0, None);
-        assert_eq!(reachable, HashSet::from([0, 1, 2]));
+        assert_eq!(reachable, HashSet::from_iter([0, 1, 2]));
     }
 
     #[test]
@@ -107,6 +109,6 @@ mod tests {
         blocks.insert(2, create_basic_block(BlockType::Terminate { success: false }));
 
         let reachable = get_reachable_nodes(&blocks, 0, None);
-        assert_eq!(reachable, HashSet::from([0, 1, 2]));
+        assert_eq!(reachable, HashSet::from_iter([0, 1, 2]));
     }
 }

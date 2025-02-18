@@ -1,4 +1,6 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
+
+use crate::collections::HashSet;
 
 use crate::evm::{
     code_iterator::{iterate_code, CodeOp},

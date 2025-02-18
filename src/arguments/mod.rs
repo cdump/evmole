@@ -5,13 +5,14 @@ use crate::{
         vm::{StepResult, Vm},
         U256, VAL_0_B, VAL_1, VAL_1_B, VAL_32_B,
     },
+    collections::HashSet,
     utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two},
     DynSolType, Selector,
 };
 use alloy_primitives::uint;
 use std::{
     cmp::max,
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
 };
 
 mod calldata;
@@ -131,7 +132,7 @@ impl Info {
 #[derive(Default, Debug)]
 struct ArgsResult {
     data: Info,
-    not_bool: BTreeSet<Vec<u32>>,
+    not_bool: HashSet<Vec<u32>>,
 }
 
 impl ArgsResult {
