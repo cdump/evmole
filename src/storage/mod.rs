@@ -9,12 +9,13 @@ use crate::{
         vm::{StepResult, Vm},
         U256, VAL_1, VAL_1_B, VAL_32_B,
     },
+    collections::HashMap,
     utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two},
     DynSolType, Selector, Slot,
 };
 use std::{
     cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
 
@@ -157,16 +158,11 @@ impl std::fmt::Debug for StorageElement {
 
 type SlotHashMap = HashMap<Slot, Vec<Rc<RefCell<StorageElement>>>>;
 
+#[derive(Default)]
 struct Storage {
     loaded: SlotHashMap,
 }
 impl Storage {
-    fn new() -> Self {
-        Self {
-            loaded: HashMap::new(),
-        }
-    }
-
     fn remove(&mut self, val: &Rc<RefCell<StorageElement>>) {
         self.loaded
             .get_mut(&val.borrow().slot)
@@ -616,7 +612,7 @@ fn analyze_one_function(
     let calldata = CallDataImpl::<Label>::new(selector, arguments);
     let mut vm = Vm::new(code, &calldata);
 
-    let mut st = Storage::new();
+    let mut st = Storage::default();
     let mut gas_used = 0;
 
     if !is_fallback {
