@@ -146,10 +146,12 @@ fn analyze(
             ..
         } => {
             let v = vm.stack.peek_mut()?;
-            if exargs.iter().any(|e| e.label == Some(Label::CallData))
-                && v.data[28..32] == vm.calldata.selector()
-            {
-                v.label = Some(Label::Signature);
+            if exargs.iter().any(|e| e.label == Some(Label::CallData)) {
+                v.label = Some(if v.data[28..32] == vm.calldata.selector() {
+                    Label::Signature
+                } else {
+                    Label::CallData
+                });
             }
         }
 
