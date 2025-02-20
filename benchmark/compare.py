@@ -396,7 +396,7 @@ if __name__ == '__main__':
         },
         'flow': {
             'datasets': ['largest1k', 'random50k', 'vyper'],
-            'providers': ['evmole-rs', 'evm-cfg', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
+            'providers': ['evmole-rs', 'evm-cfg', 'ethersolve', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
         }
     }
 
