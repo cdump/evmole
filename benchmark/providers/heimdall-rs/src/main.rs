@@ -190,7 +190,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Helper function to parse hex addresses
                 fn parse_hex_address(hex_str: &str) -> usize {
-                    let s = hex_str.strip_prefix("0x").unwrap();
+                    let s = hex_str.strip_prefix("0x").unwrap_or(hex_str);
                     usize::from_str_radix(s, 16).unwrap()
                 }
 
@@ -230,11 +230,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let from = jump_dest_mapping.get(&source).copied().unwrap_or(source);
                     (from, target)
                 }));
-
-                // -1 bug in heimdall-rs: https://github.com/Jon-Becker/heimdall-rs/issues/499
-                control_flow = control_flow.into_iter()
-                    .map(|(from, to)| (from - 1, to - 1))
-                    .collect();
 
                 ret_flow.insert(fname, (duration_ms, control_flow));
             }
