@@ -312,6 +312,8 @@ def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
 
             # if missing_edges > 0:
             #     print(fname, total_edges, reference_flows - curr_edges)
+            # if extra_edges > 0:
+            #     print(fname, total_edges, curr_edges - reference_flows)
 
             provider_stats.append((total_blocks, total_edges, missing_edges, extra_edges))
 
