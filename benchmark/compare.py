@@ -5,6 +5,17 @@ import pathlib
 import re
 from collections import defaultdict
 
+def percentiles(data, percent_list):
+    """Returns nearest-rank percentiles (non-interpolated) for given percent values."""
+    data = sorted(data)
+    n = len(data)
+    results = {}
+    for percent in percent_list:
+        index = int(n * (percent / 100)) - 1  # Zero-based index
+        index = max(0, min(index, n - 1))  # Clamp within valid range
+        results[percent] = data[index]
+    return results
+
 
 def load_data(btype: str, dname: str, providers: list[str], results_dir: str) -> tuple[list, list]:
     data = []
@@ -12,8 +23,11 @@ def load_data(btype: str, dname: str, providers: list[str], results_dir: str) ->
     for pname in providers:
         with open(f'{results_dir}/{pname}.{btype}_{dname}.json', 'r') as fh:
             data.append(json.load(fh))
-        total_time = sum(ts if ts > 0 else 1 for (ts, _) in data[-1].values())
-        times.append(total_time / 1_000_000.) # us -> sec
+
+        timings = [ts if ts > 0 else 1 for (ts, _) in data[-1].values()]
+        total_time = sum(timings)
+        ptimes = percentiles(timings, (50, 99))
+        times.append({'total': total_time, 'p50': ptimes[50], 'p99': ptimes[99]})
     return data, times
 
 def process_selectors(dname: str, providers: list[str], results_dir: str):
@@ -38,8 +52,22 @@ def process_selectors(dname: str, providers: list[str], results_dir: str):
 
     return { 'dataset': dname, 'results': results, 'timings': ptimes[1:] }
 
-def format_time(val: float) -> str:
-    return f'{val:.1f}s' if val < 10 else f'{val:.0f}s'
+
+def format_time_val(val_us: int) -> str:
+    sec = val_us / 1_000_000
+    return f'{sec:.1f}s' if sec < 10 else f'{sec:.0f}s'
+    # if val_us < 1_000:  # Less than 1 ms
+    #     return f'{val_us:.0f}µs'
+    # elif val_us < 100_000:  # Less than 0.1 sec
+    #     return f'{val_us / 1_000:.0f}ms'
+    # else:  # 1 sec or more
+    #     sec = val_us / 1_000_000
+    #     return f'{sec:.1f}s' if sec < 10 else f'{sec:.0f}s'
+
+def format_time(timings) -> str:
+    return format_time_val(timings["total"])
+    # return f'total = {format_time_val(timings["total"])} | p50 = {format_time_val(timings["p50"])} | p99 = {format_time_val(timings["p99"])}'
+
 
 
 def markdown_selectors(providers: list[str], all_results: list):
@@ -132,7 +160,7 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
             fp_contracts = sum(len(x['data'][provider_idx][0]) > 0 for x in dataset_result['results'])
             fn_contracts = sum(len(x['data'][provider_idx][1]) > 0 for x in dataset_result['results'])
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} signatures), {name}:')
-            print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
+            print(f'  time: {format_time(dataset_result["timings"][provider_idx])}')
             print(f'  False Positive: {fp_signatures} signatures, {fp_contracts} contracts')
             print(f'  False Negative: {fn_signatures} signatures, {fn_contracts} contracts')
             if show_errors is not True:
@@ -322,7 +350,7 @@ def show_flow(providers: list[str], all_results: list, show_errors: bool):
             missing_blocks_cnt = sum(len(y['results'][provider_idx][2]) for y in dataset_result['results'])
 
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts), {name}:')
-            print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
+            print(f'  time: {format_time(dataset_result["timings"][provider_idx])}')
             print(f'  blocks: {total_blocks_cnt}')
             print(f'  False Positive: {extra_blocks_cnt} blocks')
             print(f'  False Negative: {missing_blocks_cnt} blocks')
@@ -347,7 +375,7 @@ def show_arguments_or_mutability(providers: list[str], all_results: list, show_e
             good_fn = sum(y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
             bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} functions), {name}:')
-            print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
+            print(f'  time: {format_time(dataset_result["timings"][provider_idx])}')
             print(f'  bad:  {bad_fn} functions {(bad_fn*100/cnt_funcs):.2f}%')
             print(f'  good: {good_fn} functions ({(good_fn*100/cnt_funcs):.2f}%)')
 
@@ -397,7 +425,7 @@ if __name__ == '__main__':
         },
         'flow': {
             'datasets': ['largest1k', 'random50k', 'vyper'],
-            'providers': ['evmole-rs', 'evm-cfg', 'ethersolve', 'evmlisa', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
+            'providers': ['evmole-rs', 'evm-cfg', 'ethersolve', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
         }
     }
 
