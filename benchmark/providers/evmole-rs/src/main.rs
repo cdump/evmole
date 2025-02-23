@@ -210,10 +210,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             Mode::Flow => {
-                let now = Instant::now();
-                let info =
-                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_control_flow_graph());
-                let dur = now.elapsed().as_millis() as u64;
+                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_control_flow_graph());
                 let mut flow: BTreeSet<(usize, usize)> = BTreeSet::new();
                 for block in info.control_flow_graph.unwrap().blocks.values() {
                     match block.btype {
@@ -242,7 +239,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         BlockType::Terminate{..} => {},
                     }
                 }
-                ret_flow.insert(fname, ( dur, flow));
+                ret_flow.insert(fname, (dur, flow));
             }
         }
     }

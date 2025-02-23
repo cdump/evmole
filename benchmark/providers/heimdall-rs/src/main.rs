@@ -63,6 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let entry = entry?;
         let path = entry.path();
         let fname = entry.file_name().to_str().unwrap().to_string();
+        // eprintln!("{}", fname);
         let hex_code: String = {
             let file_content = fs::read_to_string(path)?;
             let v: Input = serde_json::from_str(&file_content)?;
