@@ -287,37 +287,25 @@ def flow_filter_reachable(edges: list) -> list:
     return sorted(e for e in edges if e[0] in reachable)
 
 def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
+    gt_blocks, _ = load_data('blocks', dname, ['evmole-rs'], results_dir)
     pdata, ptimes = load_data('flow', dname, providers, results_dir)
     results = []
 
-    for fname, (_, reference_data) in pdata[0].items():
+    for fname, (_, reference_data) in gt_blocks[0].items():
         provider_stats = []
 
-        reference_flows = set(tuple(tuple(v) for v in flow_filter_reachable(reference_data)))
+        # start of every block - not edges
+        ground_truth = set(b[0] for b in reference_data)
 
         for provider_data in pdata:
             curr_data = provider_data[fname][1]
-            curr_edges = set(tuple(tuple(v) for v in flow_filter_reachable(curr_data)))
+            curr_edges = flow_filter_reachable(curr_data)
+            curr_blocks = {node for edge in curr_edges for node in edge}
+            total_blocks = len(curr_blocks)
+            extra_blocks = curr_blocks - ground_truth
+            missing_blocks = ground_truth - curr_blocks
+            provider_stats.append((total_blocks, extra_blocks, missing_blocks))
 
-            blocks = set()
-            for (a, b) in curr_edges:
-                blocks.add(a)
-                blocks.add(b)
-
-            total_blocks = len(blocks)
-
-            total_edges = len(curr_edges)
-            missing_edges = len(reference_flows - curr_edges)
-            extra_edges = len(curr_edges - reference_flows)
-
-            # if missing_edges > 0:
-            #     print(fname, total_edges, reference_flows - curr_edges)
-            # if extra_edges > 0:
-            #     print(fname, total_edges, curr_edges - reference_flows)
-
-            provider_stats.append((total_blocks, total_edges, missing_edges, extra_edges))
-
-        # print(fname, provider_stats)
         results.append({
             'addr': fname[2:-5], # '0xFF.json' => 'FF'
             'results': provider_stats,
@@ -329,16 +317,27 @@ def show_flow(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
         cnt_contracts = len(dataset_result['results'])
         for provider_idx, name in enumerate(providers):
-            blocks = sum(y['results'][provider_idx][0] for y in dataset_result['results'])
-            edges = sum(y['results'][provider_idx][1] for y in dataset_result['results'])
-            e1 = sum(y['results'][provider_idx][2] for y in dataset_result['results'])
-            e2 = sum(y['results'][provider_idx][3] for y in dataset_result['results'])
+            total_blocks_cnt = sum(y['results'][provider_idx][0] for y in dataset_result['results'])
+            extra_blocks_cnt = sum(len(y['results'][provider_idx][1]) for y in dataset_result['results'])
+            missing_blocks_cnt = sum(len(y['results'][provider_idx][2]) for y in dataset_result['results'])
+
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts), {name}:')
             print(f'  time: {dataset_result["timings"][provider_idx]:.1f}s')
-            print(f'  blks: {blocks}')
-            print(f' edges: {edges}')
-            print(f'  miss: {e1}')
-            print(f'  extr: {e2}')
+            print(f'  blocks: {total_blocks_cnt}')
+            print(f'  False Positive: {extra_blocks_cnt} blocks')
+            print(f'  False Negative: {missing_blocks_cnt} blocks')
+
+            if show_errors is not True:
+                continue
+
+            print('  errors:')
+            for x in dataset_result['results']:
+                fp = sorted(x['results'][provider_idx][1])
+                fn = sorted(x['results'][provider_idx][2])
+                if len(fp) > 0 or len(fn) > 0:
+                    print('   ', x['addr'])
+                    print(f'      FP  : {fp}')
+                    print(f'      FN  : {fn}')
 
 def show_arguments_or_mutability(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
