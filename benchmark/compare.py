@@ -12,8 +12,8 @@ def load_data(btype: str, dname: str, providers: list[str], results_dir: str) ->
     for pname in providers:
         with open(f'{results_dir}/{pname}.{btype}_{dname}.json', 'r') as fh:
             data.append(json.load(fh))
-        with open(f'{results_dir}/{pname}.{btype}_{dname}.time', 'r') as fh:
-            times.append(float(fh.read()))
+        total_time = sum(ts if ts > 0 else 1 for (ts, _) in data[-1].values())
+        times.append(total_time / 1000.)
     return data, times
 
 def process_selectors(dname: str, providers: list[str], results_dir: str):
@@ -397,7 +397,7 @@ if __name__ == '__main__':
         },
         'flow': {
             'datasets': ['largest1k', 'random50k', 'vyper'],
-            'providers': ['evmole-rs', 'evm-cfg', 'ethersolve', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
+            'providers': ['evmole-rs', 'evm-cfg', 'ethersolve', 'evmlisa', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
         }
     }
 
@@ -444,6 +444,5 @@ if __name__ == '__main__':
         show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
 
     elif cfg.mode == 'flow':
-        # assert len(cfg.datasets) == 1
         results = [process_flow(cfg.datasets[0], cfg.providers, cfg.results_dir)]
         show_flow(cfg.providers, results, cfg.show_errors)

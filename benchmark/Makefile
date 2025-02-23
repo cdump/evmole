@@ -64,7 +64,6 @@ $(UNPACK_TARGETS):
 .SECONDEXPANSION:
 $(RUN_TARGETS): datasets/$$(notdir $$@)
 	$(info [*] Running $@...)
-	/bin/time -f '%e' \
 		$(DOCKER) run --network=none --cpus=$(DOCKER_CPUS) --rm \
 		-v $(DATASET)/$(notdir $@):/dataset \
 		-v $(RES):/mnt \
@@ -72,7 +71,6 @@ $(RUN_TARGETS): datasets/$$(notdir $$@)
 		$(subst .,,$(suffix $(subst /,,$(dir $@)))) \
 		/dataset \
 		/mnt/$(subst /,_,$@).json \
-		/mnt/$(PROVIDER_BASE).selectors_$(notdir $@).json \
-		2> $(RES)/$(subst /,_,$@).time
+		/mnt/$(PROVIDER_BASE).selectors_$(notdir $@).json
 
 .PHONY: benchmark-selectors benchmark-arguments benchmark-mutability build run-selectors run-arguments run-mutability $(BUILD_TARGETS) $(RUN_TARGETS)
