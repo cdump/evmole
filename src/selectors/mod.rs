@@ -97,6 +97,15 @@ fn analyze(
             }
         }
 
+        // Vyper again
+        StepResult {
+            op: op::AND,
+            args: match_first_two!(elabel!(scmp @ Label::SelCmp(_)), ot),
+            ..
+        } if ot.data == VAL_1_B => {
+            vm.stack.peek_mut()?.label = Some(scmp);
+        }
+
         StepResult {
             op: op::SHR,
             args: [_, elabel!(Label::CallData), ..],
