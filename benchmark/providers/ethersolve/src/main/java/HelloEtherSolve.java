@@ -1,4 +1,7 @@
 import parseTree.Contract;
+import parseTree.cfg.Cfg;
+import parseTree.cfg.BasicBlock;
+import parseTree.cfg.BasicBlockType;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -8,19 +11,29 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 public class HelloEtherSolve {
-    private static final long PROCESS_TIMEOUT_SECONDS = 10;
+    private static final long PROCESS_TIMEOUT_SECONDS = 90;
     private final Gson gson = new Gson();
 
     private List<Long[]> processContract(String bytecode) {
         try {
-            return new Contract("Sample", bytecode, true)
-                .getRuntimeCfg()
-                .getSuccessorsMap()
-                .entrySet()
-                .stream()
-                .flatMap(entry -> entry.getValue().stream()
-                        .map(successor -> new Long[]{entry.getKey(), successor}))
-                .collect(Collectors.toList());
+            Cfg cfg =  new Contract("Sample", bytecode, true)
+                .getRuntimeCfg();
+
+            List<Long[]> ret = new ArrayList<Long[]>();
+            for (BasicBlock block : cfg) {
+                if (block.getType() == BasicBlockType.EXIT) {
+                    continue;
+                }
+                long start = block.getOffset();
+                for (BasicBlock successor : block.getSuccessors()) {
+                    if (successor.getType() == BasicBlockType.EXIT) {
+                        continue;
+                    }
+                    long off = successor.getOffset();
+                    ret.add(new Long[]{start, off});
+                }
+            }
+            return ret;
         } catch (Exception e) {
             e.printStackTrace();
             return List.of();
