@@ -7,16 +7,16 @@ from evm_cfg_builder import CFG
 
 
 def extract_cfg(code_hex: str):
-    start_ts = time.monotonic()
+    start_ts = time.perf_counter_ns()
     result = []
     try:
         cfg = CFG(code_hex)
     except Exception as e:
         print(e)
-        duration_us = int(time.monotonic() - start_ts)
+        duration_us = int((time.perf_counter_ns() - start_ts) / 1000)
         return [duration_us, []]
 
-    duration_us = int(time.monotonic() - start_ts)
+    duration_us = int((time.perf_counter_ns() - start_ts) / 1000)
     for x in cfg.basic_blocks:
         assert all(ins.mnemonic != 'JUMPDEST' for ins in x.instructions[1:]), x.instructions
     result = [(basic_block.start.pc, out.start.pc) for basic_block in cfg.basic_blocks for out in basic_block.all_outgoing_basic_blocks]

@@ -22,7 +22,7 @@ for fname in os.listdir(cfg.input_dir):
     with open(f'{cfg.input_dir}/{fname}', 'r') as fh:
         d = json.load(fh)
         code = d['code']
-        t0 = time.perf_counter()
+        t0 = time.perf_counter_ns()
         if cfg.mode == 'selectors':
             info = contract_info(code, selectors=True)
         elif cfg.mode == 'arguments':
@@ -33,7 +33,7 @@ for fname in os.listdir(cfg.input_dir):
             info = contract_info(code, control_flow_graph=True)
         else:
             raise Exception(f'Unknown mode {cfg.mode}')
-        duration_us = int((time.perf_counter() - t0))
+        duration_us = int((time.perf_counter_ns() - t0) / 1000)
 
         if cfg.mode == 'selectors':
             r = [f.selector for f in info.functions]

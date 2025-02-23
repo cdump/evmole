@@ -36,7 +36,7 @@ for fname in os.listdir(indir):
     with open(f'{indir}/{fname}', 'r') as fh:
         d = json.load(fh)
         code = bytes.fromhex(d['code'][2:])
-        t0 = time.perf_counter()
+        t0 = time.perf_counter_ns()
         if mode == 'arguments':
             r = {s: '' for s in selectors[fname][1]}
         elif mode == 'mutability':
@@ -45,7 +45,7 @@ for fname in os.listdir(indir):
             r = extract_selectors(code)
         else:
             raise Exception(f'Unknown mode {mode}')
-        duration_us = int(time.perf_counter() - t0)
+        duration_us = int((time.perf_counter_ns() - t0) / 1000)
         ret[fname] = [duration_us, r]
 
 with open(outfile, 'w') as fh:

@@ -54,14 +54,14 @@ def process_fast(output: str) -> list:
 
 
 def extract_cfg(code_hex: str):
-    start_ts = time.monotonic()
+    start_ts = time.perf_counter_ns()
     try:
         output = subprocess.check_output(['evm-cfg', code_hex], timeout=15, text=True)
     except Exception as e:
         print('Err')
-        duration_us = int(time.monotonic() - start_ts)
+        duration_us = int((time.perf_counter_ns() - start_ts) / 1000)
         return (duration_us, [])
-    duration_us = int(time.monotonic() - start_ts)
+    duration_us = int((time.perf_counter_ns() - start_ts) / 1000)
 
     # ret = process_slow(output)
     ret = process_fast(output)
