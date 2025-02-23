@@ -18,28 +18,28 @@ const selectors = mode === 'mutability' || mode === 'arguments' ? JSON.parse(rea
 function timeit(fn) {
   const start_ts = hrtime.bigint();
   const r = fn();
-  const duration_ms = Number((hrtime.bigint() - start_ts) / 1000000n);
-  return [duration_ms, r]
+  const duration_us = Number((hrtime.bigint() - start_ts) / 1000n);
+  return [duration_us, r]
 }
 
 function extract(code, mode, fname) {
   if (mode === 'selectors') {
-    let [duration_ms, r] = timeit(() => contractInfo(code, {selectors: true}));
-    return [duration_ms, r.functions.map((f) => f.selector)];
+    let [duration_us, r] = timeit(() => contractInfo(code, {selectors: true}));
+    return [duration_us, r.functions.map((f) => f.selector)];
   } else if (mode === 'arguments') {
-    let [duration_ms, r] = timeit(() => contractInfo(code, {arguments: true}));
+    let [duration_us, r] = timeit(() => contractInfo(code, {arguments: true}));
     const by_sel = new Map(r.functions.map((f) => [f.selector, f.arguments]));
-    return [duration_ms, Object.fromEntries(
+    return [duration_us, Object.fromEntries(
       selectors[fname][1].map((s) => [s, by_sel.get(s) ?? 'notfound'])
     )];
   } else if (mode === 'mutability') {
-    let [duration_ms, r] = timeit(() => contractInfo(code, {stateMutability: true}));
+    let [duration_us, r] = timeit(() => contractInfo(code, {stateMutability: true}));
     const by_sel = new Map(r.functions.map((f) => [f.selector, f.stateMutability]));
-    return [duration_ms, Object.fromEntries(
+    return [duration_us, Object.fromEntries(
       selectors[fname][1].map((s) => [s, by_sel.get(s) ?? 'notfound'])
     )];
   } else if (mode === 'flow') {
-    let [duration_ms, r] = timeit(() => contractInfo(code, {controlFlowGraph: true}));
+    let [duration_us, r] = timeit(() => contractInfo(code, {controlFlowGraph: true}));
     let ret = []
     for (const b of r.controlFlowGraph.blocks) {
       let bt = b.get('type');
@@ -69,7 +69,7 @@ function extract(code, mode, fname) {
         throw `unknown block type ${bt}`;
       }
     }
-    return [duration_ms, ret];
+    return [duration_us, ret];
   } else {
     throw 'unsupported mode';
   }

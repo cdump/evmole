@@ -13,7 +13,7 @@ def load_data(btype: str, dname: str, providers: list[str], results_dir: str) ->
         with open(f'{results_dir}/{pname}.{btype}_{dname}.json', 'r') as fh:
             data.append(json.load(fh))
         total_time = sum(ts if ts > 0 else 1 for (ts, _) in data[-1].values())
-        times.append(total_time / 1000.)
+        times.append(total_time / 1_000_000.) # us -> sec
     return data, times
 
 def process_selectors(dname: str, providers: list[str], results_dir: str):

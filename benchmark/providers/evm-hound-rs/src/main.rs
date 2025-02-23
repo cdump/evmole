@@ -23,7 +23,7 @@ fn main() -> std::io::Result<()> {
         std::process::exit(1);
     }
 
-    type Meta = u64; // duration in ms
+    type Meta = u64; // duration in us
     let mut ret: HashMap<String, (Meta, Vec<String>)> = HashMap::new();
 
     for entry in fs::read_dir(indir)? {
@@ -40,10 +40,10 @@ fn main() -> std::io::Result<()> {
 
         let now = Instant::now();
         let r = evm_hound::selectors_from_bytecode(&code);
-        let duration_ms = now.elapsed().as_millis() as u64;
+        let duration_us = now.elapsed().as_micros() as u64;
         let string_selectors: Vec<_> = r.into_iter().map(hex::encode).collect();
 
-        ret.insert(fname, (duration_ms, string_selectors));
+        ret.insert(fname, (duration_us, string_selectors));
     }
 
     let file = fs::File::create(outfile)?;

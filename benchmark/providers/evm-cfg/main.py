@@ -56,17 +56,17 @@ def process_fast(output: str) -> list:
 def extract_cfg(code_hex: str):
     start_ts = time.monotonic()
     try:
-        output = subprocess.check_output(['evm-cfg', code_hex], timeout=10, text=True)
+        output = subprocess.check_output(['evm-cfg', code_hex], timeout=15, text=True)
     except Exception as e:
         print('Err')
-        duration_ms = int((time.monotonic() - start_ts) * 1000)
-        return (duration_ms, [])
-    duration_ms = int((time.monotonic() - start_ts) * 1000)
+        duration_us = int(time.monotonic() - start_ts)
+        return (duration_us, [])
+    duration_us = int(time.monotonic() - start_ts)
 
     # ret = process_slow(output)
     ret = process_fast(output)
 
-    return [duration_ms, sorted(ret)]
+    return [duration_us, sorted(ret)]
 
 
 if len(sys.argv) < 4:

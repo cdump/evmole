@@ -51,9 +51,9 @@ public class HelloEtherSolve {
 
         long startTime = System.nanoTime();
         List<Long[]> processResults = executeWithTimeout(bytecode);
-        long timeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+        long timeUs = TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTime);
 
-        results.put(file.getFileName().toString(), new Object[]{timeMs, processResults});
+        results.put(file.getFileName().toString(), new Object[]{timeUs, processResults});
     }
 
     public void execute(String[] args) throws Exception {

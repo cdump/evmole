@@ -45,8 +45,8 @@ fn timeit(args: evmole::ContractInfoArgs) -> (evmole::Contract, u64)
 {
     let now = Instant::now();
     let result = evmole::contract_info(args);
-    let duration = now.elapsed().as_millis() as u64;
-    (result, duration)
+    let duration_us = now.elapsed().as_micros() as u64;
+    (result, duration_us)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

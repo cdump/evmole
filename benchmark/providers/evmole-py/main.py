@@ -33,7 +33,7 @@ for fname in os.listdir(cfg.input_dir):
             info = contract_info(code, control_flow_graph=True)
         else:
             raise Exception(f'Unknown mode {cfg.mode}')
-        duration_ms = int((time.perf_counter() - t0) * 1000)
+        duration_us = int((time.perf_counter() - t0))
 
         if cfg.mode == 'selectors':
             r = [f.selector for f in info.functions]
@@ -66,7 +66,7 @@ for fname in os.listdir(cfg.input_dir):
         else:
             raise Exception(f'Unknown mode {cfg.mode}')
 
-        ret[fname] = [duration_ms, r]
+        ret[fname] = [duration_us, r]
 
 with open(cfg.output_file, 'w') as fh:
     json.dump(ret, fh)

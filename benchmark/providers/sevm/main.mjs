@@ -18,12 +18,12 @@ const selectors = mode === 'mutability' ? JSON.parse(readFileSync(argv[5])) : {}
 function timeit(fn) {
   const start_ts = hrtime.bigint();
   const r = fn();
-  const duration_ms = Number((hrtime.bigint() - start_ts) / 1000000n);
-  return [duration_ms, r]
+  const duration_us = Number((hrtime.bigint() - start_ts) / 1000n);
+  return [duration_us, r]
 }
 
 function extract(code, mode, fname) {
-  const [duration_ms, contract] = timeit(() => {
+  const [duration_us, contract] = timeit(() => {
     try {
       return new Contract(code);
     } catch (e) {
@@ -31,9 +31,9 @@ function extract(code, mode, fname) {
     }
   });
   if (mode === 'selectors') {
-    return [duration_ms, Object.keys(contract ? contract.functions : {})]
+    return [duration_us, Object.keys(contract ? contract.functions : {})]
   } else if (mode === 'mutability') {
-    return [duration_ms, Object.fromEntries(selectors[fname][1].map((s) => {
+    return [duration_us, Object.fromEntries(selectors[fname][1].map((s) => {
       const fn = contract ? contract.functions[s] : undefined;
       if (fn === undefined) {
         return [s, 'selnotfound'];
@@ -71,7 +71,7 @@ function extract(code, mode, fname) {
         }
       }
     }
-    return [duration_ms, Array.from(res.values())];
+    return [duration_us, Array.from(res.values())];
   } else {
     throw 'unsupported mode';
   }

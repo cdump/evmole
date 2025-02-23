@@ -45,8 +45,8 @@ for fname in os.listdir(indir):
             r = extract_selectors(code)
         else:
             raise Exception(f'Unknown mode {mode}')
-        duration_ms = int((time.perf_counter() - t0) * 1000)
-        ret[fname] = [duration_ms, r]
+        duration_us = int(time.perf_counter() - t0)
+        ret[fname] = [duration_us, r]
 
 with open(outfile, 'w') as fh:
     json.dump(ret, fh)

@@ -155,8 +155,8 @@ for fname in os.listdir(indir):
         d = json.load(fh)
         t0 = time.perf_counter()
         r = process(d, mode)
-        duration_ms = int((time.perf_counter() - t0) * 1000)
-        ret[fname] = [duration_ms, r]
+        duration_us = int(time.perf_counter() - t0)
+        ret[fname] = [duration_us, r]
 
 with open(outfile, 'w') as fh:
     json.dump(ret, fh)

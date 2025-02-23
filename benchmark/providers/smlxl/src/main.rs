@@ -98,7 +98,7 @@ impl Watchdog for MyWatchDog {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = Args::parse();
-    type Meta = u64; // duration in ms
+    type Meta = u64; // duration in us
     let mut ret_other: HashMap<String, (Meta, HashMap<String, String>)> = HashMap::new();
     for entry in fs::read_dir(cfg.input_dir)? {
         let entry = entry?;
@@ -125,7 +125,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let extractor = storage_layout_extractor::new(contract, vm_config, unifier_config, watchdog);
         let now = Instant::now();
         let r = extractor.analyze();
-        let dur = now.elapsed().as_millis() as u64;
+        let dur = now.elapsed().as_micros() as u64;
 
         ret_other.insert(
             fname,

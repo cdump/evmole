@@ -13,15 +13,15 @@ def extract_cfg(code_hex: str):
         cfg = CFG(code_hex)
     except Exception as e:
         print(e)
-        duration_ms = int((time.monotonic() - start_ts) * 1000)
-        return [duration_ms, []]
+        duration_us = int(time.monotonic() - start_ts)
+        return [duration_us, []]
 
-    duration_ms = int((time.monotonic() - start_ts) * 1000)
+    duration_us = int(time.monotonic() - start_ts)
     for x in cfg.basic_blocks:
         assert all(ins.mnemonic != 'JUMPDEST' for ins in x.instructions[1:]), x.instructions
     result = [(basic_block.start.pc, out.start.pc) for basic_block in cfg.basic_blocks for out in basic_block.all_outgoing_basic_blocks]
 
-    return [duration_ms, sorted(result)]
+    return [duration_us, sorted(result)]
 
 
 if len(sys.argv) < 4:

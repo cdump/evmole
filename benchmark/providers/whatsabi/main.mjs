@@ -18,18 +18,18 @@ const selectors = mode === 'mutability' ? JSON.parse(readFileSync(argv[5])) : {}
 function timeit(fn) {
   const start_ts = hrtime.bigint();
   const r = fn();
-  const duration_ms = Number((hrtime.bigint() - start_ts) / 1000000n);
-  return [duration_ms, r]
+  const duration_us = Number((hrtime.bigint() - start_ts) / 1000n);
+  return [duration_us, r]
 }
 
 function extract(code, mode, fname) {
   if (mode === 'selectors') {
-    const [duration_ms, r] = timeit(() => whatsabi.selectorsFromBytecode(code))
-    return [duration_ms, r.map(x => x.slice(2))]; // remove '0x' prefix
+    const [duration_us, r] = timeit(() => whatsabi.selectorsFromBytecode(code))
+    return [duration_us, r.map(x => x.slice(2))]; // remove '0x' prefix
   } else if (mode === 'mutability') {
-    const [duration_ms, abi] = timeit(() => whatsabi.abiFromBytecode(code));
+    const [duration_us, abi] = timeit(() => whatsabi.abiFromBytecode(code));
     const smut = Object.fromEntries(abi.filter((v) => v.type == 'function').map((v) => [v.selector, v.stateMutability]));
-    return [duration_ms, Object.fromEntries(selectors[fname][1].map((s) => [s, smut[`0x${s}`] || 'selnotfound']))];
+    return [duration_us, Object.fromEntries(selectors[fname][1].map((s) => [s, smut[`0x${s}`] || 'selnotfound']))];
   } else {
     throw 'unsupported mode';
   }

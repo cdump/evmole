@@ -31,11 +31,21 @@ struct Args {
     selectors_file: Option<String>,
 }
 
+async fn measure_time<T, F>(f: F) -> (T, u64)
+where
+    F: std::future::Future<Output = T>,
+{
+    let start = Instant::now();
+    let result = f.await;
+    let duration_us = start.elapsed().as_micros() as u64;
+    (result, duration_us)
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = Args::parse();
 
-    type Meta = u64; // duration in ms
+    type Meta = u64; // duration in us
 
     let selectors: HashMap<String, (Meta, Vec<String>)> = match cfg.mode {
         Mode::Selectors | Mode::Flow => HashMap::new(),
@@ -64,9 +74,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .target(hex_code)
                     .skip_resolving(true)
                     .build()?;
-                let now = Instant::now();
-                let result = heimdall_core::heimdall_decompiler::decompile(dargs).await;
-                let duration_ms = now.elapsed().as_millis() as u64;
+
+                let (result, duration_us) = measure_time(heimdall_core::heimdall_decompiler::decompile(dargs)).await;
+
                 let r = match result {
                     Err(e) => {
                         println!("got error for {}: {}", fname, e);
@@ -79,16 +89,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .map(|x| x.strip_prefix("Unresolved_").unwrap().to_string())
                         .collect(),
                 };
-                ret_selectors.insert(fname, (duration_ms, r));
+                ret_selectors.insert(fname, (duration_us, r));
             }
             Mode::Arguments => {
                 let dargs = DecompilerArgsBuilder::new()
                     .target(hex_code)
                     .skip_resolving(true)
                     .build()?;
-                let now = Instant::now();
-                let result = heimdall_core::heimdall_decompiler::decompile(dargs).await;
-                let duration_ms = now.elapsed().as_millis() as u64;
+
+                let (result, duration_us) = measure_time(heimdall_core::heimdall_decompiler::decompile(dargs)).await;
+
                 let r = match result {
                     Err(e) => {
                         println!("got error for {}: {}", fname, e);
@@ -127,16 +137,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .collect()
                     }
                 };
-                ret_other.insert(fname, (duration_ms, r));
+                ret_other.insert(fname, (duration_us, r));
             }
             Mode::Mutability => {
                 let dargs = DecompilerArgsBuilder::new()
                     .target(hex_code)
                     .skip_resolving(true)
                     .build()?;
-                let now = Instant::now();
-                let result = heimdall_core::heimdall_decompiler::decompile(dargs).await;
-                let duration_ms = now.elapsed().as_millis() as u64;
+
+                let (result, duration_us) = measure_time(heimdall_core::heimdall_decompiler::decompile(dargs)).await;
+
                 let r = match result {
                     Err(e) => {
                         println!("got error for {}: {}", fname, e);
@@ -174,16 +184,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .collect()
                     }
                 };
-                ret_other.insert(fname, (duration_ms, r));
+                ret_other.insert(fname, (duration_us, r));
             }
             Mode::Flow => {
                 let cfg_args = heimdall_core::heimdall_cfg::CfgArgsBuilder::new()
                     .target(hex_code)
                     .build()?;
 
-                let now = Instant::now();
-                let cfg = heimdall_core::heimdall_cfg::cfg(cfg_args).await?;
-                let duration_ms = now.elapsed().as_millis() as u64;
+                let (result, duration_us) = measure_time(heimdall_core::heimdall_cfg::cfg(cfg_args)).await;
+                let cfg = result?;
 
                 let mut jump_dest_mapping: HashMap<usize, usize> = HashMap::new();
                 let mut control_flow: BTreeSet<(usize, usize)> = BTreeSet::new();
@@ -231,7 +240,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     (from, target)
                 }));
 
-                ret_flow.insert(fname, (duration_ms, control_flow));
+                ret_flow.insert(fname, (duration_us, control_flow));
             }
         }
     }
