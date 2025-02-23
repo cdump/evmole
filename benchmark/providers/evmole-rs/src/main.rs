@@ -19,8 +19,10 @@ enum Mode {
     Arguments,
     Mutability,
     Storage,
+    Blocks,
     Flow,
 }
+
 
 #[derive(Parser)]
 struct Args {
@@ -39,13 +41,21 @@ struct Args {
     filter_selector: Option<String>,
 }
 
+fn timeit(args: evmole::ContractInfoArgs) -> (evmole::Contract, u64)
+{
+    let now = Instant::now();
+    let result = evmole::contract_info(args);
+    let duration = now.elapsed().as_millis() as u64;
+    (result, duration)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cfg = Args::parse();
 
     type Meta = u64; // duration in ms
 
     let selectors: HashMap<String, (Meta, Vec<String>)> = match cfg.mode {
-        Mode::Selectors | Mode::Storage | Mode::Flow => HashMap::new(),
+        Mode::Selectors | Mode::Storage | Mode::Blocks | Mode::Flow => HashMap::new(),
         Mode::Arguments | Mode::Mutability => {
             let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
             serde_json::from_str(&file_content)?
@@ -88,10 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match cfg.mode {
             Mode::Selectors => {
-                let now = Instant::now();
-                let info =
-                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_selectors());
-                let dur = now.elapsed().as_millis() as u64;
+                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_selectors());
                 ret_selectors.insert(
                     fname,
                     (
@@ -111,11 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &selectors[&fname].1
                 };
 
-                let now = Instant::now();
-                let info =
-                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_arguments());
-                let dur = now.elapsed().as_millis() as u64;
-
+                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_arguments());
                 let args: HashMap<String, String> = info
                     .functions
                     .unwrap()
@@ -155,12 +158,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &selectors[&fname].1
                 };
 
-                let now = Instant::now();
-                let info = evmole::contract_info(
-                    evmole::ContractInfoArgs::new(&code).with_state_mutability(),
-                );
-                let dur = now.elapsed().as_millis() as u64;
-
+                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_state_mutability());
                 let smut: HashMap<String, String> = info
                     .functions
                     .unwrap()
@@ -190,10 +188,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             Mode::Storage => {
-                let now = Instant::now();
-                let info =
-                    evmole::contract_info(evmole::ContractInfoArgs::new(&code).with_storage());
-                let dur = now.elapsed().as_millis() as u64;
+                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_storage());
                 ret_other.insert(
                     fname,
                     (
@@ -207,6 +202,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .collect(),
                     ),
                 );
+            }
+
+            Mode::Blocks => {
+                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_basic_blocks());
+                ret_flow.insert(fname, (dur, info.basic_blocks.unwrap().into_iter().collect()));
             }
 
             Mode::Flow => {
@@ -251,7 +251,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut bw = BufWriter::new(file);
     if cfg.mode == Mode::Selectors {
         let _ = serde_json::to_writer(&mut bw, &ret_selectors);
-    } else if cfg.mode == Mode::Flow {
+    } else if cfg.mode == Mode::Blocks || cfg.mode == Mode::Flow {
         let _ = serde_json::to_writer(&mut bw, &ret_flow);
     } else {
         let _ = serde_json::to_writer(&mut bw, &ret_other);

@@ -3,6 +3,7 @@ PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs sevm evmole-rs evmole-js evm
 PROVIDERS_ARGUMENTS ?= simple evmole-rs evmole-js evmole-py
 PROVIDERS_MUTABILITY ?= simple whatsabi sevm evmole-rs evmole-js evmole-py
 PROVIDERS_STORAGE ?= evmole-rs smlxl
+PROVIDERS_BLOCKS ?= evmole-rs
 PROVIDERS_FLOW ?= evmole-rs evm-cfg ethersolve sevm evm-cfg-builder heimdall-rs
 
 DATASETS ?= largest1k random50k vyper
@@ -15,7 +16,7 @@ PROVIDERS_SELECTORS := $(PROVIDER_BASE) $(PROVIDERS_SELECTORS)
 PROVIDERS_ARGUMENTS := $(PROVIDER_BASE) $(PROVIDERS_ARGUMENTS)
 PROVIDERS_MUTABILITY := $(PROVIDER_BASE) $(PROVIDERS_MUTABILITY)
 PROVIDERS_STORAGE := $(PROVIDER_BASE) $(PROVIDERS_STORAGE)
-PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_FLOW))
+PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_BLOCKS) $(PROVIDERS_FLOW))
 
 DATASET := $(shell pwd)/datasets
 RES := $(shell pwd)/results
@@ -26,21 +27,23 @@ RUN_SELECTORS_TARGETS := $(foreach p,$(PROVIDERS_SELECTORS),$(addprefix $(p).sel
 RUN_ARGUMENTS_TARGETS := $(foreach p,$(PROVIDERS_ARGUMENTS),$(addprefix $(p).arguments/, $(DATASETS)))
 RUN_MUTABILITY_TARGETS := $(foreach p,$(PROVIDERS_MUTABILITY),$(addprefix $(p).mutability/, $(DATASETS)))
 RUN_STORAGE_TARGETS := $(foreach p,$(PROVIDERS_STORAGE),$(addprefix $(p).storage/, $(DATASETS_STORAGE)))
+RUN_BLOCKS_TARGETS := $(foreach p,$(PROVIDERS_BLOCKS),$(addprefix $(p).blocks/, $(DATASETS)))
 RUN_FLOW_TARGETS := $(foreach p,$(PROVIDERS_FLOW),$(addprefix $(p).flow/, $(DATASETS)))
 
-RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS) $(RUN_FLOW_TARGETS)
+RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS) $(RUN_BLOCKS_TARGETS) $(RUN_FLOW_TARGETS)
 
 benchmark-selectors: $(addsuffix .build, $(PROVIDERS_SELECTORS)) run-selectors
 benchmark-arguments: $(addsuffix .build, $(PROVIDERS_ARGUMENTS)) run-arguments
 benchmark-mutability: $(addsuffix .build, $(PROVIDERS_MUTABILITY)) run-mutability
 benchmark-storage: $(addsuffix .build, $(PROVIDERS_STORAGE)) run-storage
-benchmark-flow: $(addsuffix .build, $(PROVIDERS_FLOW)) run-flow
+benchmark-flow: $(addsuffix .build, $(PROVIDERS_FLOW)) run-blocks run-flow
 
 build: $(BUILD_TARGETS)
 run-selectors: $(RUN_SELECTORS_TARGETS)
 run-arguments: $(RUN_ARGUMENTS_TARGETS)
 run-mutability: $(RUN_MUTABILITY_TARGETS)
 run-storage: $(RUN_STORAGE_TARGETS)
+run-blocks: $(RUN_BLOCKS_TARGETS)
 run-flow: $(RUN_FLOW_TARGETS)
 
 $(BUILD_TARGETS):
