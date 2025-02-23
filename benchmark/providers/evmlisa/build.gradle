@@ -1,0 +1,47 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+// def etherSolveJar = layout.buildDirectory.file('libs/EtherSolve.jar')
+//
+// tasks.register('downloadEtherSolve') {
+//     outputs.file etherSolveJar
+//     doLast {
+//         def f = etherSolveJar.get().asFile
+//         f.parentFile.mkdirs()
+//         new URL('https://github.com/SeUniVr/EtherSolve/raw/main/artifact/EtherSolve.jar')
+//             .withInputStream { inputStream ->
+//                 f.withOutputStream { it << inputStream }
+//             }
+//     }
+// }
+
+dependencies {
+    // implementation files(etherSolveJar)
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    implementation files('./evm-lisa-all.jar')
+}
+
+// tasks.named('compileJava') {
+//     dependsOn 'downloadEtherSolve'
+// }
+
+application {
+    mainClass = 'Main'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
