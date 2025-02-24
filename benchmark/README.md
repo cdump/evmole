@@ -52,6 +52,7 @@ $ python3 compare.py
 # Compare specific mode
 $ python3 compare.py --mode=arguments
 $ python3 compare.py --mode=mutability
+$ python3 compare.py --mode=flow
 
 # Filter by dataset/provider and show errors
 python3 compare.py --mode=arguments --datasets largest1k --providers etherscan evmole-py --show-errors
@@ -62,6 +63,34 @@ python3 compare.py --mode=arguments --normalize-args fixed-size-array tuples str
 # Output markdown tables
 python3 compare.py --mode=selectors --markdown
 ```
+
+## Control Flow Graph Analysis
+The CFG analysis methodology consists of the following steps:
+
+1. Constructing Basic Blocks
+   - A basic block is a contiguous subsequence of EVM opcodes with:
+     - One entry point (first instruction)
+     - Ends at: JUMP, JUMPI, STOP, REVERT, RETURN, INVALID, unknown opcode, or end of code
+   - JUMPDEST cannot appear inside a block - it marks the start of a new block
+
+2. Filtering Out Definitely Unreachable Blocks
+   A block is definitely unreachable if:
+   - It does not begin at pc = 0 (contract start), AND
+   - First instruction is not JUMPDEST, AND
+   - Previous block does not end with JUMPI whose "false" branch falls through
+
+3. Set Definitions
+   - SET_BB: Set of all basic blocks after initial partitioning and removal of invalid blocks
+   - SET_CFG: Set of blocks reachable from pc = 0 per CFG algorithm
+
+4. Error Metrics
+   - False Positives = (SET_CFG - SET_BB)
+     - Blocks CFG claims reachable but not valid basic blocks
+     - Should be empty in correct analysis
+   - False Negatives = (SET_BB - SET_CFG)
+     - Valid blocks not marked reachable by CFG
+     - May include legitimate dead code
+     - Fewer indicates more precise analysis
 
 ## Datasets
 See [datasets/README.md](datasets/README.md) for information about how the test datasets were constructed.

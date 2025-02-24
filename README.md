@@ -410,6 +410,52 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
 </table>
 
+### Control Flow Graph
+
+<i>False Negatives</i> - Valid blocks possibly incorrectly marked unreachable by CFG analysis. Lower count usually indicates better precision.
+
+<table>
+ <tr>
+  <td></td>
+  <td><a href="benchmark/providers/evmole-rs"><b><i>evmole</i></b></a></td>
+  <td><a href="benchmark/providers/ethersolve"><b><i>ethersolve</i></b></a></td>
+  <td><a href="benchmark/providers/evm-cfg"><b><i>evm-cfg</i></b></a></td>
+  <td><a href="benchmark/providers/heimdall-rs"><b><i>heimdall</i></b></a></td>
+  <td><a href="benchmark/providers/evm-cfg-builder"><b><i>evm-cfg-builder</i></b></a></td>
+  <td><a href="benchmark/providers/sevm"><b><i>sevm</i></b></a></td>
+ </tr>
+ <tr>
+  <td><i>Total Blocks</i></td>
+  <td>97.0%🥇<br><sub>661957 </sub></td>
+  <td>93.7%<br><sub>639155</sub></td>
+  <td>63.0%<br><sub>429860</sub></td>
+  <td>31.9%<br><sub>217922</sub></td>
+  <td>21.7%<br><sub>148162</sub></td>
+  <td>6.7%<br><sub>45831</sub></td>
+ </tr>
+  <td><i>False Negatives</i></td>
+  <td>3.0%🥇<br><sub>20484</sub></td>
+  <td>6.3%<br><sub>43286</sub></td>
+  <td>37.0%<br><sub>252581</sub></td>
+  <td>68.1%<br><sub>464519</sub></td>
+  <td>78.3%<br><sub>534279</sub></td>
+  <td>93.3%<br><sub>636610</sub></td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>34s</td>
+  <td>1202s</td>
+  <td>40s</td>
+  <td>206s</td>
+  <td>308s</td>
+  <td>41s</td>
+ </tr>
+</table>
+
+dataset largest1k, 1000 contracts, 682,441 blocks
+
+### notes
+
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
 <i>versions: evmole v0.7.0; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.19.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.5</i>

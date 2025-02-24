@@ -424,7 +424,7 @@ if __name__ == '__main__':
             'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'heimdall-rs', 'simple']
         },
         'flow': {
-            'datasets': ['largest1k', 'random50k', 'vyper'],
+            'datasets': ['largest1k'],
             'providers': ['evmole-rs', 'evm-cfg', 'ethersolve', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
         }
     }
@@ -472,5 +472,5 @@ if __name__ == '__main__':
         show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
 
     elif cfg.mode == 'flow':
-        results = [process_flow(cfg.datasets[0], cfg.providers, cfg.results_dir)]
+        results = [process_flow(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
         show_flow(cfg.providers, results, cfg.show_errors)
