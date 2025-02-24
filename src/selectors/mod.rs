@@ -42,6 +42,16 @@ fn analyze(
             *vm.stack.peek_mut()? = Element {
                 data: if ret.op == op::EQ { VAL_0_B } else { VAL_1_B },
                 label: Some(Label::SelCmp(selector)),
+            };
+
+            // Vyper _selector_section_dense()/_selector_section_sparse()
+            if ret.op == op::EQ && vm.stack.data.len() >= 2 {
+                let fh = vm.stack.data[vm.stack.data.len() - 2].data;
+                let target = u16::from_be_bytes([fh[29], fh[30]]) as usize;
+                // assert!(vm.code[target] == op::JUMPDEST);
+                if target < vm.code.len() && vm.code[target] == op::JUMPDEST {
+                    selectors.insert(selector, target);
+                }
             }
         }
 
@@ -95,15 +105,6 @@ fn analyze(
                 vm.stack.peek_mut()?.data = VAL_0_B;
                 return Ok(to);
             }
-        }
-
-        // Vyper again
-        StepResult {
-            op: op::AND,
-            args: match_first_two!(elabel!(scmp @ Label::SelCmp(_)), ot),
-            ..
-        } if ot.data == VAL_1_B => {
-            vm.stack.peek_mut()?.label = Some(scmp);
         }
 
         StepResult {
