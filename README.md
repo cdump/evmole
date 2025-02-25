@@ -420,35 +420,36 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><a href="benchmark/providers/evmole-rs"><b><i>evmole</i></b></a></td>
   <td><a href="benchmark/providers/ethersolve"><b><i>ethersolve</i></b></a></td>
   <td><a href="benchmark/providers/evm-cfg"><b><i>evm-cfg</i></b></a></td>
-  <td><a href="benchmark/providers/heimdall-rs"><b><i>heimdall</i></b></a></td>
-  <td><a href="benchmark/providers/evm-cfg-builder"><b><i>evm-cfg-builder</i></b></a></td>
   <td><a href="benchmark/providers/sevm"><b><i>sevm</i></b></a></td>
+  <td><a href="benchmark/providers/heimdall-rs"><b><i>heimdall-rs</i></b></a></td>
+  <td><a href="benchmark/providers/evm-cfg-builder"><b><i>evm-cfg-builder</i></b></a></td>
  </tr>
  <tr>
-  <td><i>Total Blocks</i></td>
-  <td>97.0%🥇<br><sub>661957 </sub></td>
-  <td>93.7%<br><sub>639155</sub></td>
-  <td>63.0%<br><sub>429860</sub></td>
-  <td>31.9%<br><sub>217922</sub></td>
-  <td>21.7%<br><sub>148162</sub></td>
-  <td>6.7%<br><sub>45831</sub></td>
+  <td><i>Basic Blocks</i></td>
+  <td>97.0% 🥇<br><sub>661959</sub></td>
+  <td>93.7%<br><sub>639175</sub></td>
+  <td>63.0%<br><sub>430011</sub></td>
+  <td>41.4%<br><sub>282599</sub></td>
+  <td>31.9%<br><sub>217924</sub></td>
+  <td>21.7%<br><sub>148166</sub></td>
  </tr>
+ <tr>
   <td><i>False Negatives</i></td>
-  <td>3.0%🥇<br><sub>20484</sub></td>
-  <td>6.3%<br><sub>43286</sub></td>
-  <td>37.0%<br><sub>252581</sub></td>
-  <td>68.1%<br><sub>464519</sub></td>
-  <td>78.3%<br><sub>534279</sub></td>
-  <td>93.3%<br><sub>636610</sub></td>
+  <td>3.0% 🥇<br><sub>20482</sub></td>
+  <td>6.3%<br><sub>43266</sub></td>
+  <td>37.0%<br><sub>252430</sub></td>
+  <td>58.6%<br><sub>399842</sub></td>
+  <td>68.1%<br><sub>464517</sub></td>
+  <td>78.3%<br><sub>534275</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>34s</td>
   <td>1202s</td>
   <td>40s</td>
+  <td>42s</td>
   <td>206s</td>
   <td>308s</td>
-  <td>41s</td>
  </tr>
 </table>
 

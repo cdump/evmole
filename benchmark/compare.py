@@ -319,19 +319,30 @@ def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
     pdata, ptimes = load_data('flow', dname, providers, results_dir)
     results = []
 
+    total_gt_blocks = 0
     for fname, (_, reference_data) in gt_blocks[0].items():
         provider_stats = []
 
+        # for debug: skip file if any provider output 0 results - probably timeout or other error
+        # if any(len(provider_data[fname][1]) == 0 for provider_data in pdata):
+        #     continue
+
         # start of every block - not edges
         ground_truth = set(b[0] for b in reference_data)
+        total_gt_blocks += len(ground_truth)
 
         for provider_data in pdata:
             curr_data = provider_data[fname][1]
             curr_edges = flow_filter_reachable(curr_data)
             curr_blocks = {node for edge in curr_edges for node in edge}
+            curr_blocks.add(0) # entrypoint block always exists
             total_blocks = len(curr_blocks)
             extra_blocks = curr_blocks - ground_truth
             missing_blocks = ground_truth - curr_blocks
+
+            # debug:
+            if len(ground_truth) < 100 and len(missing_blocks) > 0:
+                print(fname, extra_blocks, missing_blocks)
             provider_stats.append((total_blocks, extra_blocks, missing_blocks))
 
         results.append({
@@ -339,7 +350,7 @@ def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
             'results': provider_stats,
         })
 
-    return {'dataset': dname, 'results': results, 'timings': ptimes}
+    return {'dataset': dname, 'results': results, 'timings': ptimes, 'total_gt_blocks': total_gt_blocks}
 
 def show_flow(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
@@ -349,7 +360,8 @@ def show_flow(providers: list[str], all_results: list, show_errors: bool):
             extra_blocks_cnt = sum(len(y['results'][provider_idx][1]) for y in dataset_result['results'])
             missing_blocks_cnt = sum(len(y['results'][provider_idx][2]) for y in dataset_result['results'])
 
-            print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts), {name}:')
+            total_gt_blocks = dataset_result['total_gt_blocks']
+            print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {total_gt_blocks} blocks), {name}:')
             print(f'  time: {format_time(dataset_result["timings"][provider_idx])}')
             print(f'  blocks: {total_blocks_cnt}')
             print(f'  False Positive: {extra_blocks_cnt} blocks')
@@ -366,6 +378,51 @@ def show_flow(providers: list[str], all_results: list, show_errors: bool):
                     print('   ', x['addr'])
                     print(f'      FP  : {fp}')
                     print(f'      FN  : {fn}')
+
+def markdown_flow(providers: list[str], all_results: list):
+    assert len(all_results) == 1, 'only 1 dataset supported'
+    dataset_result = all_results[0]
+
+    total_gt_blocks = dataset_result['total_gt_blocks']
+    cnt_contracts = len(dataset_result['results'])
+    print(f'dataset {dataset_result["dataset"]}, {cnt_contracts} contracts, {total_gt_blocks} blocks')
+
+    print('<table>')
+    print(' <tr>')
+    print('  <td>Dataset</td>')
+    print('  <td></td>')
+    for name in providers:
+        print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
+    print(' </tr>')
+
+    print(' <tr>')
+    print('  <td><i>Basic Blocks</i></td>')
+    for provider_idx in range(len(providers)):
+        total_blocks_cnt = sum(y['results'][provider_idx][0] for y in dataset_result['results'])
+        print(f'  <td>{(total_blocks_cnt*100/total_gt_blocks):.1f}%<br><sub>{total_blocks_cnt}</sub></td>')
+    print(' </tr>')
+
+    print(' <tr>')
+    print('  <td><i>False Negatives</i></td>')
+    for provider_idx in range(len(providers)):
+        missing_blocks_cnt = sum(len(y['results'][provider_idx][2]) for y in dataset_result['results'])
+        print(f'  <td>{(missing_blocks_cnt*100/total_gt_blocks):.1f}%<br><sub>{missing_blocks_cnt}</sub></td>')
+    print(' </tr>')
+
+    print(' <tr>')
+    print('  <td><i>False Positives</i></td>')
+    for provider_idx in range(len(providers)):
+        extra_blocks_cnt = sum(len(y['results'][provider_idx][1]) for y in dataset_result['results'])
+        print(f'  <td>{(extra_blocks_cnt*100/total_gt_blocks):.1f}%<br><sub>{extra_blocks_cnt}</sub></td>')
+    print(' </tr>')
+
+    print(' <tr>')
+    print('  <td><i>Time</i></td>')
+    for ts in dataset_result["timings"]:
+        print(f'  <td>{format_time(ts)}</td>')
+    print(' </tr>')
+    print('</table>')
+
 
 def show_arguments_or_mutability(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
@@ -425,7 +482,7 @@ if __name__ == '__main__':
         },
         'flow': {
             'datasets': ['largest1k'],
-            'providers': ['evmole-rs', 'evm-cfg', 'ethersolve', 'sevm', 'evm-cfg-builder', 'heimdall-rs']
+            'providers': ['evmole-rs', 'ethersolve', 'evm-cfg', 'sevm', 'heimdall-rs', 'evm-cfg-builder']
         }
     }
 
@@ -473,4 +530,7 @@ if __name__ == '__main__':
 
     elif cfg.mode == 'flow':
         results = [process_flow(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
-        show_flow(cfg.providers, results, cfg.show_errors)
+        if cfg.markdown:
+            markdown_flow(cfg.providers, results)
+        else:
+            show_flow(cfg.providers, results, cfg.show_errors)
