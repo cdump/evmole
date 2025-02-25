@@ -53,12 +53,14 @@ function extract(code, mode, fname) {
         }
       }
       for (const state of block.states) {
+        // console.log(pc, state.last);
         switch (state.last?.name) {
           case 'Jumpi':
             add(pc, state.last.destBranch.pc);
             add(pc, state.last.fallBranch.pc);
             break;
           case 'SigCase':
+            add(pc, state.last.offset.jumpDest);
             add(pc, state.last.fallBranch.pc);
             break;
           case 'Jump':
@@ -71,7 +73,8 @@ function extract(code, mode, fname) {
         }
       }
     }
-    return [duration_us, Array.from(res.values())];
+    const ret = [...res.values()].sort((a, b) => a[0] === b[0] ? a[1] - b[1] : a[0] - b[0])
+    return [duration_us, ret]
   } else {
     throw 'unsupported mode';
   }
