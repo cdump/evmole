@@ -135,7 +135,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>40</td>
-  <td>111</td>
+  <td>103</td>
   <td>9</td>
  </tr>
  <tr>
@@ -153,17 +153,17 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0 🥇</td>
   <td>0 🥇</td>
   <td>191</td>
-  <td>147</td>
+  <td>114</td>
   <td>12</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.3s · 0.7s · 0.5s</td>
-  <td>2.8s</td>
-  <td>43s<sup>(*)</sup></td>
-  <td>0.4s</td>
-  <td>342s<sup>(*)</sup></td>
-  <td>1.6s</td>
+  <td>19ms · 0.3s · 25ms</td>
+  <td>2.3s</td>
+  <td>37s<sup>(*)</sup></td>
+  <td>63ms</td>
+  <td>371s<sup>(*)</sup></td>
+  <td>1ms</td>
  </tr>
  <tr><td colspan="8"></td></tr>
  <tr>
@@ -182,7 +182,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>11</td>
   <td>10</td>
   <td>2903</td>
-  <td>4708</td>
+  <td>4669</td>
   <td>77</td>
  </tr>
  <tr>
@@ -200,17 +200,17 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>12</td>
   <td>11</td>
   <td>3538</td>
-  <td>6098</td>
+  <td>4943</td>
   <td>96</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>4.3s · 9.0s · 7.1s</td>
-  <td>55s</td>
-  <td>2331s<sup>(*)</sup></td>
-  <td>5.6s</td>
-  <td>8457s<sup>(*)</sup></td>
-  <td>44s</td>
+  <td>0.5s · 4.7s · 0.8s</td>
+  <td>46s</td>
+  <td>2304s<sup>(*)</sup></td>
+  <td>1.9s</td>
+  <td>8684s<sup>(*)</sup></td>
+  <td>50ms</td>
  </tr>
  <tr><td colspan="8"></td></tr>
  <tr>
@@ -252,12 +252,12 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.3s · 0.6s · 0.4s</td>
-  <td>2.1s</td>
-  <td>47s<sup>(*)</sup></td>
-  <td>0.3s</td>
+  <td>9ms · 0.1s · 13ms</td>
+  <td>1.6s</td>
+  <td>42s<sup>(*)</sup></td>
+  <td>32ms</td>
   <td>28s<sup>(*)</sup></td>
-  <td>1.0s</td>
+  <td>780µs</td>
  </tr>
 </table>
 
@@ -276,28 +276,28 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td rowspan="2"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>14.0% 🥇<br><sub>3410</sub></td>
-  <td>31.1%<br><sub>7593</sub></td>
+  <td>31.1%<br><sub>7603</sub></td>
   <td>58.3%<br><sub>14242</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>1.0s · 2.4s · 1.1s</td>
-  <td>344s<sup>(*)</sup></td>
-  <td>0.5s</td>
+  <td>0.6s · 2.0s · 0.6s</td>
+  <td>370s<sup>(*)</sup></td>
+  <td>1ms</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>4.5% 🥇<br><sub>52670</sub></td>
-  <td>19.4%<br><sub>227612</sub></td>
+  <td>19.4%<br><sub>227077</sub></td>
   <td>54.9%<br><sub>643213</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>22s · 61s · 26s</td>
-  <td>8414s<sup>(*)</sup></td>
-  <td>8.1s</td>
+  <td>17s · 55s · 19s</td>
+  <td>8579s<sup>(*)</sup></td>
+  <td>50ms</td>
  </tr>
  <tr><td colspan="5"></td></tr>
  <tr>
@@ -309,9 +309,9 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.8s · 2.0s · 0.9s</td>
-  <td>28s<sup>(*)</sup></td>
-  <td>0.5s</td>
+  <td>0.4s · 1.6s · 0.5s</td>
+  <td>29s<sup>(*)</sup></td>
+  <td>780µs</td>
  </tr>
 </table>
 
@@ -337,7 +337,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0.0% 🥇<br><sub>0</sub></td>
   <td>68.1%<br><sub>16623</sub></td>
   <td>2.1%<br><sub>501</sub></td>
-  <td>25.4%<br><sub>6201</sub></td>
+  <td>25.7%<br><sub>6268</sub></td>
   <td>2.6%<br><sub>643</sub></td>
  </tr>
  <tr>
@@ -345,16 +345,16 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>18.6% 🥇<br><sub>4555</sub></td>
   <td>79.4%<br><sub>19393</sub></td>
   <td>59.0%<br><sub>14417</sub></td>
-  <td>54.9%<br><sub>13403</sub></td>
+  <td>54.8%<br><sub>13386</sub></td>
   <td>60.9%<br><sub>14864</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9.7s · 14s · 10s</td>
-  <td>3.6s</td>
-  <td>33s<sup>(*)</sup></td>
-  <td>336s<sup>(*)</sup></td>
-  <td>0.5s</td>
+  <td>9.5s · 14s · 9.4s</td>
+  <td>3.0s</td>
+  <td>41s<sup>(*)</sup></td>
+  <td>371s<sup>(*)</sup></td>
+  <td>1ms</td>
  </tr>
  <tr><td colspan="6"></td></tr>
  <tr>
@@ -363,7 +363,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0.0% 🥇<br><sub>44</sub></td>
   <td>30.2%<br><sub>351060</sub></td>
   <td>0.3%<br><sub>3370</sub></td>
-  <td>11.6%<br><sub>134195</sub></td>
+  <td>11.5%<br><sub>133471</sub></td>
   <td>2.2%<br><sub>24961</sub></td>
  </tr>
  <tr>
@@ -371,16 +371,16 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>6.8% 🥇<br><sub>78923</sub></td>
   <td>58.2%<br><sub>675111</sub></td>
   <td>55.7%<br><sub>646831</sub></td>
-  <td>27.7%<br><sub>321494</sub></td>
+  <td>27.6%<br><sub>320264</sub></td>
   <td>57.7%<br><sub>670318</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>188s · 282s · 190s</td>
-  <td>87s</td>
-  <td>2230s<sup>(*)</sup></td>
-  <td>8134s<sup>(*)</sup></td>
-  <td>8.4s</td>
+  <td>183s · 276s · 187s</td>
+  <td>79s</td>
+  <td>2176s<sup>(*)</sup></td>
+  <td>8334s<sup>(*)</sup></td>
+  <td>50ms</td>
  </tr>
  <tr><td colspan="6"></td></tr>
  <tr>
@@ -402,11 +402,11 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9.9s · 13s · 10s</td>
-  <td>2.1s</td>
-  <td>37s<sup>(*)</sup></td>
-  <td>28s<sup>(*)</sup></td>
-  <td>0.5s</td>
+  <td>9.8s · 12s · 9.6s</td>
+  <td>1.7s</td>
+  <td>38s<sup>(*)</sup></td>
+  <td>29s<sup>(*)</sup></td>
+  <td>780µs</td>
  </tr>
 </table>
 

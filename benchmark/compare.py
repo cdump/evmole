@@ -54,15 +54,15 @@ def process_selectors(dname: str, providers: list[str], results_dir: str):
 
 
 def format_time_val(val_us: int) -> str:
-    sec = val_us / 1_000_000
-    return f'{sec:.1f}s' if sec < 10 else f'{sec:.0f}s'
-    # if val_us < 1_000:  # Less than 1 ms
-    #     return f'{val_us:.0f}µs'
-    # elif val_us < 100_000:  # Less than 0.1 sec
-    #     return f'{val_us / 1_000:.0f}ms'
-    # else:  # 1 sec or more
-    #     sec = val_us / 1_000_000
-    #     return f'{sec:.1f}s' if sec < 10 else f'{sec:.0f}s'
+    # sec = val_us / 1_000_000
+    # return f'{sec:.1f}s' if sec < 10 else f'{sec:.0f}s'
+    if val_us < 1_000:  # Less than 1 ms
+        return f'{val_us:.0f}µs'
+    elif val_us < 100_000:  # Less than 0.1 sec
+        return f'{val_us / 1_000:.0f}ms'
+    else:  # 1 sec or more
+        sec = val_us / 1_000_000
+        return f'{sec:.1f}s' if sec < 10 else f'{sec:.0f}s'
 
 def format_time(timings) -> str:
     return format_time_val(timings["total"])
@@ -341,8 +341,8 @@ def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
             missing_blocks = ground_truth - curr_blocks
 
             # debug:
-            if len(ground_truth) < 100 and len(missing_blocks) > 0:
-                print(fname, extra_blocks, missing_blocks)
+            # if len(ground_truth) < 100 and len(ground_truth) > 50 and len(missing_blocks) > 0:
+            #     print(fname, extra_blocks, missing_blocks)
             provider_stats.append((total_blocks, extra_blocks, missing_blocks))
 
         results.append({
