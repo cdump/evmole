@@ -293,7 +293,7 @@ mod evmole {
                             .into_iter()
                             .map(|t| t.sol_type_name().to_string())
                             .collect::<Vec<String>>()
-                            .join(", ")
+                            .join(",")
                     }),
                     state_mutability: f.state_mutability.map(|sm| sm.as_json_str().to_string()),
                 })
