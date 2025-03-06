@@ -10,7 +10,7 @@
 use std::collections::BTreeMap;
 
 use initial::initial_blocks;
-use reachable::get_reachable_nodes;
+pub(crate) use reachable::get_reachable_nodes;
 use resolver::resolve_dynamic_jumps;
 
 mod initial;
@@ -88,7 +88,7 @@ pub enum BlockType {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 /// Control flow graph representing the structure and flow of EVM bytecode
 pub struct ControlFlowGraph {
