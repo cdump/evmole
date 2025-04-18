@@ -36,6 +36,8 @@ pub struct StorageRecord {
     /// Byte offset within the storage slot (0-31)
     pub offset: u8,
 
+    pub is_transient: bool,
+
     /// Variable type
     pub r#type: String,
 
@@ -139,6 +141,7 @@ struct StorageElement {
     slot: Slot,
     stype: StorageType,
     rshift: u8, // in bytes
+    is_transient: bool,
     is_write: bool,
     last_and: Option<U256>,
     last_or2: Option<Element<Label>>,
@@ -170,17 +173,17 @@ impl Storage {
             .retain(|x| x != val);
     }
 
-    fn sstore(&mut self, slot: Element<Label>, rshift: u8, vtype: DynSolType) {
-        let x = self.get(slot, true);
+    fn sstore(&mut self, is_transient: bool, slot: Element<Label>, rshift: u8, vtype: DynSolType) {
+        let x = self.get(is_transient, slot, true);
         x.borrow_mut().stype.set_type(vtype);
         x.borrow_mut().rshift = rshift;
     }
 
-    fn sload(&mut self, slot: Element<Label>) -> Rc<RefCell<StorageElement>> {
-        self.get(slot, false)
+    fn sload(&mut self, is_transient: bool, slot: Element<Label>) -> Rc<RefCell<StorageElement>> {
+        self.get(is_transient, slot, false)
     }
 
-    fn get(&mut self, slot: Element<Label>, is_write: bool) -> Rc<RefCell<StorageElement>> {
+    fn get(&mut self, is_transient: bool, slot: Element<Label>, is_write: bool) -> Rc<RefCell<StorageElement>> {
         let mut sl = slot.data;
 
         let mut rt = StorageType::Base(DynSolType::Uint(256));
@@ -218,6 +221,7 @@ impl Storage {
             slot: sl,
             stype: rt,
             rshift: 0,
+            is_transient,
             is_write,
             last_and: None,
             last_or2: None,
@@ -301,12 +305,13 @@ fn analyze(
         }
 
         StepResult {
-            op: op::SLOAD,
+            op: op @ (op::SLOAD | op::TLOAD),
             args: [slot, ..],
             ..
         } => {
+            let is_transient = op == op::TLOAD;
             *vm.stack.peek_mut()? = Element {
-                label: Some(Label::Sloaded(st.sload(slot))),
+                label: Some(Label::Sloaded(st.sload(is_transient, slot))),
                 data: VAL_1_B,
             };
         }
@@ -417,16 +422,17 @@ fn analyze(
         }
 
         StepResult {
-            op: op::SSTORE,
+            op: op @ (op::SSTORE | op::TSTORE),
             args: [slot, value, ..],
             ..
         } => {
+            let is_transient = op == op::TSTORE;
             if let Some(Label::Sloaded(ref sl)) = value.label {
                 st.remove(sl);
             }
 
             match value.label {
-                Some(Label::Typed(t)) => st.sstore(slot, 0, t),
+                Some(Label::Typed(t)) => st.sstore(is_transient, slot, 0, t),
                 Some(Label::Sloaded(sl)) => {
                     let sbr = sl.borrow();
                     if let Some(lor) = &sbr.last_or2 {
@@ -447,16 +453,16 @@ fn analyze(
                                     }
                                 }
                             };
-                            st.sstore(slot, (tv / 8) as u8, dt);
+                            st.sstore(is_transient, slot, (tv / 8) as u8, dt);
                         } else {
-                            st.sstore(slot, 0, sbr.stype.get_internal_type());
+                            st.sstore(is_transient, slot, 0, sbr.stype.get_internal_type());
                         }
                     } else {
                         // println!("SET {:?} TO {:?} | {:?}", slot, sbr.stype.get_internal_type(), sbr);
-                        st.sstore(slot, 0, sbr.stype.get_internal_type());
+                        st.sstore(is_transient, slot, 0, sbr.stype.get_internal_type());
                     }
                 }
-                _ => st.sstore(slot, 0, DynSolType::Uint(256)),
+                _ => st.sstore(is_transient, slot, 0, DynSolType::Uint(256)),
             }
         }
 
@@ -468,8 +474,9 @@ fn analyze(
             let mask: U256 = ot.into();
 
             if mask > VAL_1 && (mask & (mask - VAL_1)).is_zero() && (mask.bit_len() - 1) % 8 == 0 {
-                let nl = st.sload(Element {
-                    data: sl.borrow().slot,
+                let v = sl.borrow();
+                let nl = st.sload(v.is_transient, Element {
+                    data: v.slot,
                     label: None,
                 });
                 let bl = mask.bit_len() - 1;
@@ -673,7 +680,7 @@ where
         gas_limit
     };
 
-    let mut xr: BTreeMap<(Slot, u8), Vec<(Selector, StorageElement)>> = BTreeMap::new();
+    let mut xr: BTreeMap<(bool, Slot, u8), Vec<(Selector, StorageElement)>> = BTreeMap::new();
 
     for (sel, _pc, arguments) in functions.into_iter() {
         let st = analyze_one_function(code, sel, arguments.as_ref(), false, real_gas_limit);
@@ -686,7 +693,7 @@ where
                 //     ld
                 // );
                 let v = (*ld).borrow();
-                xr.entry((slot, v.rshift))
+                xr.entry((v.is_transient, slot, v.rshift))
                     .or_default()
                     .push((sel, v.clone()));
             }
@@ -700,7 +707,7 @@ where
         for ld in loaded.into_iter() {
             let v = (*ld).borrow();
             let qq = v.clone();
-            xr.entry((slot, v.rshift))
+            xr.entry((v.is_transient, slot, v.rshift))
                 .or_default()
                 .push((FALLBACK_SELECTOR, qq));
         }
@@ -708,7 +715,7 @@ where
 
     let mut ret: Vec<StorageRecord> = Vec::with_capacity(xr.len());
 
-    for ((slot, offset), hmap) in xr.into_iter() {
+    for ((is_transient, slot, offset), hmap) in xr.into_iter() {
         let mut reads: BTreeSet<Selector> = BTreeSet::new();
         let mut writes: BTreeSet<Selector> = BTreeSet::new();
 
@@ -744,6 +751,7 @@ where
         ret.push(StorageRecord {
             slot,
             offset,
+            is_transient,
             r#type: format!("{:?}", best_type),
             reads: reads.into_iter().collect(),
             writes: writes.into_iter().collect(),
