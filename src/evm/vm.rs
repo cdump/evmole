@@ -578,7 +578,7 @@ where
                 };
                 self.memory.store(dest_offset, data, label);
 
-                let gas_used: u32 = 3 + 3 * ((size + 31) / 32);
+                let gas_used: u32 = 3 + 3 * size.div_ceil(32);
                 Ok(StepResult::new(op, gas_used))
             }
 
