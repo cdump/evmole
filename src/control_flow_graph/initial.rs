@@ -36,7 +36,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
 
     let mut wait_jumpdest = false;
 
-    for (pc, CodeOp { op, opi, .. }) in iterate_code(code, 0) {
+    for (pc, CodeOp { op, opi, .. }) in iterate_code(code, 0, None) {
         if wait_jumpdest {
             if op == op::JUMPDEST {
                 block.start = pc;

@@ -9,16 +9,21 @@ pub struct CodeOp<'a> {
     pub arg: &'a [u8],
 }
 
-pub fn iterate_code(code: &[u8], start_pc: usize) -> impl Iterator<Item = (usize, CodeOp)> {
+pub fn iterate_code(code: &[u8], start_pc: usize, end_pc: Option<usize>) -> impl Iterator<Item = (usize, CodeOp)> {
     let mut pc = start_pc;
     let code_len = code.len();
+    let pc_limit = if let Some(v) = end_pc {
+        std::cmp::min(v, code_len)
+    } else {
+        code_len
+    };
     std::iter::from_fn(move || {
-        if pc >= code_len {
+        if pc >= pc_limit {
             return None;
         }
         let op = code[pc];
         let opi = op::info(op);
-        if pc + opi.size > code_len {
+        if pc + opi.size > pc_limit {
             return None;
         }
         let curpc = pc;
@@ -35,7 +40,7 @@ pub fn iterate_code(code: &[u8], start_pc: usize) -> impl Iterator<Item = (usize
 }
 
 pub fn disassemble(code: &[u8]) -> Vec<(usize, String)> {
-    iterate_code(code, 0)
+    iterate_code(code, 0, None)
         .map(|(pc, op)| {
             (
                 pc,

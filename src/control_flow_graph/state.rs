@@ -71,9 +71,9 @@ impl State {
     /// Executes the given code starting at 'start' and updates the state
     ///
     /// After execution, the state's stack is "minimalized" by trimming redundant 'Before' symbols
-    pub fn exec(&mut self, code: &[u8], start: usize) -> Option<StackSym> {
+    pub fn exec(&mut self, code: &[u8], start: usize, end: Option<usize>) -> Option<StackSym> {
         assert!(matches!(self.stack.first(), Some(StackSym::Before(_))));
-        let r = self.real_exec(code, start);
+        let r = self.real_exec(code, start, end);
         assert!(matches!(self.stack.first(), Some(StackSym::Before(_))));
 
         // Before(4),Before(3),Before(2),Before(0) => Before(2),Before(0)
@@ -88,7 +88,7 @@ impl State {
             .iter()
             .enumerate()
             .take_while(|(pos, el)| {
-                matches!(el, StackSym::Before(nb) if *nb + pos == base_before && *nb > 0)
+                matches!(el, StackSym::Before(nb) if *nb + pos == base_before)
             })
             .count();
 
@@ -98,8 +98,9 @@ impl State {
         r
     }
 
-    fn real_exec(&mut self, code: &[u8], start_pc: usize) -> Option<StackSym> {
-        for (pc, CodeOp { op, opi, .. }) in iterate_code(code, start_pc) {
+    fn real_exec(&mut self, code: &[u8], start_pc: usize, end_pc: Option<usize>) -> Option<StackSym> {
+        for (pc, CodeOp { op, opi, .. }) in iterate_code(code, start_pc, end_pc) {
+            // eprintln!("{} | {:?}", pc, opi);
             // Ensure the stack has at least (stack_in + 1) entries (the extra one preserves the initial Before)
             if self.stack.len() < opi.stack_in + 1 {
                 let needed = opi.stack_in + 1 - self.stack.len();
@@ -265,7 +266,7 @@ mod tests {
         for (input_stack, expected_output_stack) in cases.into_iter() {
             let mut state = State::new();
             state.stack = input_stack;
-            state.exec(&[], 0);
+            state.exec(&[], 0, None);
 
             assert_eq!(state.stack, expected_output_stack);
         }

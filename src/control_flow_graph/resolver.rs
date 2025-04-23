@@ -38,7 +38,7 @@ impl RevIdx {
     fn get_state(&mut self, code: &[u8], start: usize) -> &State {
         self.states.entry(start).or_insert_with(|| {
             let mut st = State::new();
-            st.exec(code, start);
+            st.exec(code, start, None);
             st
         })
     }
@@ -217,7 +217,7 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
             continue
         }
         let mut state = State::new();
-        match state.exec(code, block.start) {
+        match state.exec(code, block.start, None) {
             Some(StackSym::Jumpdest(to)) => {
                 match block.btype {
                     BlockType::DynamicJump{..} => block.btype = BlockType::Jump{to},
