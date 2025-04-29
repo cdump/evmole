@@ -98,7 +98,7 @@ impl StorageType {
             return;
         }
         match self {
-            StorageType::Base(DynSolType::Array(ref mut v)) => {
+            StorageType::Base(DynSolType::Array(v)) => {
                 let mut current = v.as_mut();
                 while let DynSolType::Array(inner) = current {
                     current = inner;
@@ -106,8 +106,8 @@ impl StorageType {
                 }
                 *current = tp;
             }
-            StorageType::Base(ref mut v) => *v = tp,
-            StorageType::Map(_, ref mut v) => v.set_type(tp),
+            StorageType::Base(v) => *v = tp,
+            StorageType::Map(_, v) => v.set_type(tp),
         }
     }
 
