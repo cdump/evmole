@@ -2,18 +2,17 @@ use std::{collections::BTreeMap, marker::PhantomData};
 
 use crate::{
     evm::{
-        calldata::{CallData, CallDataLabel},
+        calldata::{CallData, CallDataLabel, CallDataLabelType},
         element::Element,
         U256, VAL_131072,
-    },
-    DynSolType,
+    }, DynSolType
 };
 use std::error;
 
 #[derive(Debug)]
 pub struct CallDataImpl<T> {
     pub selector: [u8; 4],
-    arg_types: BTreeMap<usize, DynSolType>,
+    arg_types: BTreeMap<usize, (DynSolType, CallDataLabelType)>,
     arg_vals: BTreeMap<usize, usize>,
 
     _phantom: std::marker::PhantomData<T>,
@@ -44,9 +43,8 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
                 if let Some(val) = self.arg_vals.get(&xoff) {
                     data = U256::from(*val).to_be_bytes();
                 }
-                if let Some(tp) = self.arg_types.get(&xoff) {
-                    // label = Some(Label::Typed(tp.clone()));
-                    label = Some(T::label(xoff, tp));
+                if let Some((tp, label_type)) = self.arg_types.get(&xoff) {
+                    label = T::label(xoff, tp, *label_type);
                 }
             }
         }
@@ -71,8 +69,8 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
                     //TODO: look to the left to find proper element
                     data = U256::from(*val).to_be_bytes_vec();
                 }
-                if let Some(tp) = self.arg_types.get(&xoff) {
-                    label = Some(T::label(xoff, tp));
+                if let Some((tp, label_type)) = self.arg_types.get(&xoff) {
+                    label = T::label(xoff, tp, *label_type);
                 }
             }
         }
@@ -103,15 +101,15 @@ fn is_dynamic(ty: &DynSolType) -> bool {
     }
 }
 
-type ArgTypes = Vec<(usize, DynSolType)>;
+type ArgTypes = Vec<(usize, (DynSolType, CallDataLabelType))>;
 type ArgNonZero = Vec<(usize, usize)>;
 
 fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
     // (offset, type)
-    let mut ret_types: Vec<(usize, DynSolType)> = Vec::with_capacity(elements.len());
+    let mut ret_types: ArgTypes = Vec::with_capacity(elements.len());
 
     // (offset, value)
-    let mut ret_nonzero: Vec<(usize, usize)> = Vec::with_capacity(elements.len());
+    let mut ret_nonzero: ArgNonZero = Vec::with_capacity(elements.len());
 
     let mut off = 0;
 
@@ -126,20 +124,19 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
             match ty {
                 DynSolType::FixedArray(val, sz) => {
                     for _ in 0..*sz {
-                        // sz or cnt?
-                        ret_types.push((off, *val.clone()));
+                        ret_types.push((off, (*val.clone(), CallDataLabelType::RealValue)));
                         off += 32;
                     }
                 }
                 DynSolType::Tuple(val) => {
                     for v in val {
-                        ret_types.push((off, v.clone()));
+                        ret_types.push((off, (v.clone(), CallDataLabelType::RealValue)));
                         off += 32;
                     }
                 }
 
                 _ => {
-                    ret_types.push((off, ty.clone()));
+                    ret_types.push((off, (ty.clone(), CallDataLabelType::RealValue)));
                     off += 32;
                 }
             }
@@ -149,14 +146,16 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
     for (el_off, ty) in dynamic.into_iter() {
         ret_nonzero.push((el_off, off));
 
+        ret_types.push((el_off, (ty.clone(), CallDataLabelType::Offset)));
+
         match ty {
             DynSolType::Bytes | DynSolType::String => {
                 // string '0x41' with len = 1
                 ret_nonzero.push((off, 32));
                 ret_nonzero.push((off + 32, 0x41)); // TODO: padd right, not left
 
-                ret_types.push((off, ty.clone())); // strlen
-                ret_types.push((off + 32, ty.clone()));
+                ret_types.push((off, (ty.clone(), CallDataLabelType::DynLen))); // strlen
+                ret_types.push((off + 32, (ty.clone(), CallDataLabelType::RealValue)));
                 off += 64;
             }
             DynSolType::Array(val) => {

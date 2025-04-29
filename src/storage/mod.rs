@@ -2,16 +2,13 @@
 //! This code is in an experimental state and under active development.
 //! Code structure are subject to change.
 use crate::{
-    evm::{
-        calldata::CallDataLabel,
+    collections::HashMap, evm::{
+        calldata::{CallDataLabel, CallDataLabelType},
         element::Element,
         op,
         vm::{StepResult, Vm},
         U256, VAL_1, VAL_1_B, VAL_32_B,
-    },
-    collections::HashMap,
-    utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two},
-    DynSolType, Selector, Slot,
+    }, utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two}, DynSolType, Selector, Slot
 };
 use std::{
     cell::RefCell,
@@ -59,8 +56,12 @@ enum Label {
 }
 
 impl CallDataLabel for Label {
-    fn label(_: usize, tp: &DynSolType) -> Label {
-        Label::Typed(tp.clone())
+    fn label(_: usize, tp: &DynSolType, label_type: CallDataLabelType) -> Option<Label> {
+        if matches!(label_type, CallDataLabelType::RealValue) {
+            Some(Label::Typed(tp.clone()))
+        } else {
+            None
+        }
     }
 }
 
