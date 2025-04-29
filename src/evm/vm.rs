@@ -614,25 +614,30 @@ where
             op::CALL | op::CALLCODE | op::DELEGATECALL | op::STATICCALL => {
                 let mut ret = StepResult::new(op, 100);
 
-                let _gas = self.stack.pop()?;
+                let gas = self.stack.pop()?;
                 let address = self.stack.pop()?;
                 let p2 = self.stack.pop()?;
                 let p3 = self.stack.pop()?;
                 let p4 = self.stack.pop()?;
-                self.stack.pop()?;
+                let p5 = self.stack.pop()?;
 
-                ret.exargs.reserve(2);
+                ret.exargs.reserve(5);
+                ret.exargs.push(gas);
 
                 ret.args[0] = address;
                 if op == op::CALL || op == op::CALLCODE {
-                    self.stack.pop()?;
+                    let p6 = self.stack.pop()?;
                     ret.args[1] = p2; // value
                     ret.exargs.push(p3); // args offset
-                    ret.exargs.push(p4); // args offset
+                    ret.exargs.push(p4); // args size
+                    ret.exargs.push(p5); // ret offset
+                    ret.exargs.push(p6); // ret size
                 } else {
                     // args[1] (value) is alredy set to zero
                     ret.exargs.push(p2); // args offset
-                    ret.exargs.push(p3); // args offset
+                    ret.exargs.push(p3); // args size
+                    ret.exargs.push(p4); // ret offset
+                    ret.exargs.push(p5); // ret size
                 }
 
                 self.stack.push_data(VAL_1_B); // success
