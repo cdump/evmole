@@ -1,6 +1,7 @@
 use crate::evm::U256;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Element<T> {
     pub data: [u8; 32],
     pub label: Option<T>,

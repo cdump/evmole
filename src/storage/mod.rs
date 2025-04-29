@@ -19,7 +19,7 @@ use std::{
     rc::Rc,
 };
 
-mod calldata;
+pub(crate) mod calldata;
 use calldata::CallDataImpl;
 
 mod keccak_precalc;
