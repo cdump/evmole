@@ -1,11 +1,11 @@
 use crate::Selector;
 use crate::{
     evm::{
+        U256, VAL_0_B, VAL_1_B,
         calldata::CallData,
         element::Element,
         op,
         vm::{StepResult, Vm},
-        U256, VAL_0_B, VAL_1_B,
     },
     utils::{elabel, match_first_two},
 };
@@ -101,9 +101,11 @@ fn analyze(
             if op == op::AND && ot.data == VAL_FFFFFFFF_B {
                 vm.stack.peek_mut()?.label = Some(Label::Signature);
             } else if let Ok(ma) = u8::try_from(ot) {
-                let to = if op == op::MOD { ma } else { ma + 1 };
-                vm.stack.peek_mut()?.data = VAL_0_B;
-                return Ok(to);
+                if ma < u8::MAX {
+                    let to = if op == op::MOD { ma } else { ma + 1 };
+                    vm.stack.peek_mut()?.data = VAL_0_B;
+                    return Ok(to);
+                }
             }
         }
 
