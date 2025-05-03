@@ -212,7 +212,9 @@ where
                     if s1.is_zero() {
                         U256::ZERO
                     } else {
-                        (I256::from_raw(s0) / I256::from_raw(s1)).into_raw()
+                        I256::from_raw(s0)
+                            .wrapping_div(I256::from_raw(s1))
+                            .into_raw()
                     },
                 )
             }),
@@ -522,7 +524,13 @@ where
                 let off: u32 = s0.try_into()?;
                 let (val, _used) = self.memory.load_element(off);
                 let mut ret = StepResult::new(op, 4);
-                ret.exargs = _used.into_iter().map(|lb| Element{data: [0;32], label: Some(lb)}).collect();
+                ret.exargs = _used
+                    .into_iter()
+                    .map(|lb| Element {
+                        data: [0; 32],
+                        label: Some(lb),
+                    })
+                    .collect();
                 self.stack.push(val);
                 ret.args[0] = raws0;
                 Ok(ret)
@@ -726,6 +734,18 @@ mod tests {
                 op::SDIV,
                 I256::unchecked_from(-2).into_raw(),
                 U256::from(2),
+            ),
+            (
+                I256::MIN.into_raw(),
+                op::SDIV,
+                I256::unchecked_from(-1).into_raw(),
+                I256::MIN.into_raw(),
+            ),
+            (
+                I256::unchecked_from(-4).into_raw(),
+                op::SDIV,
+                U256::ZERO,
+                U256::ZERO,
             ),
         ];
 
