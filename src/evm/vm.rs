@@ -362,11 +362,7 @@ where
             op::KECCAK256 => {
                 let offset = self.stack.pop()?;
                 let size = self.stack.pop()?;
-                let gas_used: u32 = 30
-                    + 6 * (U256::from_be_bytes(size.data)
-                        .try_into()
-                        .unwrap_or(5_000_000));
-                let mut ret = StepResult::new(op, gas_used);
+                let mut ret = StepResult::new(op, 30 + 6 * 32);
                 ret.args[0] = offset;
                 ret.args[1] = size;
                 self.stack.push_data(VAL_1_B);
