@@ -1,5 +1,5 @@
-use super::{calldata::CallData, element::Element, memory::Memory, op, stack::Stack, I256, U256};
-use super::{VAL_0_B, VAL_1, VAL_1024_B, VAL_1M_B, VAL_1_B, VAL_256, VAL_32};
+use super::{I256, U256, calldata::CallData, element::Element, memory::Memory, op, stack::Stack};
+use super::{VAL_0_B, VAL_1, VAL_1_B, VAL_1M_B, VAL_32, VAL_256, VAL_1024_B};
 use std::{error, fmt};
 
 #[derive(Debug)]

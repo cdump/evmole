@@ -9,7 +9,11 @@ pub struct CodeOp<'a> {
     pub arg: &'a [u8],
 }
 
-pub fn iterate_code(code: &[u8], start_pc: usize, end_pc: Option<usize>) -> impl Iterator<Item = (usize, CodeOp)> {
+pub fn iterate_code(
+    code: &[u8],
+    start_pc: usize,
+    end_pc: Option<usize>,
+) -> impl Iterator<Item = (usize, CodeOp)> {
     let mut pc = start_pc;
     let code_len = code.len();
     let pc_limit = if let Some(v) = end_pc {

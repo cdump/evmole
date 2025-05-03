@@ -1,13 +1,15 @@
 use ahash::RandomState;
 
 #[derive(Clone)]
-pub (crate) struct MyHashBuilder {
+pub(crate) struct MyHashBuilder {
     state: RandomState,
 }
 
 impl Default for MyHashBuilder {
     fn default() -> Self {
-        Self{state: RandomState::with_seed(42)}
+        Self {
+            state: RandomState::with_seed(42),
+        }
     }
 }
 impl std::hash::BuildHasher for MyHashBuilder {

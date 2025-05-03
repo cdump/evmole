@@ -1,4 +1,4 @@
-use super::{element::Element, U256};
+use super::{U256, element::Element};
 use std::fmt;
 
 #[derive(Clone)]

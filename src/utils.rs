@@ -18,9 +18,8 @@ macro_rules! elabel {
     };
 }
 
-pub(crate) use match_first_two;
 pub(crate) use elabel;
-
+pub(crate) use match_first_two;
 
 /// Executes the EVM until it reaches the start of a function identified by its selector
 pub fn execute_until_function_start<T, U>(vm: &mut Vm<T, U>, gas_limit: u32) -> Option<u32>
@@ -50,7 +49,11 @@ where
 
         // Look for selector comparison operations
         if matches!(ret.op, op::EQ | op::XOR | op::SUB) {
-            let stack_top = vm.stack.peek().expect("always safe unless bug in vm.rs").data;
+            let stack_top = vm
+                .stack
+                .peek()
+                .expect("always safe unless bug in vm.rs")
+                .data;
 
             let is_selector_match = if ret.op == op::EQ {
                 stack_top == VAL_1_B
@@ -95,7 +98,7 @@ pub fn and_mask_to_type(mask: U256) -> Option<DynSolType> {
     if (left_aligned_mask & (left_aligned_mask + VAL_1)).is_zero() {
         let bit_length = left_aligned_mask.bit_len();
         if is_byte_aligned(bit_length) {
-            return Some(DynSolType::FixedBytes(bit_length / BITS_PER_BYTE ));
+            return Some(DynSolType::FixedBytes(bit_length / BITS_PER_BYTE));
         }
     }
 
@@ -132,7 +135,10 @@ mod tests {
 
         // Test fixed bytes masks
         let bytes2_mask = uint!(0xFFFF_U256) << (256 - 16);
-        assert_eq!(and_mask_to_type(bytes2_mask), Some(DynSolType::FixedBytes(2)));
+        assert_eq!(
+            and_mask_to_type(bytes2_mask),
+            Some(DynSolType::FixedBytes(2))
+        );
 
         // Test invalid mask
         let invalid_mask = uint!(0b1010_U256);
