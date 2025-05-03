@@ -64,15 +64,16 @@ where
 
         #[allow(clippy::needless_range_loop)]
         for idx in 0usize..size as usize {
-            let i = idx as u32 + offset;
+            let i = idx + offset as usize;
             for (off, el) in self.data.iter().rev() {
-                if i >= *off && i < *off + el.data.len() as u32 {
+                let uoff = *off as usize;
+                if i >= uoff && i < uoff + el.data.len() {
                     if let Some(label) = &el.label {
                         if used.last() != Some(label) {
                             used.push(label.clone());
                         }
                     }
-                    data[idx] = el.data[(i - off) as usize];
+                    data[idx] = el.data[i - uoff];
                     break;
                 }
             }
@@ -89,9 +90,10 @@ where
 
         #[allow(clippy::needless_range_loop)]
         for idx in 0usize..32 {
-            let i = idx as u32 + offset;
+            let i = idx + offset as usize;
             for (off, el) in self.data.iter().rev() {
-                if i >= *off && i < *off + el.data.len() as u32 {
+                let uoff = *off as usize;
+                if i >= uoff && i < uoff + el.data.len() {
                     if let Some(label) = &el.label {
                         if used.last() != Some(label) {
                             used.push(label.clone());
@@ -103,7 +105,7 @@ where
                         r.label = el.label.clone();
                         return (r, used);
                     }
-                    r.data[idx] = el.data[(i - off) as usize];
+                    r.data[idx] = el.data[i - uoff];
                     break;
                 }
             }
