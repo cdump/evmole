@@ -12,3 +12,6 @@ dist/
 target/
 .aider*
 .gradle
+
+# Added by cargo-zigbuild
+.intentionally-empty-file.o

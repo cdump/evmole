@@ -7,7 +7,7 @@ authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/cdump/evmole"
-exclude = ["/javascript", "/python", "/benchmark", "/.github"]
+exclude = ["/javascript", "/python", "/benchmark", "/.github", "/go"]
 
 [dependencies]
 alloy-primitives = "0.8"
@@ -19,11 +19,19 @@ pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+# TODO: When we build for a windows target on an ubuntu runner, crunchy tries to
+# get the wrong path, update this when the workflow has been updated
+#
+# See: https://github.com/eira-fransham/crunchy/issues/13
+crunchy = "=0.2.2"
 
 [features]
 serde = ["dep:serde"]
 python = ["dep:pyo3"]
 javascript = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "serde"]
+c_api = ["dep:serde_json", "serde"]
 
 # for dev
 trace_selectors = []
@@ -33,7 +41,7 @@ trace_storage = []
 trace = ["trace_selectors", "trace_arguments", "trace_mutability", "trace_storage"]
 
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib", "lib", "staticlib"]
 
 [profile.release]
 lto = true
