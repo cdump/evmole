@@ -10,10 +10,12 @@ repository = "https://github.com/cdump/evmole"
 exclude = ["/javascript", "/python", "/benchmark", "/.github"]
 
 [dependencies]
-alloy-primitives = "0.8"
-alloy-dyn-abi = "0.8"
-ahash = { version = "0.8", default-features = false  }
-indexmap = "2.7"
+alloy-primitives = { version = "1", default-features = false, features = [
+    "std",
+    "map-foldhash",
+] }
+alloy-dyn-abi = { version = "1", default-features = false }
+indexmap = { version = "2.7", default-features = false }
 
 pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
@@ -30,7 +32,12 @@ trace_selectors = []
 trace_arguments = []
 trace_mutability = []
 trace_storage = []
-trace = ["trace_selectors", "trace_arguments", "trace_mutability", "trace_storage"]
+trace = [
+    "trace_selectors",
+    "trace_arguments",
+    "trace_mutability",
+    "trace_storage",
+]
 
 [lib]
 crate-type = ["cdylib", "lib"]
