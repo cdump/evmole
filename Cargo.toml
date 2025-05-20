@@ -15,7 +15,7 @@ alloy-primitives = { version = "1", default-features = false, features = [
     "map-foldhash",
 ] }
 alloy-dyn-abi = { version = "1", default-features = false }
-indexmap = { version = "2.7", default-features = false }
+indexmap = "2.9"
 
 pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
