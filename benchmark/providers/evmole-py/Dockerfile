@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM rust:1.87 AS build
-RUN  wget https://github.com/PyO3/maturin/releases/download/v1.8.1/maturin-x86_64-unknown-linux-musl.tar.gz \
+RUN  wget https://github.com/PyO3/maturin/releases/download/v1.8.6/maturin-x86_64-unknown-linux-musl.tar.gz \
   && tar xf maturin-*.tar.gz && mv maturin /usr/local/bin/
 COPY ./rust /workdir
 WORKDIR /workdir

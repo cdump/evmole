@@ -17,7 +17,7 @@ alloy-primitives = { version = "1", default-features = false, features = [
 alloy-dyn-abi = { version = "1", default-features = false }
 indexmap = "2.9"
 
-pyo3 = { version = "0.23", features = ["extension-module"], optional = true }
+pyo3 = { version = "0.25", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
