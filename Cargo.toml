@@ -1,6 +1,6 @@
 [package]
 name = "evmole"
-version = "0.7.2"
+version = "0.8.0"
 edition = "2024"
 description = "Extracts function selectors and arguments from EVM bytecode"
 authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
