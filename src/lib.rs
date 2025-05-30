@@ -39,3 +39,6 @@ mod interface_py;
 
 #[cfg(feature = "javascript")]
 mod interface_js;
+
+#[cfg(feature = "c_api")]
+mod interface_c;
