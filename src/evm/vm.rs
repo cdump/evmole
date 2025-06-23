@@ -488,7 +488,7 @@ where
 
                 self.stack.pop()?;
                 let size: usize = self.stack.pop_uint()?.try_into()?;
-                if size > 1024 {
+                if size > 2048 {
                     Err(UnsupportedOpError { op }.into())
                 } else {
                     let data: Vec<u8> = vec![0; size];
@@ -576,7 +576,7 @@ where
 
                 let offset: u32 = self.stack.pop_uint()?.try_into()?;
                 let size: u32 = self.stack.pop_uint()?.try_into()?;
-                if size > 512 {
+                if size > 2048 {
                     return Err(UnsupportedOpError { op }.into());
                 }
 
