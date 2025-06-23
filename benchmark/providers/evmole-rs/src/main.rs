@@ -55,11 +55,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     type Meta = u64; // duration in ms
 
     let selectors: HashMap<String, (Meta, Vec<String>)> = match cfg.mode {
-        Mode::Selectors | Mode::Storage | Mode::Blocks | Mode::Flow => HashMap::new(),
         Mode::Arguments | Mode::Mutability => {
             let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
             serde_json::from_str(&file_content)?
-        }
+        },
+        _ => HashMap::default(),
     };
 
     let only_selector = if let Some(s) = cfg.filter_selector {

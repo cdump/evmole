@@ -67,6 +67,7 @@ pub struct Contract {
 /// Builder for configuring contract analysis parameters
 ///
 /// See [`contract_info`] for usage examples.
+#[derive(Default)]
 pub struct ContractInfoArgs<'a> {
     code: &'a [u8],
 
@@ -88,13 +89,7 @@ impl<'a> ContractInfoArgs<'a> {
     pub fn new(code: &'a [u8]) -> Self {
         ContractInfoArgs {
             code,
-            need_selectors: false,
-            need_arguments: false,
-            need_state_mutability: false,
-            need_storage: false,
-            need_disassemble: false,
-            need_basic_blocks: false,
-            need_control_flow_graph: false,
+            ..Default::default()
         }
     }
 
@@ -223,7 +218,7 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         None
     };
 
-    let (basic_blocks, control_flow_graph) = if args.need_basic_blocks {
+    let (basic_blocks, control_flow_graph): (Option<Vec<_>>, _) = if args.need_basic_blocks {
         let bb = basic_blocks(args.code);
         let blocks = Some(bb.values().map(|bl| (bl.start, bl.end)).collect());
         let cfg = if args.need_control_flow_graph {
