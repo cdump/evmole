@@ -12,12 +12,12 @@ pub struct CodeOp<'a> {
 pub fn iterate_code(
     code: &[u8],
     start_pc: usize,
-    end_pc: Option<usize>,
+    end_pc: Option<usize>, // Start pc of the last instruction to include
 ) -> impl Iterator<Item = (usize, CodeOp)> {
     let mut pc = start_pc;
     let code_len = code.len();
     let pc_limit = if let Some(v) = end_pc {
-        std::cmp::min(v, code_len)
+        std::cmp::min(v + 1, code_len)
     } else {
         code_len
     };
@@ -27,7 +27,7 @@ pub fn iterate_code(
         }
         let op = code[pc];
         let opi = op::info(op);
-        if pc + opi.size > pc_limit {
+        if pc + opi.size > code_len {
             return None;
         }
         let curpc = pc;
