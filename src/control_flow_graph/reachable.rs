@@ -10,8 +10,9 @@ pub fn get_reachable_nodes(
     initial_visited: Option<HashSet<usize>>,
 ) -> HashSet<usize> {
     let mut global_visited = initial_visited.unwrap_or_default();
+    let mut reachable = HashSet::default();
     loop {
-        let before = global_visited.len();
+        let before = reachable.len();
         let mut visited = HashSet::default();
         let mut queue = vec![from];
         while let Some(current) = queue.pop() {
@@ -53,12 +54,13 @@ pub fn get_reachable_nodes(
                 }
             }
         }
+        reachable.extend(&visited);
         global_visited.extend(visited);
-        if before == global_visited.len() {
+        if before == reachable.len() {
             break;
         }
     }
-    global_visited
+    reachable
 }
 
 #[cfg(test)]
