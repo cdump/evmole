@@ -32,6 +32,7 @@ impl<T: Clone> MemoryChunks<T> {
     ///
     /// This is analogous to a "load" operation on the memory layout itself,
     /// producing a new layout for a sub-region.
+    #[allow(dead_code)]
     pub fn load(&self, offset: u32, size: u32) -> MemoryChunks<T> {
         let offset = offset as usize;
         let load_end = offset + size as usize;
