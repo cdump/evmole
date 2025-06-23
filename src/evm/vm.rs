@@ -346,17 +346,22 @@ where
             }),
 
             op::MULMOD | op::ADDMOD => {
-                let s0 = self.stack.pop_uint()?;
-                let s1 = self.stack.pop_uint()?;
-                let s2 = self.stack.pop_uint()?;
-
+                let raws0 = self.stack.pop()?;
+                let raws1 = self.stack.pop()?;
+                let raws2 = self.stack.pop()?;
+                let s0: U256 = (&raws0).into();
+                let s1: U256 = (&raws1).into();
+                let s2: U256 = (&raws2).into();
                 self.stack.push_uint(if op == op::MULMOD {
                     s0.mul_mod(s1, s2)
                 } else {
                     s0.add_mod(s1, s2)
                 });
-
-                Ok(StepResult::new(op, 8))
+                let mut ret = StepResult::new(op, 8);
+                ret.args[0] = raws0;
+                ret.args[1] = raws1;
+                ret.exargs.push(raws2);
+                Ok(ret)
             }
 
             op::KECCAK256 => {
@@ -455,9 +460,10 @@ where
             }
 
             op::EXTCODESIZE | op::EXTCODEHASH => {
-                self.stack.pop()?;
+                let mut ret = StepResult::new(op, 100);
+                ret.args[0] = self.stack.pop()?;
                 self.stack.push_data(VAL_1_B);
-                Ok(StepResult::new(op, 100))
+                Ok(ret)
             }
 
             op::EXTCODECOPY => {
@@ -598,10 +604,16 @@ where
 
             op::LOG0..=op::LOG4 => {
                 let n = (op - op::LOG0) as u32;
-                for _ in 0..n + 2 {
-                    self.stack.pop()?;
+                let mut ret = StepResult::new(op, 375 * (n + 1));
+                self.stack.pop()?;
+                self.stack.pop()?;
+                if n > 0 {
+                    ret.args[0] = self.stack.pop()?;
+                    for _ in 0..n - 1 {
+                        self.stack.pop()?;
+                    }
                 }
-                Ok(StepResult::new(op, 375 * (n + 1)))
+                Ok(ret)
             }
 
             op::CREATE | op::CREATE2 => {
