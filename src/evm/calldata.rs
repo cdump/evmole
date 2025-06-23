@@ -11,7 +11,7 @@ pub trait CallData<T> {
 }
 
 /// Describes the type of data being labeled in the calldata.
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum CallDataLabelType {
     /// The label represents the offset to dynamic data.

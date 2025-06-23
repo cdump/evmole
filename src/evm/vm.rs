@@ -1,4 +1,4 @@
-use super::{I256, U256, calldata::CallData, element::Element, memory::Memory, op, stack::Stack};
+use super::{I256, U256, calldata::CallData, element::Element, memory::{Memory, MemoryChunks}, op, stack::Stack};
 use super::{VAL_0_B, VAL_1, VAL_1_B, VAL_1M_B, VAL_32, VAL_256, VAL_1024_B};
 use std::{error, fmt};
 
@@ -19,6 +19,7 @@ pub struct StepResult<T> {
     pub gas_used: u32,
     pub args: [Element<T>; 2],
     pub exargs: Vec<Element<T>>,
+    pub memory_load: Option<MemoryChunks<T>>, // for MLOAD & MCOPY
 }
 
 impl<T> StepResult<T> {
@@ -33,6 +34,7 @@ impl<T> StepResult<T> {
                 }
             }; 2],
             exargs: Vec::new(),
+            memory_load: None,
         }
     }
 }
@@ -524,16 +526,10 @@ where
                 let raws0 = self.stack.pop()?;
                 let s0: U256 = (&raws0).into();
                 let off: u32 = s0.try_into()?;
-                let (val, _used) = self.memory.load_element(off);
-                let mut ret = StepResult::new(op, 4);
-                ret.exargs = _used
-                    .into_iter()
-                    .map(|lb| Element {
-                        data: [0; 32],
-                        label: Some(lb),
-                    })
-                    .collect();
+                let (val, used) = self.memory.load_element(off);
                 self.stack.push(val);
+                let mut ret = StepResult::new(op, 4);
+                ret.memory_load = Some(used);
                 ret.args[0] = raws0;
                 Ok(ret)
             }
@@ -574,22 +570,28 @@ where
             }
 
             op::MCOPY => {
-                let dest_offset: u32 = self.stack.pop_uint()?.try_into()?;
+                let dest_offset = self.stack.pop()?;
+                let dest_offset_num: U256 = (&dest_offset).into();
+                let dest_offset_u32: u32 = dest_offset_num.try_into()?;
+
                 let offset: u32 = self.stack.pop_uint()?.try_into()?;
                 let size: u32 = self.stack.pop_uint()?.try_into()?;
                 if size > 512 {
                     return Err(UnsupportedOpError { op }.into());
                 }
-                let (data, labels) = self.memory.load(offset, size);
-                let label = if labels.len() == 1 {
-                    Some(labels[0].clone())
+
+                let (data, used) = self.memory.load(offset, size);
+                let label = if used.chunks.len() == 1 {
+                    Some(used.chunks[0].src_label.clone())
                 } else {
                     None
                 };
-                self.memory.store(dest_offset, data, label);
-
+                self.memory.store(dest_offset_u32, data, label);
                 let gas_used: u32 = 3 + 3 * size.div_ceil(32);
-                Ok(StepResult::new(op, gas_used))
+                let mut ret = StepResult::new(op, gas_used);
+                ret.memory_load = Some(used);
+                ret.args[0] = dest_offset;
+                Ok(ret)
             }
 
             op::GAS => {

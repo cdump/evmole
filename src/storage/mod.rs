@@ -496,6 +496,8 @@ fn analyze(
             if sz == 64 {
                 let (val, used) = vm.memory.load_element(off); // value
                 let (sval, sused) = vm.memory.load_element(off + 32); // slot
+                let used = used.chunks;
+                let sused = sused.chunks;
 
                 let mut depth = 0;
                 let mut first = Element {
@@ -507,14 +509,14 @@ fn analyze(
                     label: None,
                 };
                 if used.len() == 1 {
-                    let lb = used.first().unwrap().clone();
+                    let lb = used[0].src_label.clone();
                     if let Label::Keccak(d, _) = lb {
                         depth = d + 1;
                     }
                     first.label = Some(lb);
                 }
                 if sused.len() == 1 {
-                    let lb = sused.first().unwrap().clone();
+                    let lb = sused[0].src_label.clone();
                     if let Label::Keccak(d, _) = lb {
                         if d + 1 > depth {
                             depth = d + 1;
@@ -527,9 +529,10 @@ fn analyze(
                 }
             } else if sz == 32 {
                 let mut depth = 0;
-                let (mut val, _used) = vm.memory.load_element(off); // value
-                if _used.len() == 1 {
-                    let lb = _used.first().unwrap().clone();
+                let (mut val, used) = vm.memory.load_element(off); // value
+                let used = used.chunks;
+                if used.len() == 1 {
+                    let lb = used[0].src_label.clone();
                     if let Label::Keccak(d, _) = lb {
                         depth = d + 1;
                     }
