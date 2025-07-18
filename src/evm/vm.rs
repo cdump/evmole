@@ -421,7 +421,8 @@ where
                 let raws1 = self.stack.pop()?;
                 let src_off: U256 = (&raws1).into();
 
-                let size: U256 = self.stack.pop()?.into();
+                let raws2 = self.stack.pop()?;
+                let size: U256 = (&raws2).into();
 
                 let (data, label) = self.calldata.load(src_off, size)?;
                 self.memory.store(mem_off32, data, label);
@@ -429,6 +430,7 @@ where
                 let mut ret = StepResult::new(op, 4);
                 ret.args[0] = raws1; // calldata offset, like in CALLDATALOAD
                 ret.args[1] = raws0; // memory off
+                ret.exargs.push(raws2); // size
                 Ok(ret)
             }
 
