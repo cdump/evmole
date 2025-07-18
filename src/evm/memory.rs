@@ -77,7 +77,7 @@ impl<T: fmt::Debug> fmt::Debug for Memory<T> {
                 off,
                 val.data
                     .iter()
-                    .map(|x| format!("{:02x}", x))
+                    .map(|v| format!("{v:02x}"))
                     .collect::<Vec<_>>()
                     .join(""),
                 val.label

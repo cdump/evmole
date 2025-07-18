@@ -565,7 +565,7 @@ fn analyze_rec(
 
     while !vm.stopped {
         if cfg!(feature = "trace_storage") {
-            println!("{:?}\n", vm);
+            println!("{vm:?}\n");
             println!("storage: {:?}\n", st.loaded);
         }
         let ret = match vm.step() {
@@ -748,7 +748,7 @@ where
         ret.push(StorageRecord {
             slot,
             offset,
-            r#type: format!("{:?}", best_type),
+            r#type: format!("{best_type:?}"),
             reads: reads.into_iter().collect(),
             writes: writes.into_iter().collect(),
         })

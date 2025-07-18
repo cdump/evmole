@@ -11,7 +11,7 @@ fn input_to_bytes<'a>(code: &'a Bound<'a, PyAny>) -> PyResult<Cow<'a, [u8]>> {
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
 
         let v = hex::decode(str_slice)
-            .map_err(|e| PyValueError::new_err(format!("failed to parse hex: {}", e)))?;
+            .map_err(|e| PyValueError::new_err(format!("failed to parse hex: {e}")))?;
         Ok(Cow::Owned(v))
     } else if let Ok(b) = code.downcast::<PyBytes>() {
         Ok(Cow::Borrowed(b.as_bytes()))
@@ -229,10 +229,10 @@ mod evmole {
                     )
                 ),
                 self.disassembled.as_ref().map_or_else(|| "None".to_string(), |v|
-                    format!("{:?}", v)
+                    format!("{v:?}")
                 ),
                 self.basic_blocks.as_ref().map_or_else(|| "None".to_string(), |v|
-                    format!("{:?}", v)
+                    format!("{v:?}")
                 ),
                 self.control_flow_graph.as_ref().map_or_else(|| "None".to_string(), |v|
                     v.__repr__()

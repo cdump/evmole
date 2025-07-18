@@ -71,7 +71,7 @@ fn analyze_payable(
 
     while !vm.stopped {
         if cfg!(feature = "trace_mutability") {
-            println!("{:?}\n", vm);
+            println!("{vm:?}\n");
         }
         let ret = match vm.step() {
             Ok(v) => v,
@@ -156,7 +156,7 @@ fn analyze_view_pure_internal(
 
     while !vm.stopped && vpr.view {
         if cfg!(feature = "trace_mutability") {
-            println!("{:?}\n", vm);
+            println!("{vm:?}\n");
         }
         let ret = match vm.step() {
             Ok(v) => v,

@@ -197,7 +197,7 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
                     off += dyn_off - 32;
                 }
             }
-            _ => panic!("Unexpected type {:?}", ty),
+            _ => panic!("Unexpected type {ty:?}"),
         }
     }
 

@@ -668,10 +668,10 @@ pub fn function_arguments(
 
     while !vm.stopped {
         if cfg!(feature = "trace_arguments") {
-            println!("args: {:?}", args);
+            println!("args: {args:?}");
             println!("not_bool: {:?}", args.not_bool);
             println!("{:#?}", args.data);
-            println!("{:?}\n", vm);
+            println!("{vm:?}\n");
         }
         let ret = match vm.step() {
             Ok(v) => v,

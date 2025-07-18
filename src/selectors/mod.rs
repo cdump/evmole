@@ -191,7 +191,7 @@ fn process(
                     .map(|(s, p)| (hex::encode(s), *p))
                     .collect::<Vec<(String, usize)>>()
             );
-            println!("{:?}\n", vm);
+            println!("{vm:?}\n");
         }
         let ret = match vm.step() {
             Ok(v) => v,
