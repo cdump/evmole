@@ -1,4 +1,4 @@
-# EVMole
+![EVMole](./.github/logo.svg)
 
 [![try it online](https://img.shields.io/badge/Try_It_Online-evmole.xyz-brightgreen)](https://evmole.xyz/)
 [![npm](https://img.shields.io/npm/v/evmole)](https://www.npmjs.com/package/evmole)
