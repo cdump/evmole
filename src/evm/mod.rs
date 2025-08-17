@@ -1,12 +1,12 @@
 use alloy_primitives::uint;
 
 pub mod calldata;
+pub mod code_iterator;
 pub mod element;
 pub mod memory;
 pub mod op;
 pub mod stack;
 pub mod vm;
-pub mod code_iterator;
 
 pub use alloy_primitives::{I256, U256};
 

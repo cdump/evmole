@@ -1,11 +1,12 @@
 use std::{collections::BTreeMap, marker::PhantomData};
 
 use crate::{
+    DynSolType,
     evm::{
+        U256, VAL_131072,
         calldata::{CallData, CallDataLabel, CallDataLabelType},
         element::Element,
-        U256, VAL_131072,
-    }, DynSolType
+    },
 };
 use std::error;
 

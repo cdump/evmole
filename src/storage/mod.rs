@@ -2,13 +2,16 @@
 //! This code is in an experimental state and under active development.
 //! Code structure are subject to change.
 use crate::{
-    collections::HashMap, evm::{
+    DynSolType, Selector, Slot,
+    collections::HashMap,
+    evm::{
+        U256, VAL_1, VAL_1_B, VAL_32_B,
         calldata::{CallDataLabel, CallDataLabelType},
         element::Element,
         op,
         vm::{StepResult, Vm},
-        U256, VAL_1, VAL_1_B, VAL_32_B,
-    }, utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two}, DynSolType, Selector, Slot
+    },
+    utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two},
 };
 use std::{
     cell::RefCell,
@@ -37,11 +40,17 @@ pub struct StorageRecord {
     pub r#type: String,
 
     /// Function selectors that read from this storage location
-    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::serialize::vec_selector"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "crate::serialize::vec_selector")
+    )]
     pub reads: Vec<Selector>,
 
     /// Function selectors that write to this storage location
-    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::serialize::vec_selector"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "crate::serialize::vec_selector")
+    )]
     pub writes: Vec<Selector>,
 }
 
@@ -242,7 +251,28 @@ fn analyze(
         }
 
         StepResult {
-            op: op::ADD | op::MUL | op::SUB | op::DIV | op::SDIV | op::MOD | op::SMOD | op::EXP | op::SIGNEXTEND | op::LT | op::GT | op::SLT | op::SGT | op::EQ | op::AND | op::OR | op::XOR | op::BYTE | op::SHL | op::SHR | op::SAR,
+            op:
+                op::ADD
+                | op::MUL
+                | op::SUB
+                | op::DIV
+                | op::SDIV
+                | op::MOD
+                | op::SMOD
+                | op::EXP
+                | op::SIGNEXTEND
+                | op::LT
+                | op::GT
+                | op::SLT
+                | op::SGT
+                | op::EQ
+                | op::AND
+                | op::OR
+                | op::XOR
+                | op::BYTE
+                | op::SHL
+                | op::SHR
+                | op::SAR,
             args: [elabel!(Label::Constant), elabel!(Label::Constant), ..],
             ..
         } => {
@@ -376,7 +406,8 @@ fn analyze(
 
         StepResult {
             op: op::OR,
-            args: match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Typed(_)), ..} ),
+            args:
+                match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Typed(_)), ..} ),
             ..
         } => {
             sl.borrow_mut().last_or2 = Some(tt);
@@ -385,7 +416,8 @@ fn analyze(
 
         StepResult {
             op: op::OR,
-            args: match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Constant), ..} ),
+            args:
+                match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Constant), ..} ),
             ..
         } => {
             sl.borrow_mut().last_or2 = Some(tt);
@@ -402,7 +434,8 @@ fn analyze(
 
         StepResult {
             op: op::AND,
-            args: match_first_two!(elabel!(Label::Sloaded(sl)), ot @ Element{label: Some(Label::Constant), ..} ),
+            args:
+                match_first_two!(elabel!(Label::Sloaded(sl)), ot @ Element{label: Some(Label::Constant), ..} ),
             ..
         } => {
             let mask: U256 = ot.into();
@@ -468,7 +501,10 @@ fn analyze(
         } => {
             let mask: U256 = ot.into();
 
-            if mask > VAL_1 && (mask & (mask - VAL_1)).is_zero() && (mask.bit_len() - 1) % 8 == 0 {
+            if mask > VAL_1
+                && (mask & (mask - VAL_1)).is_zero()
+                && (mask.bit_len() - 1).is_multiple_of(8)
+            {
                 let nl = st.sload(Element {
                     data: sl.borrow().slot,
                     label: None,
@@ -517,10 +553,10 @@ fn analyze(
                 }
                 if sused.len() == 1 {
                     let lb = sused[0].src_label.clone();
-                    if let Label::Keccak(d, _) = lb {
-                        if d + 1 > depth {
-                            depth = d + 1;
-                        }
+                    if let Label::Keccak(d, _) = lb
+                        && d + 1 > depth
+                    {
+                        depth = d + 1;
                     }
                     second.label = Some(lb);
                 }
@@ -543,10 +579,10 @@ fn analyze(
 
                 let ustry = usize::try_from(&val);
                 vm.stack.peek_mut()?.label = Some(Label::Keccak(depth, vec![val]));
-                if let Ok(v) = ustry {
-                    if v < KEC_PRECALC.len() {
-                        vm.stack.peek_mut()?.data = KEC_PRECALC[v];
-                    }
+                if let Ok(v) = ustry
+                    && v < KEC_PRECALC.len()
+                {
+                    vm.stack.peek_mut()?.data = KEC_PRECALC[v];
                 }
             }
         }

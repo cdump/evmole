@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use alloy_primitives::hex;
-use serde::{ser::SerializeSeq, Serializer};
+use serde::{Serializer, ser::SerializeSeq};
 
-use crate::{control_flow_graph::Block, DynSolType, Selector, Slot, StateMutability};
+use crate::{DynSolType, Selector, Slot, StateMutability, control_flow_graph::Block};
 
 pub fn selector<S: Serializer>(val: &Selector, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str(&hex::encode(val))

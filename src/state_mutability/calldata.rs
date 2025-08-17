@@ -1,5 +1,5 @@
 use super::Label;
-use crate::evm::{calldata::CallData, element::Element, U256, VAL_4, VAL_131072};
+use crate::evm::{U256, VAL_4, VAL_131072, calldata::CallData, element::Element};
 use std::error;
 
 pub(super) struct CallDataImpl {

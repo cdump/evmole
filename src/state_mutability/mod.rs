@@ -1,12 +1,12 @@
 use crate::{
+    Selector, StateMutability,
     evm::{
+        U256, VAL_0_B,
         element::Element,
         op,
         vm::{StepResult, Vm},
-        U256, VAL_0_B,
     },
     utils::{elabel, execute_until_function_start},
-    Selector, StateMutability,
 };
 
 mod calldata;

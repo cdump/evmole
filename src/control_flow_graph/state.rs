@@ -1,5 +1,5 @@
 use crate::evm::{
-    code_iterator::{iterate_code, CodeOp},
+    code_iterator::{CodeOp, iterate_code},
     op,
 };
 
@@ -87,9 +87,7 @@ impl State {
             .stack
             .iter()
             .enumerate()
-            .take_while(|(pos, el)| {
-                matches!(el, StackSym::Before(nb) if *nb + pos == base_before)
-            })
+            .take_while(|(pos, el)| matches!(el, StackSym::Before(nb) if *nb + pos == base_before))
             .count();
 
         if prefix_len > 1 {
@@ -98,7 +96,12 @@ impl State {
         r
     }
 
-    fn real_exec(&mut self, code: &[u8], start_pc: usize, end_pc: Option<usize>) -> Option<StackSym> {
+    fn real_exec(
+        &mut self,
+        code: &[u8],
+        start_pc: usize,
+        end_pc: Option<usize>,
+    ) -> Option<StackSym> {
         for (pc, CodeOp { op, opi, .. }) in iterate_code(code, start_pc, end_pc) {
             // eprintln!("{} | {:?}", pc, opi);
             // Ensure the stack has at least (stack_in + 1) entries (the extra one preserves the initial Before)

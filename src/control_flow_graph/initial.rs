@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::collections::HashSet;
 
 use crate::evm::{
-    code_iterator::{iterate_code, CodeOp},
+    code_iterator::{CodeOp, iterate_code},
     op,
 };
 

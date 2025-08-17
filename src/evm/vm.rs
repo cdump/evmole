@@ -1,4 +1,11 @@
-use super::{I256, U256, calldata::CallData, element::Element, memory::{Memory, MemoryChunks}, op, stack::Stack};
+use super::{
+    I256, U256,
+    calldata::CallData,
+    element::Element,
+    memory::{Memory, MemoryChunks},
+    op,
+    stack::Stack,
+};
 use super::{VAL_0_B, VAL_1, VAL_1_B, VAL_1M_B, VAL_32, VAL_256, VAL_1024_B};
 use std::{error, fmt};
 
@@ -165,13 +172,13 @@ where
                     let s1 = self.stack.pop_uint()?;
                     if s1.is_zero() {
                         self.pc += 1;
-                        if let Ok(other_pc) = cres {
-                            if other_pc < self.code.len() {
-                                ret.args[0] = Element {
-                                    data: s0.to_be_bytes(),
-                                    label: None,
-                                };
-                            }
+                        if let Ok(other_pc) = cres
+                            && other_pc < self.code.len()
+                        {
+                            ret.args[0] = Element {
+                                data: s0.to_be_bytes(),
+                                label: None,
+                            };
                         }
                         return Ok(ret);
                     } else {

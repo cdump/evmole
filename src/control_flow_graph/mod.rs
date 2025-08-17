@@ -92,10 +92,7 @@ pub enum BlockType {
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 /// Control flow graph representing the structure and flow of EVM bytecode
 pub struct ControlFlowGraph {
-    #[cfg_attr(
-        feature = "serde",
-        serde(serialize_with = "crate::serialize::blocks")
-    )]
+    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::serialize::blocks"))]
     /// Map of block start offsets to their corresponding blocks
     pub blocks: BTreeMap<usize, Block>,
 }
@@ -104,7 +101,10 @@ pub(crate) fn basic_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
     initial_blocks(code)
 }
 
-pub(crate) fn control_flow_graph(code: &[u8], mut blocks: BTreeMap<usize, Block>) -> ControlFlowGraph {
+pub(crate) fn control_flow_graph(
+    code: &[u8],
+    mut blocks: BTreeMap<usize, Block>,
+) -> ControlFlowGraph {
     blocks = resolve_dynamic_jumps(code, blocks);
 
     // Blocks reachable from start (pc=0)

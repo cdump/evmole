@@ -1,19 +1,16 @@
 use crate::{
+    DynSolType, Selector,
+    collections::HashSet,
     evm::{
+        U256, VAL_0_B, VAL_1, VAL_1_B, VAL_32_B,
         element::Element,
         op,
         vm::{StepResult, Vm},
-        U256, VAL_0_B, VAL_1, VAL_1_B, VAL_32_B,
     },
-    collections::HashSet,
     utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two},
-    DynSolType, Selector,
 };
 use alloy_primitives::uint;
-use std::{
-    cmp::max,
-    collections::BTreeMap,
-};
+use std::{cmp::max, collections::BTreeMap};
 
 mod calldata;
 use calldata::CallDataImpl;
@@ -57,10 +54,10 @@ impl Info {
                 if let Some(InfoVal::Array(0)) | Some(InfoVal::Dynamic(1)) | None = self.tinfo {
                     return vec![name.clone()];
                 }
-            } else if self.children.is_empty() {
-                if let Some(InfoVal::Dynamic(_)) | None = self.tinfo {
-                    return vec![name.clone()];
-                }
+            } else if self.children.is_empty()
+                && let Some(InfoVal::Dynamic(_)) | None = self.tinfo
+            {
+                return vec![name.clone()];
             }
         }
 
@@ -150,12 +147,10 @@ impl ArgsResult {
     fn mark_not_bool(&mut self, path: &[u32], offset: u32) {
         let full_path = [path, &[offset]].concat();
 
-        if let Some(el) = self.get_mut(&full_path) {
-            if let Some((v, _)) = &mut el.tname {
-                if matches!(v, DynSolType::Bool) {
-                    el.tname = None;
-                }
-            }
+        if let Some(el) = self.get_mut(&full_path)
+            && let Some((DynSolType::Bool, _)) = &mut el.tname
+        {
+            el.tname = None;
         }
 
         self.not_bool.insert(full_path);
@@ -169,10 +164,10 @@ impl ArgsResult {
         }
 
         let el = self.get_or_create(&full_path);
-        if let Some((_, conf)) = el.tname {
-            if confidence <= conf {
-                return;
-            }
+        if let Some((_, conf)) = el.tname
+            && confidence <= conf
+        {
+            return;
         }
         el.tname = Some((tname, confidence));
     }
@@ -205,13 +200,12 @@ impl ArgsResult {
             };
         }
 
-        if let Some(InfoVal::Array(p)) = el.tinfo {
-            if let InfoVal::Array(n) = tinfo {
-                if n < p {
-                    return;
-                }
-            };
-        }
+        if let Some(InfoVal::Array(p)) = el.tinfo
+            && let InfoVal::Array(n) = tinfo
+            && n < p
+        {
+            return;
+        };
         el.tinfo = Some(tinfo);
     }
 }
@@ -225,12 +219,16 @@ fn analyze(
         StepResult {
             op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),
             args:
-                [elabel!(Label::Arg(Val {
-                    offset,
-                    path,
-                    add_val,
-                    ..
-                })), sa, ..],
+                [
+                    elabel!(Label::Arg(Val {
+                        offset,
+                        path,
+                        add_val,
+                        ..
+                    })),
+                    sa,
+                    ..,
+                ],
             ..
         } => {
             if add_val >= 4 && (add_val - 4) % 32 == 0 {
@@ -294,28 +292,28 @@ fn analyze(
             args: [el, sa, ..],
             ..
         } => {
-            if let Ok(off) = u32::try_from(el) {
-                if (4..131072 - 1024).contains(&off) {
-                    // 131072 is constant from ./calldata.rs
-                    // -1024: cut 'trustedForwarder'
-                    args.get_or_create(&[off - 4]);
+            if let Ok(off) = u32::try_from(el)
+                && (4..131072 - 1024).contains(&off)
+            {
+                // 131072 is constant from ./calldata.rs
+                // -1024: cut 'trustedForwarder'
+                args.get_or_create(&[off - 4]);
 
-                    let new_label = Some(Label::Arg(Val {
-                        offset: off - 4,
-                        path: Vec::new(),
-                        add_val: 0,
-                        and_mask: None,
-                    }));
-                    match op {
-                        op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
-                        op::CALLDATACOPY => {
-                            let mem_offset = u32::try_from(sa).expect("set as u32 in vm.rs");
-                            if let Some(v) = vm.memory.get_mut(mem_offset) {
-                                v.label = new_label;
-                            }
+                let new_label = Some(Label::Arg(Val {
+                    offset: off - 4,
+                    path: Vec::new(),
+                    add_val: 0,
+                    and_mask: None,
+                }));
+                match op {
+                    op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
+                    op::CALLDATACOPY => {
+                        let mem_offset = u32::try_from(sa).expect("set as u32 in vm.rs");
+                        if let Some(v) = vm.memory.get_mut(mem_offset) {
+                            v.label = new_label;
                         }
-                        _ => (),
                     }
+                    _ => (),
                 }
             }
         }
@@ -323,17 +321,21 @@ fn analyze(
         StepResult {
             op: op::ADD,
             args:
-                [elabel!(Label::Arg(Val {
-                    offset: f_offset,
-                    path: f_path,
-                    add_val: f_add_val,
-                    and_mask: f_and_mask,
-                })), elabel!(Label::Arg(Val {
-                    offset: s_offset,
-                    path: s_path,
-                    add_val: s_add_val,
-                    and_mask: s_and_mask,
-                })), ..],
+                [
+                    elabel!(Label::Arg(Val {
+                        offset: f_offset,
+                        path: f_path,
+                        add_val: f_add_val,
+                        and_mask: f_and_mask,
+                    })),
+                    elabel!(Label::Arg(Val {
+                        offset: s_offset,
+                        path: s_path,
+                        add_val: s_add_val,
+                        and_mask: s_and_mask,
+                    })),
+                    ..,
+                ],
             ..
         } => {
             args.mark_not_bool(&f_path, f_offset);
@@ -409,12 +411,16 @@ fn analyze(
         | StepResult {
             op: op @ op::SHL,
             args:
-                [ot, elabel!(Label::Arg(Val {
-                    offset: 0,
-                    path,
-                    add_val: 0,
-                    ..
-                })), ..],
+                [
+                    ot,
+                    elabel!(Label::Arg(Val {
+                        offset: 0,
+                        path,
+                        add_val: 0,
+                        ..
+                    })),
+                    ..,
+                ],
             ..
         } => {
             args.mark_not_bool(&path, 0);
@@ -448,29 +454,34 @@ fn analyze(
 
                     _ => {
                         let otr: Result<u32, _> = mult.try_into();
-                        if let Ok(m) = otr {
-                            if m % 32 == 0 && (32..3200).contains(&m) {
-                                args.set_info(&path, InfoVal::Array(m / 32));
+                        if let Ok(m) = otr
+                            && m % 32 == 0
+                            && (32..3200).contains(&m)
+                        {
+                            args.set_info(&path, InfoVal::Array(m / 32));
 
-                                for el in vm.stack.data.iter_mut() {
-                                    if let Some(Label::Arg(lab)) = &el.label {
-                                        if lab.offset == 0 && lab.path == path && lab.add_val == 0 {
-                                            el.data = VAL_1_B;
-                                        }
-                                    }
+                            for el in vm.stack.data.iter_mut() {
+                                if let Some(Label::Arg(lab)) = &el.label
+                                    && lab.offset == 0
+                                    && lab.path == path
+                                    && lab.add_val == 0
+                                {
+                                    el.data = VAL_1_B;
                                 }
-
-                                for el in vm.memory.data.iter_mut() {
-                                    if let Some(Label::Arg(lab)) = &el.1.label {
-                                        if lab.offset == 0 && lab.path == path && lab.add_val == 0 {
-                                            el.1.data = VAL_1_B.to_vec();
-                                        }
-                                    }
-                                }
-
-                                // simulate arglen = 1
-                                vm.stack.peek_mut()?.data = mult.to_be_bytes();
                             }
+
+                            for el in vm.memory.data.iter_mut() {
+                                if let Some(Label::Arg(lab)) = &el.1.label
+                                    && lab.offset == 0
+                                    && lab.path == path
+                                    && lab.add_val == 0
+                                {
+                                    el.1.data = VAL_1_B.to_vec();
+                                }
+                            }
+
+                            // simulate arglen = 1
+                            vm.stack.peek_mut()?.data = mult.to_be_bytes();
                         }
                     }
                 }
@@ -481,23 +492,31 @@ fn analyze(
         StepResult {
             op: op::LT,
             args:
-                [ot, elabel!(Label::Arg(Val {
-                    offset: 0,
-                    path,
-                    add_val: 0,
-                    and_mask: None,
-                })), ..],
+                [
+                    ot,
+                    elabel!(Label::Arg(Val {
+                        offset: 0,
+                        path,
+                        add_val: 0,
+                        and_mask: None,
+                    })),
+                    ..,
+                ],
             ..
         }
         | StepResult {
             op: op::GT,
             args:
-                [elabel!(Label::Arg(Val {
-                    offset: 0,
-                    path,
-                    add_val: 0,
-                    and_mask: None,
-                })), ot, ..],
+                [
+                    elabel!(Label::Arg(Val {
+                        offset: 0,
+                        path,
+                        add_val: 0,
+                        and_mask: None,
+                    })),
+                    ot,
+                    ..,
+                ],
             ..
         } => {
             args.mark_not_bool(&path, 0);
@@ -561,10 +580,12 @@ fn analyze(
                 ),
             ..
         } => {
-            if (s_offset == offset) && (s_path == path) && (s_add_val == add_val) {
-                if let Some(t) = and_mask_to_type(mask) {
-                    args.set_tname(&path, offset, t, 20);
-                }
+            if (s_offset == offset)
+                && (s_path == path)
+                && (s_add_val == add_val)
+                && let Some(t) = and_mask_to_type(mask)
+            {
+                args.set_tname(&path, offset, t, 20);
             }
         }
 
@@ -637,11 +658,7 @@ fn analyze(
 /// * `selector` - A function selector
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
 /// ```
-pub fn function_arguments(
-    code: &[u8],
-    selector: &Selector,
-    gas_limit: u32,
-) -> Vec<DynSolType> {
+pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> Vec<DynSolType> {
     if cfg!(feature = "trace_arguments") {
         println!(
             "Processing selector {:02x}{:02x}{:02x}{:02x}",

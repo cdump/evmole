@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use crate::collections::{HashMap, HashSet, IndexMap};
 
 use super::{
+    Block, BlockType, DynamicJump,
     reachable::get_reachable_nodes,
     state::{StackSym, State},
-    Block, BlockType, DynamicJump,
 };
 
 #[derive(Default)]
@@ -53,7 +53,14 @@ impl RevIdx {
     /// Returns true if the path was new
     fn insert_path_parent(&mut self, to: usize, path: &[usize], state: State) -> bool {
         let ls = path[path.len() - 1];
-        assert!(self.reachable0.contains(&ls), "last element not reachable: r0={:?} ls={} to={} path={:?}", self.reachable0, ls, to, path);
+        assert!(
+            self.reachable0.contains(&ls),
+            "last element not reachable: r0={:?} ls={} to={} path={:?}",
+            self.reachable0,
+            ls,
+            to,
+            path
+        );
 
         self.reachable0.insert(to);
 
@@ -76,14 +83,16 @@ impl RevIdx {
     /// Returns the parent paths for a given destination that end in reachable nodes
     fn get_parents(&self, to: usize) -> Vec<(Vec<usize>, State)> {
         if let Some(m) = self.parents.get(&to) {
-            m.iter().filter_map(|(path, state)| {
-                if self.reachable0.contains(&path[path.len() - 1]) {
-                    Some((path.clone(), state.clone()))
-                } else {
-                    // eprintln!("no for {} {:?}", to, p);
-                    None
-                }
-            }).collect()
+            m.iter()
+                .filter_map(|(path, state)| {
+                    if self.reachable0.contains(&path[path.len() - 1]) {
+                        Some((path.clone(), state.clone()))
+                    } else {
+                        // eprintln!("no for {} {:?}", to, p);
+                        None
+                    }
+                })
+                .collect()
         } else {
             Vec::new()
         }
@@ -112,7 +121,13 @@ impl RevIdx {
 
 /// Recursively explores dynamic jump paths starting from a given path
 /// Returns vector for dynamic jumps and energy used
-fn resolve_dynamic_jump_path(rev_idx: &mut RevIdx, path: Vec<usize>, stack_pos: usize, state: State, energy_limit: usize) -> (Vec<DynamicJump>, usize) {
+fn resolve_dynamic_jump_path(
+    rev_idx: &mut RevIdx,
+    path: Vec<usize>,
+    stack_pos: usize,
+    state: State,
+    energy_limit: usize,
+) -> (Vec<DynamicJump>, usize) {
     const MAX_PATH_LEN: usize = 256;
     assert!(path.len() <= MAX_PATH_LEN);
 
@@ -157,7 +172,13 @@ fn resolve_dynamic_jump_path(rev_idx: &mut RevIdx, path: Vec<usize>, stack_pos: 
         match jump_sym {
             StackSym::Before(new_stack_pos) => {
                 // eprintln!("before {} from {:?}", b, newpath);
-                let (jumps, used) = resolve_dynamic_jump_path(rev_idx, new_path, new_stack_pos, new_state, energy_limit - energy_used);
+                let (jumps, used) = resolve_dynamic_jump_path(
+                    rev_idx,
+                    new_path,
+                    new_stack_pos,
+                    new_state,
+                    energy_limit - energy_used,
+                );
                 energy_used += used;
                 dynamic_jumps.extend(jumps);
             }
@@ -185,7 +206,6 @@ fn resolve_dynamic_jump_path(rev_idx: &mut RevIdx, path: Vec<usize>, stack_pos: 
     (dynamic_jumps, energy_used)
 }
 
-
 /// Resolves dynamic jumps for the given code and basic blocks by recursively exploring
 /// possible execution paths.
 ///
@@ -203,8 +223,10 @@ fn resolve_dynamic_jump_path(rev_idx: &mut RevIdx, path: Vec<usize>, stack_pos: 
 ///
 /// # Returns
 /// An updated `BTreeMap` with resolved jump targets.
-pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) -> BTreeMap<usize, Block> {
-
+pub fn resolve_dynamic_jumps(
+    code: &[u8],
+    mut blocks: BTreeMap<usize, Block>,
+) -> BTreeMap<usize, Block> {
     // Map block start addresses to the initial stack position extracted from the block.
     let mut stack_pos: Vec<(usize, usize)> = Vec::default();
 
@@ -213,20 +235,24 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
 
     // First stage resolve
     for block in blocks.values_mut() {
-        if !matches!(block.btype, BlockType::DynamicJump{..} | BlockType::DynamicJumpi{..}) {
-            continue
+        if !matches!(
+            block.btype,
+            BlockType::DynamicJump { .. } | BlockType::DynamicJumpi { .. }
+        ) {
+            continue;
         }
         let mut state = State::new();
         match state.exec(code, block.start, None) {
-            Some(StackSym::Jumpdest(to)) => {
-                match block.btype {
-                    BlockType::DynamicJump{..} => block.btype = BlockType::Jump{to},
-                    BlockType::DynamicJumpi{false_to, ..} => {
-                        block.btype = BlockType::Jumpi{true_to: to, false_to}
+            Some(StackSym::Jumpdest(to)) => match block.btype {
+                BlockType::DynamicJump { .. } => block.btype = BlockType::Jump { to },
+                BlockType::DynamicJumpi { false_to, .. } => {
+                    block.btype = BlockType::Jumpi {
+                        true_to: to,
+                        false_to,
                     }
-                    _ => unreachable!("unexpected block type"),
                 }
-            }
+                _ => unreachable!("unexpected block type"),
+            },
             Some(StackSym::Before(new_stack_pos)) => {
                 stack_pos.push((block.start, new_stack_pos));
             }
@@ -235,23 +261,22 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
         rev_idx.insert_state(block.start, state);
     }
 
-
     // Build direct parent relationships from known static jump targets.
     for block in blocks.values() {
         let state = rev_idx.get_state(code, block.start);
         match block.btype {
-            BlockType::Jump{to} => {
+            BlockType::Jump { to } => {
                 let state = state.to_owned();
                 rev_idx.insert_direct_parent(to, block.start, state);
             }
-            BlockType::Jumpi{true_to, false_to} => {
+            BlockType::Jumpi { true_to, false_to } => {
                 let state = state.to_owned();
                 rev_idx.insert_direct_parent(true_to, block.start, state.clone());
                 rev_idx.insert_direct_parent(false_to, block.start, state);
             }
-            BlockType::Terminate{..} => {}
-            BlockType::DynamicJump{..} => {} // empty at this point
-            BlockType::DynamicJumpi{false_to, ..} => {
+            BlockType::Terminate { .. } => {}
+            BlockType::DynamicJump { .. } => {} // empty at this point
+            BlockType::DynamicJumpi { false_to, .. } => {
                 let state = state.to_owned();
                 rev_idx.insert_direct_parent(false_to, block.start, state);
             }
@@ -277,16 +302,24 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
             }
 
             let state = rev_idx.get_state(code, *start).to_owned();
-            let (jumps, energy_used) = resolve_dynamic_jump_path(&mut rev_idx, vec![*start], *stack_pos, state, ENERGY_LIMIT - total_energy_used);
+            let (jumps, energy_used) = resolve_dynamic_jump_path(
+                &mut rev_idx,
+                vec![*start],
+                *stack_pos,
+                state,
+                ENERGY_LIMIT - total_energy_used,
+            );
             total_energy_used += energy_used;
 
             if !jumps.is_empty() {
                 found_new_paths = true;
                 match blocks.get_mut(start).unwrap().btype {
-                    BlockType::DynamicJump{ref mut to} => {
+                    BlockType::DynamicJump { ref mut to } => {
                         to.extend(jumps);
                     }
-                    BlockType::DynamicJumpi{ref mut true_to, ..} => {
+                    BlockType::DynamicJumpi {
+                        ref mut true_to, ..
+                    } => {
                         true_to.extend(jumps);
                     }
                     _ => unreachable!("unexpected block type"),
@@ -303,16 +336,17 @@ pub fn resolve_dynamic_jumps(code: &[u8], mut blocks: BTreeMap<usize, Block>) ->
     for (start, _) in stack_pos {
         let mut one_to = None;
 
-        if let BlockType::DynamicJump{to: ref dj} = blocks.get(&start).unwrap().btype {
-            if !dj.is_empty() && dj.iter().all(|v| v.to.is_some()) {
-                let first_to = dj[0].to;
-                if dj.iter().all(|v| v.to == first_to) {
-                    one_to = Some(first_to.unwrap());
-                }
+        if let BlockType::DynamicJump { to: ref dj } = blocks.get(&start).unwrap().btype
+            && !dj.is_empty()
+            && dj.iter().all(|v| v.to.is_some())
+        {
+            let first_to = dj[0].to;
+            if dj.iter().all(|v| v.to == first_to) {
+                one_to = Some(first_to.unwrap());
             }
         }
         if let Some(to) = one_to {
-            blocks.get_mut(&start).unwrap().btype = BlockType::Jump{to};
+            blocks.get_mut(&start).unwrap().btype = BlockType::Jump { to };
         }
     }
 

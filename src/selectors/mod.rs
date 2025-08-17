@@ -100,12 +100,12 @@ fn analyze(
         } => {
             if op == op::AND && ot.data == VAL_FFFFFFFF_B {
                 vm.stack.peek_mut()?.label = Some(Label::Signature);
-            } else if let Ok(ma) = u8::try_from(ot) {
-                if ma < u8::MAX {
-                    let to = if op == op::MOD { ma } else { ma + 1 };
-                    vm.stack.peek_mut()?.data = VAL_0_B;
-                    return Ok(to);
-                }
+            } else if let Ok(ma) = u8::try_from(ot)
+                && ma < u8::MAX
+            {
+                let to = if op == op::MOD { ma } else { ma + 1 };
+                vm.stack.peek_mut()?.data = VAL_0_B;
+                return Ok(to);
             }
         }
 
@@ -158,7 +158,11 @@ fn analyze(
             ..
         } => {
             let v = vm.stack.peek_mut()?;
-            if memory_load.chunks.iter().any(|e| e.src_label == Label::CallData) {
+            if memory_load
+                .chunks
+                .iter()
+                .any(|e| e.src_label == Label::CallData)
+            {
                 v.label = Some(if v.data[28..32] == vm.calldata.selector() {
                     Label::Signature
                 } else {

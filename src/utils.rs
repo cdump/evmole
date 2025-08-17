@@ -1,6 +1,6 @@
 use crate::{
-    evm::{calldata::CallData, op, vm::Vm, U256, VAL_0_B, VAL_1, VAL_1_B},
     DynSolType,
+    evm::{U256, VAL_0_B, VAL_1, VAL_1_B, calldata::CallData, op, vm::Vm},
 };
 
 macro_rules! match_first_two {
@@ -79,7 +79,7 @@ pub fn and_mask_to_type(mask: U256) -> Option<DynSolType> {
     }
 
     // Helper function to check if bit length is byte-aligned
-    let is_byte_aligned = |bits: usize| bits % BITS_PER_BYTE == 0;
+    let is_byte_aligned = |bits: usize| bits.is_multiple_of(BITS_PER_BYTE);
 
     // Check for right-aligned mask pattern (0x0000ffff)
     if (mask & (mask + VAL_1)).is_zero() {

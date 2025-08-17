@@ -79,7 +79,10 @@ mod tests {
     fn test_simple_jump() {
         let mut blocks = BTreeMap::new();
         blocks.insert(0, create_basic_block(BlockType::Jump { to: 1 }));
-        blocks.insert(1, create_basic_block(BlockType::Terminate { success: false }));
+        blocks.insert(
+            1,
+            create_basic_block(BlockType::Terminate { success: false }),
+        );
 
         let reachable = get_reachable_nodes(&blocks, 0, None);
         assert_eq!(reachable, HashSet::from_iter([0, 1]));
@@ -88,9 +91,21 @@ mod tests {
     #[test]
     fn test_conditional_jump() {
         let mut blocks = BTreeMap::new();
-        blocks.insert(0, create_basic_block(BlockType::Jumpi { true_to: 1, false_to: 2 }));
-        blocks.insert(1, create_basic_block(BlockType::Terminate { success: false }));
-        blocks.insert(2, create_basic_block(BlockType::Terminate { success: false }));
+        blocks.insert(
+            0,
+            create_basic_block(BlockType::Jumpi {
+                true_to: 1,
+                false_to: 2,
+            }),
+        );
+        blocks.insert(
+            1,
+            create_basic_block(BlockType::Terminate { success: false }),
+        );
+        blocks.insert(
+            2,
+            create_basic_block(BlockType::Terminate { success: false }),
+        );
 
         let reachable = get_reachable_nodes(&blocks, 0, None);
         assert_eq!(reachable, HashSet::from_iter([0, 1, 2]));
@@ -101,14 +116,29 @@ mod tests {
         use super::super::DynamicJump;
 
         let mut blocks = BTreeMap::new();
-        blocks.insert(0, create_basic_block(BlockType::DynamicJump {
-            to: vec![
-                DynamicJump { to: Some(1), path: vec![0] },
-                DynamicJump { to: Some(2), path: vec![0] },
-            ]
-        }));
-        blocks.insert(1, create_basic_block(BlockType::Terminate { success: false }));
-        blocks.insert(2, create_basic_block(BlockType::Terminate { success: false }));
+        blocks.insert(
+            0,
+            create_basic_block(BlockType::DynamicJump {
+                to: vec![
+                    DynamicJump {
+                        to: Some(1),
+                        path: vec![0],
+                    },
+                    DynamicJump {
+                        to: Some(2),
+                        path: vec![0],
+                    },
+                ],
+            }),
+        );
+        blocks.insert(
+            1,
+            create_basic_block(BlockType::Terminate { success: false }),
+        );
+        blocks.insert(
+            2,
+            create_basic_block(BlockType::Terminate { success: false }),
+        );
 
         let reachable = get_reachable_nodes(&blocks, 0, None);
         assert_eq!(reachable, HashSet::from_iter([0, 1, 2]));

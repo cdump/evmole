@@ -1,13 +1,13 @@
+use crate::{DynSolType, Selector, StateMutability, StorageRecord};
 use crate::{
     arguments::function_arguments,
     control_flow_graph::basic_blocks,
-    control_flow_graph::{control_flow_graph, ControlFlowGraph},
+    control_flow_graph::{ControlFlowGraph, control_flow_graph},
     evm::code_iterator::disassemble,
     selectors::function_selectors,
     state_mutability::function_state_mutability,
     storage::contract_storage,
 };
-use crate::{DynSolType, Selector, StateMutability, StorageRecord};
 
 /// Represents a public smart contract function
 #[derive(Debug)]

@@ -216,27 +216,35 @@ mod evmole {
         fn __repr__(&self) -> String {
             format!(
                 "Contract(functions={}, storage={}, disassembled={}, basic_blocks={}, control_flow_graph={})",
-                self.functions.as_ref().map_or_else(||  "None".to_string(), |v|
-                    format!(
+                self.functions.as_ref().map_or_else(
+                    || "None".to_string(),
+                    |v| format!(
                         "[{}]",
-                        v.iter().map(|v| v.__repr__()).collect::<Vec<_>>().join(", ")
+                        v.iter()
+                            .map(|v| v.__repr__())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     )
                 ),
-                self.storage.as_ref().map_or_else(|| "None".to_string(), |v|
-                    format!(
+                self.storage.as_ref().map_or_else(
+                    || "None".to_string(),
+                    |v| format!(
                         "[{}]",
-                        v.iter().map(|v| v.__repr__()).collect::<Vec<_>>().join(", ")
+                        v.iter()
+                            .map(|v| v.__repr__())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     )
                 ),
-                self.disassembled.as_ref().map_or_else(|| "None".to_string(), |v|
-                    format!("{v:?}")
-                ),
-                self.basic_blocks.as_ref().map_or_else(|| "None".to_string(), |v|
-                    format!("{v:?}")
-                ),
-                self.control_flow_graph.as_ref().map_or_else(|| "None".to_string(), |v|
-                    v.__repr__()
-                ),
+                self.disassembled
+                    .as_ref()
+                    .map_or_else(|| "None".to_string(), |v| format!("{v:?}")),
+                self.basic_blocks
+                    .as_ref()
+                    .map_or_else(|| "None".to_string(), |v| format!("{v:?}")),
+                self.control_flow_graph
+                    .as_ref()
+                    .map_or_else(|| "None".to_string(), |v| v.__repr__()),
             )
         }
     }
@@ -320,9 +328,7 @@ mod evmole {
                     start: bl.start,
                     end: bl.end,
                     btype: match bl.btype {
-                        BlockType::Terminate { success } => {
-                            PyBlockType::Terminate { success }
-                        }
+                        BlockType::Terminate { success } => PyBlockType::Terminate { success },
                         BlockType::Jump { to } => PyBlockType::Jump { to },
                         BlockType::Jumpi { true_to, false_to } => {
                             PyBlockType::Jumpi { true_to, false_to }

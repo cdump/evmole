@@ -10,10 +10,10 @@ pub struct CodeOp<'a> {
 }
 
 pub fn iterate_code(
-    code: &[u8],
+    code: &'_ [u8],
     start_pc: usize,
     end_pc: Option<usize>, // Start pc of the last instruction to include
-) -> impl Iterator<Item = (usize, CodeOp)> {
+) -> impl Iterator<Item = (usize, CodeOp<'_>)> {
     let mut pc = start_pc;
     let code_len = code.len();
     let pc_limit = if let Some(v) = end_pc {
