@@ -13,6 +13,7 @@ pub struct Memory<T> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MemoryChunk<T> {
     pub dst_range: Range<usize>,
     pub src_range: Range<usize>,
@@ -20,6 +21,7 @@ pub struct MemoryChunk<T> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct MemoryChunks<T> {
     pub chunks: Vec<MemoryChunk<T>>,
 
