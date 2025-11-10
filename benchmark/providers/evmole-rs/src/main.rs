@@ -10,7 +10,9 @@ use clap::{Parser, ValueEnum};
 #[derive(serde::Deserialize)]
 struct Input {
     code: Option<String>,
-    runtimeBytecode: Option<String>,
+
+    #[serde(rename = "runtimeBytecode")]
+    runtime_bytecode: Option<String>,
 }
 
 #[derive(ValueEnum, Clone, PartialEq)]
@@ -86,8 +88,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let code = {
             let file_content = fs::read_to_string(path)?;
             let v: Input = serde_json::from_str(&file_content)?;
-            let code = if v.runtimeBytecode.is_some() {
-                v.runtimeBytecode.unwrap()
+            let code = if v.runtime_bytecode.is_some() {
+                v.runtime_bytecode.unwrap()
             } else {
                 v.code.unwrap()
             };
