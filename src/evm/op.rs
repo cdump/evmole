@@ -64,6 +64,7 @@ declare_opcodes![
     (0x1B, SHL, 1, 2, 1),
     (0x1C, SHR, 1, 2, 1),
     (0x1D, SAR, 1, 2, 1),
+    (0x1E, CLZ, 1, 1, 1),
     (0x20, KECCAK256, 1, 2, 1),
     (0x30, ADDRESS, 1, 0, 1),
     (0x31, BALANCE, 1, 1, 1),

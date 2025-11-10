@@ -322,6 +322,12 @@ where
                 Ok(ret)
             }
 
+            op::CLZ => {
+                let v = self.stack.pop_uint()?;
+                self.stack.push_uint(U256::from(v.leading_zeros()));
+                Ok(StepResult::new(op, 5))
+            }
+
             op::BYTE => self.bop(op, |_, s0, raws1, _| {
                 (3, {
                     if s0 >= VAL_32 {
@@ -694,6 +700,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloy_primitives::uint;
+
     use super::*;
 
     #[derive(Clone)]
@@ -717,6 +725,50 @@ mod tests {
 
         fn len(&self) -> U256 {
             U256::ZERO
+        }
+    }
+
+    #[test]
+    fn test_unary() {
+        let mut vm = Vm::new(&[], &DummyCallData {});
+        let cases = [
+            (
+                uint!(0x000000000000000000000000000000000000000000000000000000000000000_U256),
+                op::CLZ,
+                uint!(0x0000000000000000000000000000000000000000000000000000000000000100_U256),
+            ),
+            (
+                uint!(0x8000000000000000000000000000000000000000000000000000000000000000_U256),
+                op::CLZ,
+                uint!(0x0000000000000000000000000000000000000000000000000000000000000000_U256),
+            ),
+            (
+                uint!(0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff_U256),
+                op::CLZ,
+                uint!(0x0000000000000000000000000000000000000000000000000000000000000000_U256),
+            ),
+            (
+                uint!(0x4000000000000000000000000000000000000000000000000000000000000000_U256),
+                op::CLZ,
+                uint!(0x0000000000000000000000000000000000000000000000000000000000000001_U256),
+            ),
+            (
+                uint!(0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff_U256),
+                op::CLZ,
+                uint!(0x0000000000000000000000000000000000000000000000000000000000000001_U256),
+            ),
+            (
+                uint!(0x0000000000000000000000000000000000000000000000000000000000000001_U256),
+                op::CLZ,
+                uint!(0x00000000000000000000000000000000000000000000000000000000000000ff_U256),
+            ),
+        ];
+
+        for (lhs, op, expected) in cases.into_iter() {
+            vm.stack.push_uint(lhs);
+            assert!(vm.exec_opcode(op).is_ok());
+            let r = vm.stack.pop_uint().unwrap();
+            assert_eq!(r, expected);
         }
     }
 

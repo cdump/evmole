@@ -674,7 +674,7 @@ dependencies = [
 
 [[package]]
 name = "evmole"
-version = "0.8.0"
+version = "0.8.1"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
