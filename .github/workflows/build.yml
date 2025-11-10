@@ -5,7 +5,7 @@ on:
   pull_request:
 
 env:
-  MATURIN_VERSION: 1.9.4
+  MATURIN_VERSION: 1.10.0
 
 jobs:
   rust-test:
