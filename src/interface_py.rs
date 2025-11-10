@@ -5,7 +5,7 @@ use pyo3::types::{PyBytes, PyString};
 use std::borrow::Cow;
 
 fn input_to_bytes<'a>(code: &'a Bound<'a, PyAny>) -> PyResult<Cow<'a, [u8]>> {
-    if let Ok(s) = code.downcast::<PyString>() {
+    if let Ok(s) = code.cast::<PyString>() {
         let str_slice = s
             .to_str()
             .map_err(|e| PyValueError::new_err(e.to_string()))?;
@@ -13,7 +13,7 @@ fn input_to_bytes<'a>(code: &'a Bound<'a, PyAny>) -> PyResult<Cow<'a, [u8]>> {
         let v = hex::decode(str_slice)
             .map_err(|e| PyValueError::new_err(format!("failed to parse hex: {e}")))?;
         Ok(Cow::Owned(v))
-    } else if let Ok(b) = code.downcast::<PyBytes>() {
+    } else if let Ok(b) = code.cast::<PyBytes>() {
         Ok(Cow::Borrowed(b.as_bytes()))
     } else {
         Err(PyTypeError::new_err(
