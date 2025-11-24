@@ -7,7 +7,7 @@ authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/cdump/evmole"
-exclude = ["/javascript", "/python", "/benchmark", "/.github"]
+exclude = ["/javascript", "/python", "/go", "/benchmark", "/.github"]
 
 [dependencies]
 alloy-primitives = { version = "1", default-features = false, features = [
@@ -21,11 +21,13 @@ pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
 
 [features]
 serde = ["dep:serde"]
 python = ["dep:pyo3"]
 javascript = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "serde"]
+wasm = ["serde", "dep:serde_json"]
 
 # for dev
 trace_selectors = []
