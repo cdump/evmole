@@ -11,6 +11,9 @@ DATASETS_STORAGE ?= storage3k
 DOCKER ?= docker
 DOCKER_CPUS ?= 1
 DOCKER_PREFIX ?= evmole-bench
+RSYNC_EXCLUDES := --exclude benchmark --exclude target --exclude dist \
+    --exclude javascript/examples --exclude javascript/tests \
+    --exclude javascript/node_modules --exclude .git
 
 PROVIDERS_SELECTORS := $(PROVIDER_BASE) $(PROVIDERS_SELECTORS)
 PROVIDERS_ARGUMENTS := $(PROVIDER_BASE) $(PROVIDERS_ARGUMENTS)
@@ -48,14 +51,20 @@ run-flow: $(RUN_FLOW_TARGETS)
 
 $(BUILD_TARGETS):
 	$(info [*] Building $(basename $@)...)
-	# for evmole - use latest version, from current git branch
-	if [ "$@" = "evmole-py.build" ] || [ "$@" = "evmole-js.build" ] || [ "$@" = "evmole-rs.build" ]; then \
-		rsync -av ../ ./providers/$(basename $@)/rust --exclude benchmark --exclude target --exclude dist --exclude javascript/examples --exclude javascript/tests --exclude javascript/node_modules --exclude .git; \
-	fi;
+	@case "$(basename $@)" in \
+		evmole-go) \
+			rsync -av ../ ./providers/$(basename $@)/rust $(RSYNC_EXCLUDES); \
+			rsync -av ../go/ ./providers/evmole-go/evmole --exclude wasm/evmole.wasm.gz;; \
+		evmole-*) \
+			rsync -av ../ ./providers/$(basename $@)/rust $(RSYNC_EXCLUDES);; \
+	esac
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(DOCKER_PREFIX)-$(basename $@) providers/$(basename $@)
-	if [ "$@" = "evmole-py.build" ] || [ "$@" = "evmole-js.build" ] || [ "$@" = "evmole-rs.build" ]; then \
-		rm -rf ./providers/$(basename $@)/rust; \
-	fi;
+	@case "$(basename $@)" in \
+		evmole-go) \
+			rm -rf ./providers/$(basename $@)/rust ./providers/evmole-go/evmole;; \
+		evmole-*) \
+			rm -rf ./providers/$(basename $@)/rust;; \
+	esac
 
 $(UNPACK_TARGETS):
 	$(info [*] Unpacking $@...)
