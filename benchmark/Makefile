@@ -76,7 +76,7 @@ $(RUN_TARGETS): datasets/$$(notdir $$@)
 		$(DOCKER) run --network=none --cpus=$(DOCKER_CPUS) --rm \
 		-v $(DATASET)/$(notdir $@):/dataset \
 		-v $(RES):/mnt \
-		-it $(DOCKER_PREFIX)-$(basename $(subst /,,$(dir $@))) \
+		$(DOCKER_PREFIX)-$(basename $(subst /,,$(dir $@))) \
 		$(subst .,,$(suffix $(subst /,,$(dir $@)))) \
 		/dataset \
 		/mnt/$(subst /,_,$@).json \
