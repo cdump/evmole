@@ -12,6 +12,7 @@ DEFAULT_IMAGE="ubuntu-24.04"
 DEFAULT_REPO="https://github.com/cdump/evmole.git"
 DEFAULT_BRANCH="master"
 VALID_BENCHMARKS="selectors arguments mutability storage flow all"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # === Global State ===
 SERVER_ID=""
@@ -42,6 +43,35 @@ debug() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[$(date '+%H:%M:%S')] DE
 die() {
     error "$*"
     exit 1
+}
+
+# Get valid providers for a benchmark type by reading from Makefile
+# Usage: get_valid_providers "benchmark_type"
+# Returns: space-separated list of valid providers
+get_valid_providers() {
+    local bench_type="$1"
+    local var_name="PROVIDERS_${bench_type^^}"
+    # Extract variable value from make's database (handles :=, ?=, and = assignments)
+    make -C "$SCRIPT_DIR" -p -n 2>/dev/null | grep "^${var_name} [:?]\?=" | tail -1 | sed 's/^[^=]*= *//'
+}
+
+# Filter providers to only those valid for the given benchmark type
+# Usage: filter_providers "benchmark_type" "provider1 provider2 ..."
+# Returns: space-separated list of valid providers
+filter_providers() {
+    local bench_type="$1"
+    local requested="$2"
+    local valid
+    valid=$(get_valid_providers "$bench_type")
+    local result=()
+
+    for provider in $requested; do
+        if [[ " $valid " =~ " $provider " ]]; then
+            result+=("$provider")
+        fi
+    done
+
+    echo "${result[*]}"
 }
 
 usage() {
@@ -262,18 +292,29 @@ run_benchmarks() {
     shift 3
     local benchmarks=("$@")
 
-    # Build make arguments
-    local make_args=""
-    if [[ -n "$providers" ]]; then
-        make_args+=" PROVIDERS_SELECTORS='$providers' PROVIDERS_ARGUMENTS='$providers' PROVIDERS_MUTABILITY='$providers' PROVIDERS_STORAGE='$providers' PROVIDERS_BLOCKS='$providers' PROVIDERS_FLOW='$providers'"
-    fi
-    if [[ -n "$datasets" ]]; then
-        make_args+=" DATASETS='$datasets' DATASETS_STORAGE='$datasets'"
-    fi
-
     for bench in "${benchmarks[@]}"; do
+        # Build make arguments per benchmark
+        local make_args=""
+        local filtered_providers=""
+
+        # Filter providers for this specific benchmark type
+        if [[ -n "$providers" ]]; then
+            filtered_providers=$(filter_providers "$bench" "$providers")
+            if [[ -z "$filtered_providers" ]]; then
+                warn "No valid providers for benchmark '$bench' from: $providers (skipping)"
+                continue
+            fi
+            # Only set the specific PROVIDERS_* variable for this benchmark
+            local var_name="PROVIDERS_${bench^^}"
+            make_args+=" ${var_name}='$filtered_providers'"
+        fi
+
+        if [[ -n "$datasets" ]]; then
+            make_args+=" DATASETS='$datasets' DATASETS_STORAGE='$datasets'"
+        fi
+
         local info="$bench"
-        [[ -n "$providers" ]] && info+=" | providers: $providers"
+        [[ -n "$filtered_providers" ]] && info+=" | providers: $filtered_providers"
         [[ -n "$datasets" ]] && info+=" | datasets: $datasets"
         log "Running benchmark: $info"
         local start_time=$SECONDS
