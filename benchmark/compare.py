@@ -3,7 +3,52 @@ import json
 import math
 import pathlib
 import re
+import subprocess
 from collections import defaultdict
+
+
+def get_mode_defaults() -> dict:
+    """Read MODE_DEFAULTS from Makefile using single subprocess call."""
+    script_dir = pathlib.Path(__file__).parent
+    makefile_vars = {}
+    try:
+        result = subprocess.run(
+            ['make', '-C', str(script_dir), '-p', '-n'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        for line in result.stdout.splitlines():
+            # Handle := and = assignments: "VAR := value1 value2"
+            if ' = ' in line or ' := ' in line:
+                parts = line.split('=', 1)
+                if len(parts) == 2:
+                    makefile_vars[parts[0].rstrip(' :')] = parts[1].strip().split()
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+
+    return {
+        'storage': {
+            'datasets': makefile_vars.get('DATASETS_STORAGE', []),
+            'providers': makefile_vars.get('PROVIDERS_STORAGE', []),
+        },
+        'selectors': {
+            'datasets': makefile_vars.get('DATASETS', []),
+            'providers': makefile_vars.get('PROVIDERS_SELECTORS', []),
+        },
+        'arguments': {
+            'datasets': makefile_vars.get('DATASETS', []),
+            'providers': makefile_vars.get('PROVIDERS_ARGUMENTS', []),
+        },
+        'mutability': {
+            'datasets': makefile_vars.get('DATASETS', []),
+            'providers': makefile_vars.get('PROVIDERS_MUTABILITY', []),
+        },
+        'flow': {
+            'datasets': makefile_vars.get('DATASETS_FLOW', []),
+            'providers': makefile_vars.get('PROVIDERS_FLOW', []),
+        },
+    }
 
 def percentiles(data, percent_list):
     """Returns nearest-rank percentiles (non-interpolated) for given percent values."""
@@ -463,34 +508,13 @@ if __name__ == '__main__':
     parser.add_argument('--normalize-args', nargs='+', required=False, choices=['fixed-size-array', 'tuples', 'string-bytes'], help='normalize arguments rules')
     cfg = parser.parse_args()
 
-    MODE_DEFAULTS = {
-        'storage': {
-            'datasets': ['storage3k'],
-            'providers': ['etherscan', 'evmole-rs', 'smlxl']
-        },
-        'selectors': {
-            'datasets': ['largest1k', 'random50k', 'vyper'],
-            'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'evm-hound-rs', 'heimdall-rs', 'simple']
-        },
-        'arguments': {
-            'datasets': ['largest1k', 'random50k', 'vyper'],
-            'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'heimdall-rs', 'simple']
-        },
-        'mutability': {
-            'datasets': ['largest1k', 'random50k', 'vyper'],
-            'providers': ['etherscan', 'evmole-rs', 'evmole-js', 'evmole-py', 'whatsabi', 'sevm', 'heimdall-rs', 'simple']
-        },
-        'flow': {
-            'datasets': ['largest1k'],
-            'providers': ['evmole-rs', 'ethersolve', 'evm-cfg', 'sevm', 'heimdall-rs', 'evm-cfg-builder']
-        }
-    }
+    mode_defaults = get_mode_defaults()
 
     if cfg.datasets is None:
-        cfg.datasets = MODE_DEFAULTS[cfg.mode]['datasets']
+        cfg.datasets = mode_defaults[cfg.mode]['datasets']
 
     if cfg.providers is None:
-        cfg.providers = MODE_DEFAULTS[cfg.mode]['providers']
+        cfg.providers = mode_defaults[cfg.mode]['providers']
 
     print('Config:')
     print('\n'.join(f'  {field} = {getattr(cfg, field)}' for field in vars(cfg)), '\n')
