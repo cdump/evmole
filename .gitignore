@@ -12,3 +12,6 @@ dist/
 target/
 .aider*
 .gradle
+
+# Go WASM - use compressed version only
+go/wasm/evmole.wasm

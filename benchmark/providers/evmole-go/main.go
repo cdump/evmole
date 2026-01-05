@@ -177,7 +177,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			var edges [][2]int
+			edges := make([][2]int, 0)
 			for _, block := range info.ControlFlowGraph.Blocks {
 				switch block.Type.Kind {
 				case evmole.BlockKindJump:
@@ -223,7 +223,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(outputFile, out, 0644); err != nil {
+	if err := os.WriteFile(outputFile, out, 0o644); err != nil {
 		panic(err)
 	}
 }

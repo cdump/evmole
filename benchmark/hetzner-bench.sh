@@ -83,6 +83,7 @@ Run evmole benchmarks on Hetzner Cloud dedicated vCPU servers.
 
 Required:
   -b, --benchmark <name>   Benchmark to run: selectors|arguments|mutability|storage|flow|all
+                           Can be specified multiple times: -b selectors -b arguments
 
 Server (one of):
   -k, --ssh-key <name>     SSH key name - creates new server (must exist in Hetzner account)

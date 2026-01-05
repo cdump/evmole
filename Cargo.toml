@@ -21,11 +21,13 @@ pyo3 = { version = "0.27", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }
 serde-wasm-bindgen = { version = "0.6", optional = true }
 serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
 
 [features]
 serde = ["dep:serde"]
 python = ["dep:pyo3"]
 javascript = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "serde"]
+wasm = ["serde", "dep:serde_json"]
 
 # for dev
 trace_selectors = []
@@ -44,3 +46,8 @@ crate-type = ["cdylib", "lib"]
 
 [profile.release]
 lto = true
+strip = true
+codegen-units = 1
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O", "--enable-bulk-memory"]

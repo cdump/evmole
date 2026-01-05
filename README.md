@@ -4,13 +4,14 @@
 [![npm](https://img.shields.io/npm/v/evmole)](https://www.npmjs.com/package/evmole)
 [![Crates.io](https://img.shields.io/crates/v/evmole?color=e9b44f)](https://crates.io/crates/evmole)
 [![PyPI](https://img.shields.io/pypi/v/evmole?color=006dad)](https://pypi.org/project/evmole)
+[![Go](https://img.shields.io/badge/go-pkg-00ADD8)](https://pkg.go.dev/github.com/cdump/evmole/go)
 
 EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), and storage layout, even for unverified contracts.
 
 
 ## Key Features
 
-- Multi-language support: Available as [JavaScript](#javascript), [Rust](#rust), and [Python](#python) libraries.
+- Multi-language support: Available as [JavaScript](#javascript), [Rust](#rust), [Python](#python), and [Go](#go) libraries.
 - High accuracy and performance: [Outperforms](#benchmark) existing tools.
 - Broad compatibility: Tested with both Solidity and Vyper compiled contracts.
 - Lightweight: Clean codebase with minimal external dependencies.
@@ -82,6 +83,39 @@ print( contract_info(code, selectors=True, arguments=True, state_mutability=True
 #             arguments=uint32,address,uint224,
 #             state_mutability=pure),
 #     ...
+```
+
+### Go
+[API documentation](./go/#api-reference)
+```sh
+$ go get github.com/cdump/evmole/go
+```
+```go
+package main
+
+import (
+    "context"
+    "encoding/hex"
+    "fmt"
+
+    "github.com/cdump/evmole/go"
+)
+
+func main() {
+    code, _ := hex.DecodeString("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256")
+
+    info, _ := evmole.ContractInfo(context.Background(), code, evmole.Options{
+        Selectors:       true,
+        Arguments:       true,
+        StateMutability: true,
+    })
+
+    for _, fn := range info.Functions {
+        fmt.Printf("%s: %s @ %d\n", fn.Selector, *fn.Arguments, fn.BytecodeOffset)
+    }
+    // 2125b65b: uint32,address,uint224 @ 52
+    // b69ef8a8:  @ 68
+}
 ```
 
 ### Foundry
