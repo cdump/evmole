@@ -8,6 +8,7 @@ PROVIDERS_FLOW ?= evmole-rs evmole-js evmole-py evmole-go evm-cfg ethersolve sev
 
 DATASETS ?= largest1k random50k vyper
 DATASETS_STORAGE ?= storage3k
+DATASETS_FLOW ?= largest1k
 DOCKER ?= docker
 DOCKER_CPUS ?= 1
 DOCKER_PREFIX ?= evmole-bench
@@ -30,8 +31,8 @@ RUN_SELECTORS_TARGETS := $(foreach p,$(PROVIDERS_SELECTORS),$(addprefix $(p).sel
 RUN_ARGUMENTS_TARGETS := $(foreach p,$(PROVIDERS_ARGUMENTS),$(addprefix $(p).arguments/, $(DATASETS)))
 RUN_MUTABILITY_TARGETS := $(foreach p,$(PROVIDERS_MUTABILITY),$(addprefix $(p).mutability/, $(DATASETS)))
 RUN_STORAGE_TARGETS := $(foreach p,$(PROVIDERS_STORAGE),$(addprefix $(p).storage/, $(DATASETS_STORAGE)))
-RUN_BLOCKS_TARGETS := $(foreach p,$(PROVIDERS_BLOCKS),$(addprefix $(p).blocks/, $(DATASETS)))
-RUN_FLOW_TARGETS := $(foreach p,$(PROVIDERS_FLOW),$(addprefix $(p).flow/, $(DATASETS)))
+RUN_BLOCKS_TARGETS := $(foreach p,$(PROVIDERS_BLOCKS),$(addprefix $(p).blocks/, $(DATASETS_FLOW)))
+RUN_FLOW_TARGETS := $(foreach p,$(PROVIDERS_FLOW),$(addprefix $(p).flow/, $(DATASETS_FLOW)))
 
 RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS) $(RUN_BLOCKS_TARGETS) $(RUN_FLOW_TARGETS)
 
