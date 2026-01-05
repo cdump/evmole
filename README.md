@@ -85,7 +85,7 @@ print( contract_info(code, selectors=True, arguments=True, state_mutability=True
 ```
 
 ### Foundry
-<a href="https://getfoundry.sh/">Foundy's cast</a> uses the Rust implementation of EVMole
+<a href="https://getfoundry.sh/">Foundry's cast</a> uses the Rust implementation of EVMole
 ```sh
 
 $ cast selectors $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2)
@@ -465,9 +465,15 @@ See [benchmark/README.md](./benchmark/) for the methodology and commands to repr
 
 ## How it works
 
-Short: Executes code with a custom EVM and traces CALLDATA usage.
+EVMole uses symbolic execution with a custom EVM implementation to trace how CALLDATA flows through the bytecode:
 
-Long: TODO
+This approach is more accurate than static pattern matching because it follows the actual execution paths the EVM would take, correctly handling complex dispatchers, proxy patterns, and compiler-specific optimizations from both Solidity and Vyper.
+
+## Talks
+- [EVMole: function selectors and arguments from bytecode](https://www.youtube.com/watch?v=l0udabGej54) - BlockSplit 2024
+- [EVMole: function selectors and arguments from bytecode](https://ethcc.io/archives/evmole-function-selectors-and-arguments-from-bytecode) - EthCC 2024
+- [Reconstructing Control Flow Graphs from EVM Bytecode](https://www.youtube.com/watch?v=1Xd6PhEHMHM) - ETHTaipei 2025
+- [Reconstructing Control Flow Graphs from EVM Bytecode: Faster, Better, Stronger](https://www.youtube.com/watch?v=UL6-3EZbv3E) - EthCC 2025
 
 ## License
 MIT
