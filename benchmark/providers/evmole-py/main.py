@@ -6,14 +6,14 @@ import time
 from evmole import contract_info, BlockType
 
 parser = argparse.ArgumentParser()
-parser.add_argument('mode', choices=['selectors', 'arguments', 'mutability', 'flow'])
+parser.add_argument('mode', choices=['selectors', 'arguments', 'mutability', 'storage', 'blocks', 'flow'])
 parser.add_argument('input_dir')
 parser.add_argument('output_file')
 parser.add_argument('selectors_file', nargs='*')
 cfg = parser.parse_args()
 
 selectors = {}
-if cfg.mode != 'selectors':
+if cfg.mode in {'mutability', 'arguments'}:
     with open(cfg.selectors_file[0], 'r') as fh:
         selectors = json.load(fh)
 
@@ -21,7 +21,7 @@ ret = {}
 for fname in os.listdir(cfg.input_dir):
     with open(f'{cfg.input_dir}/{fname}', 'r') as fh:
         d = json.load(fh)
-        code = d['code']
+        code = d.get('code', d.get('runtimeBytecode'))
         t0 = time.perf_counter_ns()
         if cfg.mode == 'selectors':
             info = contract_info(code, selectors=True)
@@ -29,6 +29,10 @@ for fname in os.listdir(cfg.input_dir):
             info = contract_info(code, arguments=True)
         elif cfg.mode == 'mutability':
             info = contract_info(code, state_mutability=True)
+        elif cfg.mode == 'storage':
+            info = contract_info(code, storage=True)
+        elif cfg.mode == 'blocks':
+            info = contract_info(code, basic_blocks=True)
         elif cfg.mode == 'flow':
             info = contract_info(code, control_flow_graph=True)
         else:
@@ -43,6 +47,10 @@ for fname in os.listdir(cfg.input_dir):
         elif cfg.mode == 'mutability':
             by_sel = {f.selector: f.state_mutability for f in info.functions}
             r = {s: by_sel.get(s, 'notfound') for s in selectors[fname][1]}
+        elif cfg.mode == 'storage':
+            r = {f'{s.slot}_{s.offset}': s.type for s in info.storage}
+        elif cfg.mode == 'blocks':
+            r = info.basic_blocks
         elif cfg.mode == 'flow':
             r = []
             for bl in info.control_flow_graph.blocks:

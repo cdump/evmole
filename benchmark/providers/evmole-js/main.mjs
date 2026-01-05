@@ -22,7 +22,8 @@ function timeit(fn) {
   return [duration_us, r]
 }
 
-function extract(code, mode, fname) {
+function extract(fileData, mode, fname) {
+  let code = fileData.code ?? fileData.runtimeBytecode;
   if (mode === 'selectors') {
     let [duration_us, r] = timeit(() => contractInfo(code, {selectors: true}));
     return [duration_us, r.functions.map((f) => f.selector)];
@@ -38,6 +39,14 @@ function extract(code, mode, fname) {
     return [duration_us, Object.fromEntries(
       selectors[fname][1].map((s) => [s, by_sel.get(s) ?? 'notfound'])
     )];
+  } else if (mode === 'storage') {
+    let [duration_us, r] = timeit(() => contractInfo(code, {storage: true}));
+    return [duration_us, Object.fromEntries(
+      r.storage.map((s) => [`${s.slot}_${s.offset}`, s.type])
+    )];
+  } else if (mode === 'blocks') {
+    let [duration_us, r] = timeit(() => contractInfo(code, {basicBlocks: true}));
+    return [duration_us, r.basicBlocks];
   } else if (mode === 'flow') {
     let [duration_us, r] = timeit(() => contractInfo(code, {controlFlowGraph: true}));
     let ret = []
@@ -79,7 +88,7 @@ const res = Object.fromEntries(
   readdirSync(indir).map(
     file => [
       file,
-      extract(JSON.parse(readFileSync(`${indir}/${file}`))['code'], mode, file)
+      extract(JSON.parse(readFileSync(`${indir}/${file}`)), mode, file)
     ]
   )
 );

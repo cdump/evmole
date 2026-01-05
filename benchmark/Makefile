@@ -1,10 +1,10 @@
 PROVIDER_BASE = etherscan
-PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs sevm evmole-rs evmole-js evmole-py
-PROVIDERS_ARGUMENTS ?= simple evmole-rs evmole-js evmole-py
-PROVIDERS_MUTABILITY ?= simple whatsabi sevm evmole-rs evmole-js evmole-py
-PROVIDERS_STORAGE ?= evmole-rs smlxl
-PROVIDERS_BLOCKS ?= evmole-rs
-PROVIDERS_FLOW ?= evmole-rs evm-cfg ethersolve sevm evm-cfg-builder heimdall-rs
+PROVIDERS_SELECTORS ?= simple whatsabi evm-hound-rs sevm evmole-rs evmole-js evmole-py evmole-go
+PROVIDERS_ARGUMENTS ?= simple evmole-rs evmole-js evmole-py evmole-go
+PROVIDERS_MUTABILITY ?= simple whatsabi sevm evmole-rs evmole-js evmole-py evmole-go
+PROVIDERS_STORAGE ?= evmole-rs evmole-js evmole-py evmole-go smlxl
+PROVIDERS_BLOCKS ?= evmole-rs evmole-js evmole-py evmole-go
+PROVIDERS_FLOW ?= evmole-rs evmole-js evmole-py evmole-go evm-cfg ethersolve sevm evm-cfg-builder heimdall-rs
 
 DATASETS ?= largest1k random50k vyper
 DATASETS_STORAGE ?= storage3k
