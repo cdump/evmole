@@ -73,7 +73,7 @@ $(UNPACK_TARGETS):
 .SECONDEXPANSION:
 $(RUN_TARGETS): datasets/$$(notdir $$@)
 	$(info [*] Running $@...)
-		$(DOCKER) run --network=none --cpus=$(DOCKER_CPUS) --rm \
+		$(DOCKER) run --init --network=none --cpus=$(DOCKER_CPUS) --rm \
 		-v $(DATASET)/$(notdir $@):/dataset \
 		-v $(RES):/mnt \
 		$(DOCKER_PREFIX)-$(basename $(subst /,,$(dir $@))) \
