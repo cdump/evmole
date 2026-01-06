@@ -146,7 +146,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
+  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
   <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
   <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
   <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evmhound</i></b></a></td>
@@ -187,10 +187,10 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>19ms · 0.3s · 25ms</td>
+  <td>18ms · 0.3s · 21ms · 0.1s</td>
   <td>2.3s</td>
-  <td>37s<sup>(*)</sup></td>
-  <td>63ms</td>
+  <td>30s<sup>(*)</sup></td>
+  <td>56ms</td>
   <td>371s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="7"></td></tr>
@@ -229,10 +229,10 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s · 4.7s · 0.8s</td>
-  <td>46s</td>
-  <td>2304s<sup>(*)</sup></td>
-  <td>1.9s</td>
+  <td>0.3s · 2.6s · 0.5s · 5.7s</td>
+  <td>30s</td>
+  <td>440s<sup>(*)</sup></td>
+  <td>1.6s</td>
   <td>8684s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="7"></td></tr>
@@ -271,10 +271,10 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9ms · 0.1s · 13ms</td>
-  <td>1.6s</td>
-  <td>42s<sup>(*)</sup></td>
-  <td>32ms</td>
+  <td>10ms · 0.2s · 10ms · 85ms</td>
+  <td>2.0s</td>
+  <td>34s<sup>(*)</sup></td>
+  <td>26ms</td>
   <td>28s<sup>(*)</sup></td>
  </tr>
 </table>
@@ -286,42 +286,42 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
+  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>14.0% 🥇<br><sub>3410</sub></td>
+  <td>14.1% 🥇<br><sub>3447</sub></td>
   <td>31.1%<br><sub>7603</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.6s · 2.0s · 0.6s</td>
+  <td>0.5s · 1.1s · 0.5s · 2.1s</td>
   <td>370s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>4.5% 🥇<br><sub>52670</sub></td>
+  <td>4.8% 🥇<br><sub>56464</sub></td>
   <td>19.4%<br><sub>227077</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>17s · 55s · 19s</td>
+  <td>13s · 26s · 15s · 44s</td>
   <td>8579s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>48.5% 🥇<br><sub>10299</sub></td>
+  <td>48.4% 🥇<br><sub>10289</sub></td>
   <td>100.0%<br><sub>21244</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.4s · 1.6s · 0.5s</td>
+  <td>0.5s · 1.3s · 0.5s · 1.4s</td>
   <td>29s<sup>(*)</sup></td>
  </tr>
 </table>
@@ -336,7 +336,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
+  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
   <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
   <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
@@ -351,16 +351,16 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
-  <td>18.6% 🥇<br><sub>4555</sub></td>
+  <td>18.6% 🥇<br><sub>4549</sub></td>
   <td>79.4%<br><sub>19393</sub></td>
   <td>59.0%<br><sub>14417</sub></td>
   <td>54.8%<br><sub>13386</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9.5s · 14s · 9.4s</td>
-  <td>3.0s</td>
-  <td>41s<sup>(*)</sup></td>
+  <td>8.0s · 8.2s · 8.5s · 18s</td>
+  <td>2.5s</td>
+  <td>27s<sup>(*)</sup></td>
   <td>371s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="6"></td></tr>
@@ -374,16 +374,16 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
-  <td>6.8% 🥇<br><sub>78923</sub></td>
+  <td>6.8% 🥇<br><sub>78359</sub></td>
   <td>58.2%<br><sub>675111</sub></td>
   <td>55.7%<br><sub>646831</sub></td>
   <td>27.6%<br><sub>320264</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>183s · 276s · 187s</td>
-  <td>79s</td>
-  <td>2176s<sup>(*)</sup></td>
+  <td>157s · 160s · 171s · 354s</td>
+  <td>51s</td>
+  <td>2261s<sup>(*)</sup></td>
   <td>8334s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="6"></td></tr>
@@ -397,16 +397,16 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
-  <td>4.0% 🥇<br><sub>854</sub></td>
+  <td>4.0% 🥇<br><sub>850</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
   <td>90.2%<br><sub>19092</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>9.8s · 12s · 9.6s</td>
-  <td>1.7s</td>
-  <td>38s<sup>(*)</sup></td>
+  <td>8.4s · 7.6s · 8.4s · 17s</td>
+  <td>1.8s</td>
+  <td>35s<sup>(*)</sup></td>
   <td>29s<sup>(*)</sup></td>
  </tr>
 </table>
@@ -428,7 +428,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  <tr>
   <td><i>Basic Blocks</i></td>
   <td>97.0% 🥇<br><sub>661959</sub></td>
-  <td>93.7%<br><sub>639175</sub></td>
+  <td>93.8%<br><sub>640383</sub></td>
   <td>63.0%<br><sub>430011</sub></td>
   <td>41.4%<br><sub>282599</sub></td>
   <td>31.9%<br><sub>217924</sub></td>
@@ -437,7 +437,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  <tr>
   <td><i>False Negatives</i></td>
   <td>3.0% 🥇<br><sub>20482</sub></td>
-  <td>6.3%<br><sub>43266</sub></td>
+  <td>6.2%<br><sub>42058</sub></td>
   <td>37.0%<br><sub>252430</sub></td>
   <td>58.6%<br><sub>399842</sub></td>
   <td>68.1%<br><sub>464517</sub></td>
@@ -445,12 +445,12 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>34s</td>
-  <td>1202s</td>
-  <td>40s</td>
-  <td>42s</td>
+  <td>19s</td>
+  <td>643s</td>
+  <td>49s</td>
+  <td>28s</td>
   <td>206s</td>
-  <td>308s</td>
+  <td>158s</td>
  </tr>
 </table>
 
@@ -460,7 +460,7 @@ dataset largest1k, 1000 contracts, 682,441 blocks
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.7.2; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.19.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.6</i>
+<i>versions: evmole v0.8.2; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.6</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 
