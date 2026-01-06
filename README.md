@@ -151,7 +151,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
   <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evmhound</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
-  <td><a href="benchmark/providers/simple/"><b><i>smpl</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="5"><b>largest1k</b><br><sub>1000<br>addresses<br><br>24427<br>functions</sub></td>
@@ -161,7 +160,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0 🥇</td>
   <td>75</td>
   <td>18</td>
-  <td>95</td>
  </tr>
  <tr>
   <td><i>FN <sub>addrs</sub></i></td>
@@ -170,7 +168,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0 🥇</td>
   <td>40</td>
   <td>103</td>
-  <td>9</td>
  </tr>
  <tr>
   <td><i>FP <sub>funcs</sub></i></td>
@@ -179,7 +176,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0 🥇</td>
   <td>720</td>
   <td>600</td>
-  <td>749</td>
  </tr>
  <tr>
   <td><i>FN <sub>funcs</sub></i></td>
@@ -188,7 +184,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0 🥇</td>
   <td>191</td>
   <td>114</td>
-  <td>12</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
@@ -197,9 +192,8 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>37s<sup>(*)</sup></td>
   <td>63ms</td>
   <td>371s<sup>(*)</sup></td>
-  <td>1ms</td>
  </tr>
- <tr><td colspan="8"></td></tr>
+ <tr><td colspan="7"></td></tr>
  <tr>
   <td rowspan="5"><b>random50k</b><br><sub>50000<br>addresses<br><br>1171102<br>functions</sub></td>
   <td><i>FP <sub>addrs</sub></i></td>
@@ -208,7 +202,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>1</td>
   <td>693</td>
   <td>3</td>
-  <td>4136</td>
  </tr>
  <tr>
   <td><i>FN <sub>addrs</sub></i></td>
@@ -217,7 +210,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>10</td>
   <td>2903</td>
   <td>4669</td>
-  <td>77</td>
  </tr>
  <tr>
   <td><i>FP <sub>funcs</sub></i></td>
@@ -226,7 +218,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>3</td>
   <td>10798</td>
   <td>29</td>
-  <td>14652</td>
  </tr>
  <tr>
   <td><i>FN <sub>funcs</sub></i></td>
@@ -235,7 +226,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>11</td>
   <td>3538</td>
   <td>4943</td>
-  <td>96</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
@@ -244,9 +234,8 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>2304s<sup>(*)</sup></td>
   <td>1.9s</td>
   <td>8684s<sup>(*)</sup></td>
-  <td>50ms</td>
  </tr>
- <tr><td colspan="8"></td></tr>
+ <tr><td colspan="7"></td></tr>
  <tr>
   <td rowspan="5"><b>vyper</b><br><sub>780<br>addresses<br><br>21244<br>functions</sub></td>
   <td><i>FP <sub>addrs</sub></i></td>
@@ -255,7 +244,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0</td>
   <td>19</td>
   <td>0</td>
-  <td>185</td>
  </tr>
  <tr>
   <td><i>FN <sub>addrs</sub></i></td>
@@ -264,7 +252,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0</td>
   <td>300</td>
   <td>780</td>
-  <td>480</td>
  </tr>
  <tr>
   <td><i>FP <sub>funcs</sub></i></td>
@@ -273,7 +260,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0</td>
   <td>19</td>
   <td>0</td>
-  <td>197</td>
  </tr>
  <tr>
   <td><i>FN <sub>funcs</sub></i></td>
@@ -282,7 +268,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>0</td>
   <td>8273</td>
   <td>21244</td>
-  <td>12971</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
@@ -291,7 +276,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>42s<sup>(*)</sup></td>
   <td>32ms</td>
   <td>28s<sup>(*)</sup></td>
-  <td>780µs</td>
  </tr>
 </table>
 
@@ -304,48 +288,41 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td></td>
   <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
-  <td><a href="benchmark/providers/simple/"><b><i>smpl</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>14.0% 🥇<br><sub>3410</sub></td>
   <td>31.1%<br><sub>7603</sub></td>
-  <td>58.3%<br><sub>14242</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>0.6s · 2.0s · 0.6s</td>
   <td>370s<sup>(*)</sup></td>
-  <td>1ms</td>
  </tr>
- <tr><td colspan="5"></td></tr>
+ <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>4.5% 🥇<br><sub>52670</sub></td>
   <td>19.4%<br><sub>227077</sub></td>
-  <td>54.9%<br><sub>643213</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>17s · 55s · 19s</td>
   <td>8579s<sup>(*)</sup></td>
-  <td>50ms</td>
  </tr>
- <tr><td colspan="5"></td></tr>
+ <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
   <td>48.5% 🥇<br><sub>10299</sub></td>
   <td>100.0%<br><sub>21244</sub></td>
-  <td>56.8%<br><sub>12077</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
   <td>0.4s · 1.6s · 0.5s</td>
   <td>29s<sup>(*)</sup></td>
-  <td>780µs</td>
  </tr>
 </table>
 
@@ -363,7 +340,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
   <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
-  <td><a href="benchmark/providers/simple/"><b><i>smpl</i></b></a></td>
  </tr>
  <tr>
   <td rowspan="3"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
@@ -372,7 +348,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>68.1%<br><sub>16623</sub></td>
   <td>2.1%<br><sub>501</sub></td>
   <td>25.7%<br><sub>6268</sub></td>
-  <td>2.6%<br><sub>643</sub></td>
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
@@ -380,7 +355,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>79.4%<br><sub>19393</sub></td>
   <td>59.0%<br><sub>14417</sub></td>
   <td>54.8%<br><sub>13386</sub></td>
-  <td>60.9%<br><sub>14864</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
@@ -388,7 +362,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>3.0s</td>
   <td>41s<sup>(*)</sup></td>
   <td>371s<sup>(*)</sup></td>
-  <td>1ms</td>
  </tr>
  <tr><td colspan="6"></td></tr>
  <tr>
@@ -398,7 +371,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>30.2%<br><sub>351060</sub></td>
   <td>0.3%<br><sub>3370</sub></td>
   <td>11.5%<br><sub>133471</sub></td>
-  <td>2.2%<br><sub>24961</sub></td>
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
@@ -406,7 +378,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>58.2%<br><sub>675111</sub></td>
   <td>55.7%<br><sub>646831</sub></td>
   <td>27.6%<br><sub>320264</sub></td>
-  <td>57.7%<br><sub>670318</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
@@ -414,7 +385,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>79s</td>
   <td>2176s<sup>(*)</sup></td>
   <td>8334s<sup>(*)</sup></td>
-  <td>50ms</td>
  </tr>
  <tr><td colspan="6"></td></tr>
  <tr>
@@ -424,7 +394,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>100.0%<br><sub>21166</sub></td>
   <td>76.3%<br><sub>16150</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
-  <td>1.8%<br><sub>390</sub></td>
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
@@ -432,7 +401,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>100.0%<br><sub>21166</sub></td>
   <td>90.2%<br><sub>19092</sub></td>
   <td>100.0%<br><sub>21166</sub></td>
-  <td>59.6%<br><sub>12610</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
@@ -440,7 +408,6 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
   <td>1.7s</td>
   <td>38s<sup>(*)</sup></td>
   <td>29s<sup>(*)</sup></td>
-  <td>780µs</td>
  </tr>
 </table>
 
