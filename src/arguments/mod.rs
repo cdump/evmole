@@ -316,6 +316,16 @@ fn analyze(
                     _ => (),
                 }
             }
+
+        }
+
+        StepResult {
+            op: op::CALL | op::CALLCODE | op::DELEGATECALL | op::STATICCALL,
+            args: [elabel!(Label::Arg(Val { offset, path, .. })), ..],
+            ..
+        } => {
+            args.mark_not_bool(&path, offset);
+            args.set_tname(&path, offset, DynSolType::Address, 20);
         }
 
         StepResult {
