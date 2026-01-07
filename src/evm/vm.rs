@@ -560,9 +560,11 @@ where
             op::MSTORE8 => {
                 let off: u32 = self.stack.pop_uint()?.try_into()?;
                 let val = self.stack.pop()?;
-
-                self.memory.store(off, vec![val.data[31]], val.label);
-                Ok(StepResult::new(op, 3))
+                let label = val.label.clone();
+                self.memory.store(off, vec![val.data[31]], label);
+                let mut ret = StepResult::new(op, 3);
+                ret.args[0] = val;
+                Ok(ret)
             }
 
             op::MSIZE => {

@@ -545,6 +545,24 @@ fn analyze(
         }
 
         StepResult {
+            op: op::MSTORE8,
+            args: [elabel!(Label::Arg(Val { offset, path, .. })), ..],
+            ..
+        } => {
+            args.mark_not_bool(&path, offset);
+            args.set_tname(&path, offset, DynSolType::Uint(8), 12);
+        }
+
+        StepResult {
+            op: op::SDIV | op::SMOD,
+            args: match_first_two!(elabel!(Label::Arg(Val { offset, path, .. })), _),
+            ..
+        } => {
+            args.mark_not_bool(&path, offset);
+            args.set_tname(&path, offset, DynSolType::Int(256), 8);
+        }
+
+        StepResult {
             op: op::AND,
             args:
                 match_first_two!(
