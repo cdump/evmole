@@ -645,6 +645,21 @@ fn analyze(
             args.set_tname(&path, offset, DynSolType::FixedBytes(32), 4);
         }
 
+        StepResult {
+            op: op::MLOAD,
+            memory_load: Some(memory_load),
+            ..
+        } => {
+            if memory_load.chunks.len() == 1
+                && memory_load.size == 32
+                && memory_load.chunks[0].dst_range.start == 0
+                && memory_load.chunks[0].dst_range.end == 32
+                && let Label::Arg(val) = &memory_load.chunks[0].src_label
+            {
+                vm.stack.peek_mut()?.label = Some(Label::Arg(val.clone()));
+            }
+        }
+
         _ => (),
     };
     Ok(())

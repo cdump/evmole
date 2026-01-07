@@ -1,4 +1,5 @@
 benchmark/results/*
+benchmark/results-hetzner-*/*
 !benchmark/results/.gitkeep
 
 __pycache__/
