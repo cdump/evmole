@@ -63,6 +63,7 @@ fn is_plausible_event_hash(val: &[u8; 32]) -> bool {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct StateKey {
+    context: usize,
     pc: usize,
     stack_len: usize,
     memory_writes: usize,
@@ -70,7 +71,7 @@ struct StateKey {
     memory_hash: u64,
 }
 
-fn state_key(vm: &Vm<Label, CallDataImpl>) -> StateKey {
+fn state_key(vm: &Vm<Label, CallDataImpl>, context: usize) -> StateKey {
     let mut stack_hasher = DefaultHasher::new();
     let stack_start = vm.stack.data.len().saturating_sub(STACK_FINGERPRINT_ELEMS);
     for el in &vm.stack.data[stack_start..] {
@@ -89,6 +90,7 @@ fn state_key(vm: &Vm<Label, CallDataImpl>) -> StateKey {
     }
 
     StateKey {
+        context,
         pc: vm.pc,
         stack_len: vm.stack.data.len(),
         memory_writes: vm.memory.data.len(),
@@ -131,14 +133,16 @@ struct JumpClassify {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct ProbeCacheKey {
+    context: usize,
     from_pc: usize,
     to_pc: usize,
     stack_top: [u8; 32],
     stack_len: usize,
 }
 
-fn probe_cache_key(vm: &Vm<Label, CallDataImpl>, to_pc: usize) -> ProbeCacheKey {
+fn probe_cache_key(vm: &Vm<Label, CallDataImpl>, to_pc: usize, context: usize) -> ProbeCacheKey {
     ProbeCacheKey {
+        context,
         from_pc: vm.pc,
         to_pc,
         stack_top: vm.stack.peek().map_or([0u8; 32], |v| v.data),
@@ -182,9 +186,10 @@ fn probe_branch_cached(
     start_pc: usize,
     step_limit: u16,
     gas_limit: u32,
+    context: usize,
     cache: &mut HashMap<ProbeCacheKey, ProbeOutcome>,
 ) -> ProbeOutcome {
-    let key = probe_cache_key(vm, start_pc);
+    let key = probe_cache_key(vm, start_pc, context);
     if let Some(outcome) = cache.get(&key) {
         return *outcome;
     }
@@ -241,6 +246,7 @@ fn probe_branch(
 
 fn classify_jump(
     vm: &Vm<Label, CallDataImpl>,
+    context: usize,
     other_pc: usize,
     can_fork: bool,
     probe_steps: u16,
@@ -279,7 +285,7 @@ fn classify_jump(
         };
     }
 
-    let other = probe_branch_cached(vm, other_pc, probe_steps, probe_gas, probe_cache);
+    let other = probe_branch_cached(vm, other_pc, probe_steps, probe_gas, context, probe_cache);
     if other == ProbeOutcome::DeadEnd {
         return JumpClassify {
             decision: JumpDecision::KeepCurrent,
@@ -287,7 +293,7 @@ fn classify_jump(
         };
     }
 
-    let current = probe_branch_cached(vm, vm.pc, probe_steps, probe_gas, probe_cache);
+    let current = probe_branch_cached(vm, vm.pc, probe_steps, probe_gas, context, probe_cache);
     if current == ProbeOutcome::DeadEnd {
         return JumpClassify {
             decision: JumpDecision::SwitchOther,
@@ -322,6 +328,15 @@ fn collect_event(
     }
 }
 
+struct BatchState<'a> {
+    idx: usize,
+    context: usize,
+    vm: Vm<'a, Label, CallDataImpl>,
+    gas_used: u32,
+    depth: u8,
+    steps: u32,
+}
+
 fn execute_paths<'a>(
     start_vm: Vm<'a, Label, CallDataImpl>,
     initial_gas: u32,
@@ -331,20 +346,66 @@ fn execute_paths<'a>(
     max_depth: u8,
     max_steps: u32,
 ) -> bool {
-    if initial_gas > gas_limit {
-        return true;
+    let needs_more = execute_paths_batch(
+        vec![BatchState {
+            idx: 0,
+            context: 0,
+            vm: start_vm,
+            gas_used: initial_gas,
+            depth: 0,
+            steps: 0,
+        }],
+        1,
+        events,
+        seen,
+        gas_limit,
+        max_depth,
+        max_steps,
+    );
+    needs_more.into_iter().next().unwrap_or(false)
+}
+
+fn execute_paths_batch<'a>(
+    initial_states: Vec<BatchState<'a>>,
+    states_count: usize,
+    events: &mut Vec<EventSelector>,
+    seen: &mut HashSet<EventSelector>,
+    gas_limit: u32,
+    max_depth: u8,
+    max_steps: u32,
+) -> Vec<bool> {
+    let mut needs_more = vec![false; states_count];
+    if initial_states.is_empty() {
+        return needs_more;
     }
 
-    let mut needs_more = false;
+    let mut queue = initial_states;
+    queue.retain(|s| {
+        if s.gas_used > gas_limit {
+            needs_more[s.idx] = true;
+            false
+        } else {
+            true
+        }
+    });
+
+    if queue.is_empty() {
+        return needs_more;
+    }
+
     let mut visited: HashSet<StateKey> = HashSet::default();
     let mut probe_cache: HashMap<ProbeCacheKey, ProbeOutcome> = HashMap::default();
-    let mut queue: Vec<(Vm<Label, CallDataImpl>, u32, u8, u32)> = Vec::new();
-    queue.push((start_vm, initial_gas, 0, 0));
+    while let Some(state) = queue.pop() {
+        let idx = state.idx;
+        let context = state.context;
+        let mut vm = state.vm;
+        let mut gas_used = state.gas_used;
+        let depth = state.depth;
+        let mut steps = state.steps;
 
-    while let Some((mut vm, mut gas_used, depth, mut steps)) = queue.pop() {
         while !vm.stopped {
             if gas_used >= gas_limit || steps >= max_steps {
-                needs_more = true;
+                needs_more[idx] = true;
                 break;
             }
 
@@ -365,10 +426,10 @@ fn execute_paths<'a>(
                 op::LOG1..=op::LOG4 => collect_event(events, seen, ret.args[0].data),
                 op::JUMPI => {
                     if visited.len() >= MAX_VISITED_STATES {
-                        needs_more = true;
+                        needs_more[idx] = true;
                         break;
                     }
-                    if !visited.insert(state_key(&vm)) {
+                    if !visited.insert(state_key(&vm, context)) {
                         break;
                     }
 
@@ -397,6 +458,7 @@ fn execute_paths<'a>(
                     let can_fork = depth < max_depth && queue.len() < MAX_PENDING_STATES;
                     let jump = classify_jump(
                         &vm,
+                        context,
                         other_pc,
                         can_fork,
                         PROBE_STEP_LIMIT,
@@ -404,7 +466,7 @@ fn execute_paths<'a>(
                         &mut probe_cache,
                     );
                     if jump.needs_more {
-                        needs_more = true;
+                        needs_more[idx] = true;
                     }
 
                     match jump.decision {
@@ -414,17 +476,24 @@ fn execute_paths<'a>(
                             if can_fork {
                                 let mut forked = vm.fork();
                                 forked.pc = other_pc;
-                                queue.push((forked, gas_used, depth + 1, steps));
+                                queue.push(BatchState {
+                                    idx,
+                                    context,
+                                    vm: forked,
+                                    gas_used,
+                                    depth: depth + 1,
+                                    steps,
+                                });
                             }
                         }
                     }
                 }
                 op::JUMP => {
                     if visited.len() >= MAX_VISITED_STATES {
-                        needs_more = true;
+                        needs_more[idx] = true;
                         break;
                     }
-                    if !visited.insert(state_key(&vm)) {
+                    if !visited.insert(state_key(&vm, context)) {
                         break;
                     }
                 }
@@ -433,52 +502,6 @@ fn execute_paths<'a>(
         }
     }
     needs_more
-}
-
-fn execute_function(
-    code: &[u8],
-    calldata: &CallDataImpl,
-    events: &mut Vec<EventSelector>,
-    seen: &mut HashSet<EventSelector>,
-    gas_limit: u32,
-    max_depth: u8,
-    max_steps: u32,
-) -> bool {
-    let mut vm = Vm::new(code, calldata);
-    let Some(initial_gas) = execute_until_function_start(&mut vm, gas_limit) else {
-        return true;
-    };
-
-    execute_paths(
-        vm,
-        initial_gas,
-        events,
-        seen,
-        gas_limit,
-        max_depth,
-        max_steps,
-    )
-}
-
-fn execute_function_from_offset(
-    code: &[u8],
-    calldata: &CallDataImpl,
-    offset: usize,
-    events: &mut Vec<EventSelector>,
-    seen: &mut HashSet<EventSelector>,
-    gas_limit: u32,
-    max_depth: u8,
-    max_steps: u32,
-) -> bool {
-    if offset < code.len() && code[offset] == op::JUMPDEST {
-        let mut vm = Vm::new(code, calldata);
-        vm.pc = offset;
-        execute_paths(vm, 0, events, seen, gas_limit, max_depth, max_steps)
-    } else {
-        execute_function(
-            code, calldata, events, seen, gas_limit, max_depth, max_steps,
-        )
-    }
 }
 
 fn execute_from_entry(
@@ -542,25 +565,71 @@ pub fn contract_events(code: &[u8]) -> Vec<EventSelector> {
                 break;
             }
             let before = seen.len();
-            let mut next_pending = Vec::with_capacity(pending.len());
 
-            for (selector, offset) in pending.into_iter() {
-                let calldata = CallDataImpl { selector };
-                let needs_more = execute_function_from_offset(
-                    code,
-                    &calldata,
-                    offset,
-                    &mut events,
-                    &mut seen,
-                    gas_limit,
-                    max_depth,
-                    max_steps,
-                );
-                if needs_more {
-                    next_pending.push((selector, offset));
+            let calldatas: Vec<CallDataImpl> = pending
+                .iter()
+                .map(|(selector, _)| CallDataImpl {
+                    selector: *selector,
+                })
+                .collect();
+
+            let mut initial_states = Vec::with_capacity(pending.len());
+            let mut round_needs_more = vec![false; pending.len()];
+
+            for (idx, ((_, offset), calldata)) in pending.iter().zip(calldatas.iter()).enumerate() {
+                if *offset < code.len() && code[*offset] == op::JUMPDEST {
+                    let mut vm = Vm::new(code, calldata);
+                    vm.pc = *offset;
+                    initial_states.push(BatchState {
+                        idx,
+                        context: *offset,
+                        vm,
+                        gas_used: 0,
+                        depth: 0,
+                        steps: 0,
+                    });
+                } else {
+                    let mut vm = Vm::new(code, calldata);
+                    if let Some(initial_gas) = execute_until_function_start(&mut vm, gas_limit) {
+                        initial_states.push(BatchState {
+                            idx,
+                            context: *offset,
+                            vm,
+                            gas_used: initial_gas,
+                            depth: 0,
+                            steps: 0,
+                        });
+                    } else {
+                        round_needs_more[idx] = true;
+                    }
                 }
             }
-            pending = next_pending;
+
+            let batch_needs_more = execute_paths_batch(
+                initial_states,
+                pending.len(),
+                &mut events,
+                &mut seen,
+                gas_limit,
+                max_depth,
+                max_steps,
+            );
+
+            for (dst, src) in round_needs_more.iter_mut().zip(batch_needs_more.iter()) {
+                *dst |= *src;
+            }
+
+            pending = pending
+                .into_iter()
+                .enumerate()
+                .filter_map(|(idx, item)| {
+                    if round_needs_more[idx] {
+                        Some(item)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
             if seen.len() == before {
                 stable_rounds += 1;
