@@ -8,8 +8,8 @@ use crate::control_flow_graph::{
 };
 use crate::evm::{code_iterator::iterate_code, element::Element, memory::LabeledVec, op, vm::Vm};
 use crate::state_mutability::function_state_mutability;
-use crate::{Selector, StateMutability};
 use crate::utils::execute_until_function_start;
+use crate::{Selector, StateMutability};
 
 mod calldata;
 use calldata::CallDataImpl;
@@ -18,7 +18,9 @@ use calldata::CallDataImpl;
 pub type EventSelector = [u8; 32];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum Label {}
+enum Label {
+    ExternalCallResult(usize),
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct EventExtractionStats {
@@ -54,6 +56,8 @@ pub struct EventExecutionProfile {
     pub jumpi_unreachable_both: u64,
     pub jumpi_unreachable_current: u64,
     pub jumpi_unreachable_other: u64,
+    pub jumpi_fork_throttled: u64,
+    pub jumpi_fork_deduped: u64,
     pub jumpi_decision_keep: u64,
     pub jumpi_decision_switch: u64,
     pub jumpi_decision_fork: u64,
@@ -71,6 +75,8 @@ pub struct EventExecutionProfile {
     pub jumpi_unreachable_both_by_pc: BTreeMap<usize, u64>,
     pub jumpi_unreachable_current_by_pc: BTreeMap<usize, u64>,
     pub jumpi_unreachable_other_by_pc: BTreeMap<usize, u64>,
+    pub jumpi_fork_throttled_by_pc: BTreeMap<usize, u64>,
+    pub jumpi_fork_deduped_by_pc: BTreeMap<usize, u64>,
     pub jumpi_visited_breaks_by_pc: BTreeMap<usize, u64>,
 }
 
@@ -85,15 +91,28 @@ fn prune_selectors_by_mutability(
     if selectors.is_empty() {
         return (Vec::new(), 0);
     }
+    let soft_mutability_prune = std::env::var_os("EVMOLE_SOFT_MUTABILITY_PRUNE").is_some();
+    if std::env::var_os("EVMOLE_DISABLE_MUTABILITY_PRUNE").is_some() {
+        return (selectors.to_vec(), 0);
+    }
 
     let mut kept = Vec::with_capacity(selectors.len());
+    let mut deferred = Vec::new();
     let mut pruned = 0usize;
 
     for (selector, offset) in selectors.iter().copied() {
         match function_state_mutability(code, &selector, 0) {
-            StateMutability::View | StateMutability::Pure => pruned += 1,
+            StateMutability::View | StateMutability::Pure => {
+                pruned += 1;
+                if soft_mutability_prune {
+                    deferred.push((selector, offset));
+                }
+            }
             StateMutability::Payable | StateMutability::NonPayable => kept.push((selector, offset)),
         }
+    }
+    if soft_mutability_prune {
+        kept.extend(deferred);
     }
 
     // Safety fallback: if mutability analysis says all selectors are view/pure,
@@ -116,6 +135,9 @@ const MEMORY_FINGERPRINT_WRITES: usize = 6;
 const MEMORY_FINGERPRINT_BYTES: usize = 8;
 const MAX_PENDING_STATES: usize = 4_096;
 const MAX_VISITED_STATES: usize = 50_000;
+const MAX_JUMPI_FORKS_PER_CONTEXT_PC: u16 = 128;
+const MAX_JUMPI_FORKS_PER_EQUIV_KEY: u8 = 2;
+const MAX_CALL_FAIL_FORKS_PER_CONTEXT_PC: u8 = 1;
 const MAX_JUMP_CLASSIFY_CACHE: usize = 100_000;
 const MAX_ENTRY_STATE_CACHE: usize = 16_384;
 const FAST_EXEC_ROUNDS: [(u32, u8, u32); 3] = [
@@ -244,6 +266,34 @@ struct ProbeCacheKey {
     to_pc: usize,
     stack_top: [u8; 32],
     stack_len: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ForkDedupeKey {
+    context: usize,
+    step_pc: usize,
+    other_pc: usize,
+    stack_top: [u8; 32],
+    stack_len_bucket: u8,
+}
+
+fn stack_len_bucket(stack_len: usize) -> u8 {
+    (stack_len / 4).min(u8::MAX as usize) as u8
+}
+
+fn fork_dedupe_key(
+    vm: &Vm<Label, CallDataImpl>,
+    context: usize,
+    step_pc: usize,
+    other_pc: usize,
+) -> ForkDedupeKey {
+    ForkDedupeKey {
+        context,
+        step_pc,
+        other_pc,
+        stack_top: vm.stack.peek().map_or([0u8; 32], |v| v.data),
+        stack_len_bucket: stack_len_bucket(vm.stack.data.len()),
+    }
 }
 
 fn probe_cache_key(vm: &Vm<Label, CallDataImpl>, to_pc: usize, context: usize) -> ProbeCacheKey {
@@ -584,9 +634,13 @@ fn is_safe_direct_function_entry(code: &[u8], offset: usize) -> bool {
     true
 }
 
-fn static_event_candidates(code: &[u8]) -> usize {
+fn static_event_candidate_set(
+    code: &[u8],
+    scan_window: u8,
+    break_on_jump: bool,
+) -> HashSet<EventSelector> {
     if code.is_empty() {
-        return 0;
+        return HashSet::default();
     }
 
     let mut ops: Vec<(u8, Option<EventSelector>)> = Vec::new();
@@ -611,25 +665,16 @@ fn static_event_candidates(code: &[u8]) -> usize {
         }
 
         let mut near_log = false;
-        for (opv, _) in ops
-            .iter()
-            .skip(i + 1)
-            .take(STATIC_EVENT_SCAN_WINDOW as usize)
-        {
+        for (opv, _) in ops.iter().skip(i + 1).take(scan_window as usize) {
             if (op::LOG1..=op::LOG4).contains(opv) {
                 near_log = true;
                 break;
             }
             if matches!(
                 *opv,
-                op::STOP
-                    | op::RETURN
-                    | op::REVERT
-                    | op::INVALID
-                    | op::SELFDESTRUCT
-                    | op::JUMP
-                    | op::JUMPI
-            ) {
+                op::STOP | op::RETURN | op::REVERT | op::INVALID | op::SELFDESTRUCT
+            ) || (break_on_jump && matches!(*opv, op::JUMP | op::JUMPI))
+            {
                 break;
             }
         }
@@ -639,7 +684,19 @@ fn static_event_candidates(code: &[u8]) -> usize {
         }
     }
 
-    candidates.len()
+    candidates
+}
+
+fn static_event_candidates(code: &[u8]) -> usize {
+    static_event_candidate_set(code, STATIC_EVENT_SCAN_WINDOW, true).len()
+}
+
+fn static_supplement_window() -> u8 {
+    std::env::var("EVMOLE_STATIC_SUPPLEMENT_WINDOW")
+        .ok()
+        .and_then(|v| v.parse::<u8>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(STATIC_EVENT_SCAN_WINDOW)
 }
 
 struct LogPathIndex {
@@ -1044,6 +1101,20 @@ fn execute_paths_batch<'a>(
     max_depth: u8,
     max_steps: u32,
 ) -> Vec<bool> {
+    let disable_reachability_prune =
+        std::env::var_os("EVMOLE_DISABLE_REACHABILITY_PRUNE").is_some();
+    let disable_context_edge_prune =
+        std::env::var_os("EVMOLE_DISABLE_CONTEXT_EDGE_PRUNE").is_some();
+    let disable_fork_throttle = std::env::var_os("EVMOLE_DISABLE_FORK_THROTTLE").is_some();
+    let disable_fork_dedupe = std::env::var_os("EVMOLE_DISABLE_FORK_DEDUPE").is_some();
+    let enable_call_fail_fork = std::env::var_os("EVMOLE_DISABLE_CALL_FAIL_FORK").is_none();
+    let trace_log_pc = std::env::var("EVMOLE_TRACE_LOG_PC").ok().and_then(|v| {
+        let s = v.trim();
+        let h = s.strip_prefix("0x").unwrap_or(s);
+        usize::from_str_radix(h, 16).ok()
+    });
+    let trace_call_cond = std::env::var_os("EVMOLE_TRACE_CALL_COND").is_some();
+
     let mut needs_more = vec![false; states_count];
     if initial_states.is_empty() {
         return needs_more;
@@ -1068,6 +1139,9 @@ fn execute_paths_batch<'a>(
     }
 
     let mut visited: HashSet<StateKey> = HashSet::default();
+    let mut jumpi_fork_counts: HashMap<(usize, usize), u16> = HashMap::default();
+    let mut jumpi_fork_dedupe_counts: HashMap<ForkDedupeKey, u8> = HashMap::default();
+    let mut call_fail_fork_counts: HashMap<(usize, usize), u8> = HashMap::default();
     while let Some(state) = queue.pop() {
         if let Some(p) = profile.as_deref_mut() {
             p.states_popped = p.states_popped.saturating_add(1);
@@ -1102,7 +1176,20 @@ fn execute_paths_batch<'a>(
             }
 
             match ret.op {
-                op::LOG1..=op::LOG4 => collect_event(events, seen, ret.args[0].data),
+                op::LOG1..=op::LOG4 => {
+                    if trace_log_pc == Some(step_pc) {
+                        eprintln!(
+                            "[trace-log-pc] pc=0x{step_pc:x} op=0x{:x} topic0={:02x?}",
+                            ret.op, ret.args[0].data
+                        );
+                    }
+                    collect_event(events, seen, ret.args[0].data)
+                }
+                op::CALL | op::CALLCODE | op::DELEGATECALL | op::STATICCALL => {
+                    if enable_call_fail_fork && let Ok(top) = vm.stack.peek_mut() {
+                        top.label = Some(Label::ExternalCallResult(step_pc));
+                    }
+                }
                 op::JUMPI => {
                     if let Some(p) = profile.as_deref_mut() {
                         p.jumpi_total = p.jumpi_total.saturating_add(1);
@@ -1153,9 +1240,38 @@ fn execute_paths_batch<'a>(
                         continue;
                     }
 
-                    let mut current_can_reach = may_reach_log.get(vm.pc).copied().unwrap_or(false);
-                    let mut other_can_reach = may_reach_log.get(other_pc).copied().unwrap_or(false);
-                    if let Some(index) = path_index {
+                    let call_cond_key = if enable_call_fail_fork {
+                        if let Some(Label::ExternalCallResult(call_pc)) = ret.args[1].label.as_ref()
+                        {
+                            Some((context, *call_pc))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    if trace_call_cond && let Some((_, call_pc)) = call_cond_key {
+                        eprintln!(
+                            "[trace-call-cond] jump_pc=0x{step_pc:x} call_pc=0x{call_pc:x} cond={:02x?}",
+                            ret.args[1].data
+                        );
+                    }
+
+                    let mut current_can_reach = if disable_reachability_prune {
+                        true
+                    } else {
+                        may_reach_log.get(vm.pc).copied().unwrap_or(false)
+                    };
+                    let mut other_can_reach = if disable_reachability_prune {
+                        true
+                    } else {
+                        may_reach_log.get(other_pc).copied().unwrap_or(false)
+                    };
+                    if call_cond_key.is_some() {
+                        current_can_reach = true;
+                        other_can_reach = true;
+                    }
+                    if !disable_context_edge_prune && let Some(index) = path_index {
                         if let (Some(src_block), Some(current_block), Some(other_block)) = (
                             index.block_for_pc(step_pc),
                             index.block_for_pc(vm.pc),
@@ -1199,8 +1315,60 @@ fn execute_paths_batch<'a>(
                     }
 
                     let probe_gas = gas_limit.saturating_sub(gas_used).min(PROBE_GAS_LIMIT);
-                    let can_fork = depth < max_depth && queue.len() < MAX_PENDING_STATES;
-                    let jump = if can_fork {
+                    let can_fork_raw = depth < max_depth && queue.len() < MAX_PENDING_STATES;
+                    let mut can_fork = can_fork_raw;
+                    let mut fork_dedupe_key_for_enqueue = None;
+                    let mut call_fail_fork_key_for_enqueue = None;
+                    let force_call_cond_fork = call_cond_key.is_some_and(|key| {
+                        call_fail_fork_counts.get(&key).copied().unwrap_or(0)
+                            < MAX_CALL_FAIL_FORKS_PER_CONTEXT_PC
+                    });
+                    if can_fork_raw && !force_call_cond_fork && !disable_fork_throttle {
+                        let fork_used = jumpi_fork_counts
+                            .get(&(context, step_pc))
+                            .copied()
+                            .unwrap_or(0);
+                        if fork_used >= MAX_JUMPI_FORKS_PER_CONTEXT_PC {
+                            can_fork = false;
+                            if let Some(p) = profile.as_deref_mut() {
+                                p.jumpi_fork_throttled = p.jumpi_fork_throttled.saturating_add(1);
+                                bump_pc(&mut p.jumpi_fork_throttled_by_pc, step_pc);
+                            }
+                        }
+                    }
+                    if can_fork && !force_call_cond_fork && !disable_fork_dedupe {
+                        let dedupe_key = fork_dedupe_key(&vm, context, step_pc, other_pc);
+                        let used = jumpi_fork_dedupe_counts
+                            .get(&dedupe_key)
+                            .copied()
+                            .unwrap_or(0);
+                        if used >= MAX_JUMPI_FORKS_PER_EQUIV_KEY {
+                            can_fork = false;
+                            if let Some(p) = profile.as_deref_mut() {
+                                p.jumpi_fork_deduped = p.jumpi_fork_deduped.saturating_add(1);
+                                bump_pc(&mut p.jumpi_fork_deduped_by_pc, step_pc);
+                            }
+                        } else {
+                            fork_dedupe_key_for_enqueue = Some(dedupe_key);
+                        }
+                    }
+                    if force_call_cond_fork && can_fork {
+                        call_fail_fork_key_for_enqueue = call_cond_key;
+                    }
+
+                    let jump = if force_call_cond_fork {
+                        if can_fork {
+                            JumpClassify {
+                                decision: JumpDecision::ForkBoth,
+                                needs_more: false,
+                            }
+                        } else {
+                            JumpClassify {
+                                decision: JumpDecision::KeepCurrent,
+                                needs_more: true,
+                            }
+                        }
+                    } else if can_fork {
                         if let Some(p) = profile.as_deref_mut() {
                             bump_pc(&mut p.jumpi_can_fork_true_by_pc, step_pc);
                         }
@@ -1295,6 +1463,18 @@ fn execute_paths_batch<'a>(
                                     p.states_pushed = p.states_pushed.saturating_add(1);
                                     p.queue_peak = p.queue_peak.max(queue.len());
                                 }
+                                let key = (context, step_pc);
+                                let used = jumpi_fork_counts.entry(key).or_insert(0);
+                                *used = used.saturating_add(1);
+                                if let Some(dedupe_key) = fork_dedupe_key_for_enqueue {
+                                    let used =
+                                        jumpi_fork_dedupe_counts.entry(dedupe_key).or_insert(0);
+                                    *used = used.saturating_add(1);
+                                }
+                                if let Some(key) = call_fail_fork_key_for_enqueue {
+                                    let used = call_fail_fork_counts.entry(key).or_insert(0);
+                                    *used = used.saturating_add(1);
+                                }
                             }
                         }
                     }
@@ -1371,6 +1551,7 @@ fn contract_events_with_stats_internal(
     fn run_batch_round(
         code: &[u8],
         pending: Vec<([u8; 4], usize)>,
+        allow_direct_entry: bool,
         events: &mut Vec<EventSelector>,
         seen: &mut HashSet<EventSelector>,
         may_reach_log: &[bool],
@@ -1402,7 +1583,7 @@ fn contract_events_with_stats_internal(
         for (idx, ((selector, offset), calldata)) in
             pending.iter().zip(calldatas.iter()).enumerate()
         {
-            if is_safe_direct_function_entry(code, *offset) {
+            if allow_direct_entry && is_safe_direct_function_entry(code, *offset) {
                 let mut vm = Vm::new(code, calldata);
                 vm.pc = *offset;
                 if let Some(p) = profile.as_deref_mut() {
@@ -1502,8 +1683,15 @@ fn contract_events_with_stats_internal(
     let static_candidates = static_event_candidates(code);
     let (selectors_all, _) = crate::selectors::function_selectors(code, 0);
     let selectors_all_vec: Vec<(Selector, usize)> = selectors_all.into_iter().collect();
+    let allow_direct_entry = std::env::var_os("EVMOLE_ENABLE_DIRECT_ENTRY").is_some()
+        && std::env::var_os("EVMOLE_DISABLE_DIRECT_ENTRY").is_none();
     stats.selectors_total = selectors_all_vec.len() as u64;
-    let (selectors, pruned) = prune_selectors_by_mutability(code, &selectors_all_vec);
+    let (mut selectors, pruned) = prune_selectors_by_mutability(code, &selectors_all_vec);
+    if std::env::var_os("EVMOLE_FORCE_FALLBACK_SCAN").is_some() {
+        selectors.clear();
+    }
+    let extra_fallback_round = std::env::var_os("EVMOLE_EXTRA_FALLBACK_ROUND").is_some();
+    let has_any_selector = !selectors_all_vec.is_empty();
     stats.selectors_after_mutability_prune = selectors.len() as u64;
     stats.selectors_pruned_view_or_pure = pruned as u64;
     let contexts: Vec<usize> = selectors.iter().map(|(_, offset)| *offset).collect();
@@ -1594,6 +1782,7 @@ fn contract_events_with_stats_internal(
             pending = run_batch_round(
                 code,
                 pending,
+                allow_direct_entry,
                 &mut events,
                 &mut seen,
                 &may_reach_log,
@@ -1640,6 +1829,7 @@ fn contract_events_with_stats_internal(
                 pending = run_batch_round(
                     code,
                     pending,
+                    allow_direct_entry,
                     &mut events,
                     &mut seen,
                     &may_reach_all,
@@ -1655,6 +1845,35 @@ fn contract_events_with_stats_internal(
                     max_steps,
                 );
             }
+        }
+    }
+    if extra_fallback_round && has_any_selector {
+        let calldata = CallDataImpl { selector: [0; 4] };
+        let (gas_limit, max_depth, max_steps) = FAST_EXEC_ROUNDS[0];
+        let may_reach_all = vec![true; code.len()];
+        let _ = execute_from_entry(
+            code,
+            &calldata,
+            &mut events,
+            &mut seen,
+            &may_reach_all,
+            path_index.as_ref(),
+            &mut static_dead_cache,
+            &mut probe_cache,
+            &mut jump_classify_cache,
+            &mut stats,
+            &mut profile,
+            gas_limit,
+            max_depth,
+            max_steps,
+        );
+    }
+
+    if std::env::var_os("EVMOLE_DISABLE_STATIC_SUPPLEMENT").is_none() {
+        let break_on_jump = std::env::var_os("EVMOLE_STATIC_SUPPLEMENT_CROSS_JUMP").is_none();
+        let window = static_supplement_window();
+        for topic in static_event_candidate_set(code, window, break_on_jump) {
+            collect_event(&mut events, &mut seen, topic);
         }
     }
 
