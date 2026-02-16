@@ -3,6 +3,7 @@ use crate::{
     arguments::function_arguments,
     control_flow_graph::basic_blocks,
     control_flow_graph::{ControlFlowGraph, control_flow_graph},
+    events::{EventSelector, contract_events},
     evm::code_iterator::disassemble,
     selectors::function_selectors,
     state_mutability::function_state_mutability,
@@ -49,6 +50,16 @@ pub struct Contract {
     /// List of contract functions with their metadata
     pub functions: Option<Vec<Function>>,
 
+    /// Event selectors found in the contract bytecode
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "crate::serialize::events"
+        )
+    )]
+    pub events: Option<Vec<EventSelector>>,
+
     /// Contract storage layout
     pub storage: Option<Vec<StorageRecord>>,
 
@@ -74,6 +85,7 @@ pub struct ContractInfoArgs<'a> {
     need_selectors: bool,
     need_arguments: bool,
     need_state_mutability: bool,
+    need_events: bool,
     need_storage: bool,
     need_disassemble: bool,
     need_basic_blocks: bool,
@@ -110,6 +122,12 @@ impl<'a> ContractInfoArgs<'a> {
     pub fn with_state_mutability(mut self) -> Self {
         self.need_selectors = true;
         self.need_state_mutability = true;
+        self
+    }
+
+    /// Enables the extraction of event selectors from the contract bytecode
+    pub fn with_events(mut self) -> Self {
+        self.need_events = true;
         self
     }
 
@@ -231,8 +249,15 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         (None, None)
     };
 
+    let events = if args.need_events {
+        Some(contract_events(args.code))
+    } else {
+        None
+    };
+
     Contract {
         functions,
+        events,
         storage,
         disassembled,
         basic_blocks,

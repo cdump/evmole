@@ -7,9 +7,8 @@ use crate::control_flow_graph::{
     Block, BlockType, INVALID_JUMP_START, basic_blocks, control_flow_graph,
 };
 use crate::evm::{code_iterator::iterate_code, element::Element, memory::LabeledVec, op, vm::Vm};
-use crate::state_mutability::function_state_mutability;
 use crate::utils::execute_until_function_start;
-use crate::{Selector, StateMutability};
+use crate::Selector;
 
 mod calldata;
 use calldata::CallDataImpl;
@@ -82,46 +81,6 @@ pub struct EventExecutionProfile {
 
 fn bump_pc(map: &mut BTreeMap<usize, u64>, pc: usize) {
     *map.entry(pc).or_insert(0) += 1;
-}
-
-fn prune_selectors_by_mutability(
-    code: &[u8],
-    selectors: &[(Selector, usize)],
-) -> (Vec<(Selector, usize)>, usize) {
-    if selectors.is_empty() {
-        return (Vec::new(), 0);
-    }
-    let soft_mutability_prune = std::env::var_os("EVMOLE_SOFT_MUTABILITY_PRUNE").is_some();
-    if std::env::var_os("EVMOLE_DISABLE_MUTABILITY_PRUNE").is_some() {
-        return (selectors.to_vec(), 0);
-    }
-
-    let mut kept = Vec::with_capacity(selectors.len());
-    let mut deferred = Vec::new();
-    let mut pruned = 0usize;
-
-    for (selector, offset) in selectors.iter().copied() {
-        match function_state_mutability(code, &selector, 0) {
-            StateMutability::View | StateMutability::Pure => {
-                pruned += 1;
-                if soft_mutability_prune {
-                    deferred.push((selector, offset));
-                }
-            }
-            StateMutability::Payable | StateMutability::NonPayable => kept.push((selector, offset)),
-        }
-    }
-    if soft_mutability_prune {
-        kept.extend(deferred);
-    }
-
-    // Safety fallback: if mutability analysis says all selectors are view/pure,
-    // keep original selectors to avoid recall regressions on unusual bytecode.
-    if kept.is_empty() {
-        return (selectors.to_vec(), 0);
-    }
-
-    (kept, pruned)
 }
 
 const PROBE_STEP_LIMIT: u16 = 12;
@@ -1686,14 +1645,14 @@ fn contract_events_with_stats_internal(
     let allow_direct_entry = std::env::var_os("EVMOLE_ENABLE_DIRECT_ENTRY").is_some()
         && std::env::var_os("EVMOLE_DISABLE_DIRECT_ENTRY").is_none();
     stats.selectors_total = selectors_all_vec.len() as u64;
-    let (mut selectors, pruned) = prune_selectors_by_mutability(code, &selectors_all_vec);
+    let has_any_selector = !selectors_all_vec.is_empty();
+    let mut selectors = selectors_all_vec;
     if std::env::var_os("EVMOLE_FORCE_FALLBACK_SCAN").is_some() {
         selectors.clear();
     }
     let extra_fallback_round = std::env::var_os("EVMOLE_EXTRA_FALLBACK_ROUND").is_some();
-    let has_any_selector = !selectors_all_vec.is_empty();
     stats.selectors_after_mutability_prune = selectors.len() as u64;
-    stats.selectors_pruned_view_or_pure = pruned as u64;
+    stats.selectors_pruned_view_or_pure = 0;
     let contexts: Vec<usize> = selectors.iter().map(|(_, offset)| *offset).collect();
     let path_index = build_log_path_index(code, &contexts);
     let mut events = Vec::<EventSelector>::new();

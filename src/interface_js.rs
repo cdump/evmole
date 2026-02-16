@@ -18,6 +18,7 @@ const DOC_CONTRACT: &'static str = r#"
 /**
  * Contains the analysis results of a contract
  * @property functions - Array of functions found in the contract. Not present if no functions were extracted.
+ * @property events - Array of event selectors found in the contract bytecode as hex strings. Not present if events were not extracted.
  * @property storage - Array of storage records found in the contract. Not present if storage layout was not extracted.
  * @property disassembled - Array of bytecode instructions, where each element is a tuple of [offset: number, instruction: string]
  * @property basicBlocks - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
@@ -27,6 +28,7 @@ const DOC_CONTRACT: &'static str = r#"
  */
 export type Contract = {
     functions?: ContractFunction[],
+    events?: string[],
     storage?: StorageRecord[],
     disassembled?: [number, string][],
     basicBlocks?: [number, number][],
@@ -36,6 +38,7 @@ export type Contract = {
 /// @typedef {Object} Contract
 /// @description Contains the analysis results of a contract
 /// @property {ContractFunction[]} [functions] - Array of functions found in the contract. Not present if no functions were extracted
+/// @property {string[]} [events] - Array of event selectors found in the contract bytecode as hex strings. Not present if events were not extracted
 /// @property {StorageRecord[]} [storage] - Array of storage records found in the contract. Not present if storage layout was not extracted
 /// @property {Array<Array<number|string>>} [disassembled] - Array of bytecode instructions, where each element is [offset, instruction]
 /// @property {Array<Array<number>>} [basicBlocks] - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
@@ -239,6 +242,9 @@ struct ContractInfoArgs {
     state_mutability: bool,
 
     #[serde(default)]
+    events: bool,
+
+    #[serde(default)]
     storage: bool,
 
     #[serde(default)]
@@ -261,6 +267,7 @@ const DOC_CONTRACT_INFO: &'static str = r#"
  * @param args.selectors - When true, includes function selectors in the output
  * @param args.arguments - When true, includes function arguments information
  * @param args.stateMutability - When true, includes state mutability information for functions
+ * @param args.events - When true, includes event selectors found in the contract bytecode
  * @param args.storage - When true, includes contract storage layout information
  * @param args.disassemble - When true, includes disassembled bytecode
  * @param args.basicBlocks - When true, includes basic block analysis
@@ -271,6 +278,7 @@ export function contractInfo(code: string, args: {
     selectors?: boolean,
     arguments?: boolean,
     stateMutability?: boolean,
+    events?: boolean,
     storage?: boolean,
     disassemble?: boolean,
     basicBlocks?: boolean,
@@ -284,6 +292,7 @@ export function contractInfo(code: string, args: {
 /// @param {boolean} [args.selectors] - When true, includes function selectors in the output
 /// @param {boolean} [args.arguments] - When true, includes function arguments information
 /// @param {boolean} [args.stateMutability] - When true, includes state mutability information for functions
+/// @param {boolean} [args.events] - When true, includes event selectors emitted by each function
 /// @param {boolean} [args.storage] - When true, includes contract storage layout information
 /// @param {boolean} [args.disassemble] - When true, includes disassembled bytecode
 /// @param {boolean} [args.basicBlocks] - When true, includes basic block analysis
@@ -304,6 +313,9 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     }
     if args.state_mutability {
         cargs = cargs.with_state_mutability();
+    }
+    if args.events {
+        cargs = cargs.with_events();
     }
     if args.storage {
         cargs = cargs.with_storage();

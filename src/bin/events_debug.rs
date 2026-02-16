@@ -295,10 +295,12 @@ fn main() {
             last_profile.visited_cap_hits
         );
         println!(
-            "jumpi outcomes: keep={} switch={} fork={} invalid_other_pc={} unreachable_both={} unreachable_current={} unreachable_other={}",
+            "jumpi outcomes: keep={} switch={} fork={} throttled={} deduped={} invalid_other_pc={} unreachable_both={} unreachable_current={} unreachable_other={}",
             last_profile.jumpi_decision_keep,
             last_profile.jumpi_decision_switch,
             last_profile.jumpi_decision_fork,
+            last_profile.jumpi_fork_throttled,
+            last_profile.jumpi_fork_deduped,
             last_profile.jumpi_invalid_other_pc,
             last_profile.jumpi_unreachable_both,
             last_profile.jumpi_unreachable_current,
@@ -333,6 +335,16 @@ fn main() {
         print_top_pc(
             "top jumpi decision switch",
             &last_profile.jumpi_decision_switch_by_pc,
+            args.top_pc,
+        );
+        print_top_pc(
+            "top jumpi fork throttled",
+            &last_profile.jumpi_fork_throttled_by_pc,
+            args.top_pc,
+        );
+        print_top_pc(
+            "top jumpi fork deduped",
+            &last_profile.jumpi_fork_deduped_by_pc,
             args.top_pc,
         );
         print_top_pc(

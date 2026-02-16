@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use alloy_primitives::hex;
 use serde::{Serializer, ser::SerializeSeq};
 
-use crate::{DynSolType, Selector, Slot, StateMutability, control_flow_graph::Block};
+use crate::{
+    DynSolType, Selector, Slot, StateMutability, control_flow_graph::Block, events::EventSelector,
+};
 
 pub fn selector<S: Serializer>(val: &Selector, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str(&hex::encode(val))
@@ -46,6 +48,22 @@ pub fn vec_selector<S: Serializer>(val: &Vec<Selector>, serializer: S) -> Result
         s.serialize_element(&hex::encode(sel))?;
     }
     s.end()
+}
+
+pub fn events<S: Serializer>(
+    val: &Option<Vec<EventSelector>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    match val {
+        Some(evts) => {
+            let mut s = serializer.serialize_seq(Some(evts.len()))?;
+            for evt in evts {
+                s.serialize_element(&hex::encode(evt))?;
+            }
+            s.end()
+        }
+        None => serializer.serialize_none(),
+    }
 }
 
 pub fn blocks<S: Serializer>(
