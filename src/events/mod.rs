@@ -1,14 +1,15 @@
 use std::{
-    cmp::Ordering, collections::BTreeMap, collections::hash_map::DefaultHasher, hash::Hasher,
+    cmp::Ordering, collections::BTreeMap, collections::VecDeque,
+    collections::hash_map::DefaultHasher, hash::Hasher,
 };
 
+use crate::Selector;
 use crate::collections::{HashMap, HashSet};
 use crate::control_flow_graph::{
     Block, BlockType, INVALID_JUMP_START, basic_blocks, control_flow_graph,
 };
 use crate::evm::{code_iterator::iterate_code, element::Element, memory::LabeledVec, op, vm::Vm};
 use crate::utils::execute_until_function_start;
-use crate::Selector;
 
 mod calldata;
 use calldata::CallDataImpl;
@@ -88,7 +89,8 @@ const PROBE_GAS_LIMIT: u32 = 2_500;
 const STATIC_DEAD_END_SCAN_STEPS: u8 = 16;
 const STATIC_DEAD_END_MAX_FOLLOW: u8 = 4;
 const DIRECT_ENTRY_SCAN_STEPS: u8 = 24;
-const STATIC_EVENT_SCAN_WINDOW: u8 = 24;
+const STATIC_EVENT_SCAN_WINDOW_METRIC: u8 = 24;
+const STATIC_EVENT_SCAN_WINDOW_SUPPLEMENT: u8 = 192;
 const STACK_FINGERPRINT_ELEMS: usize = 10;
 const MEMORY_FINGERPRINT_WRITES: usize = 6;
 const MEMORY_FINGERPRINT_BYTES: usize = 8;
@@ -269,6 +271,7 @@ struct JumpClassifyCacheKey {
     state: StateKey,
     step_pc: usize,
     other_pc: usize,
+    prefer_other_on_tie: bool,
     probe_steps: u16,
     probe_gas: u32,
 }
@@ -593,16 +596,17 @@ fn is_safe_direct_function_entry(code: &[u8], offset: usize) -> bool {
     true
 }
 
-fn static_event_candidate_set(
-    code: &[u8],
-    scan_window: u8,
-    break_on_jump: bool,
-) -> HashSet<EventSelector> {
-    if code.is_empty() {
-        return HashSet::default();
-    }
+#[derive(Clone, Copy)]
+struct StaticTraceOp {
+    op: u8,
+    known: bool,
+    stack_in: usize,
+    stack_out: usize,
+    push32: Option<EventSelector>,
+}
 
-    let mut ops: Vec<(u8, Option<EventSelector>)> = Vec::new();
+fn static_trace_ops(code: &[u8]) -> Vec<StaticTraceOp> {
+    let mut ops = Vec::new();
     for (pc, cop) in iterate_code(code, 0, None) {
         let push32 = if cop.op == op::PUSH32 && pc + 33 <= code.len() {
             let mut topic = [0u8; 32];
@@ -611,12 +615,132 @@ fn static_event_candidate_set(
         } else {
             None
         };
-        ops.push((cop.op, push32));
+        ops.push(StaticTraceOp {
+            op: cop.op,
+            known: cop.opi.known,
+            stack_in: cop.opi.stack_in,
+            stack_out: cop.opi.stack_out,
+            push32,
+        });
+    }
+    ops
+}
+
+fn is_inline_guard_trap(ops: &[StaticTraceOp], idx: usize) -> bool {
+    let opv = ops[idx].op;
+    if !matches!(opv, op::INVALID | op::REVERT) {
+        return false;
+    }
+    let Some(prev) = idx.checked_sub(1).and_then(|i| ops.get(i)) else {
+        return false;
+    };
+    let Some(next) = ops.get(idx + 1) else {
+        return false;
+    };
+    prev.op == op::JUMPI && next.op == op::JUMPDEST
+}
+
+fn trace_topic0_push32_from_log(
+    ops: &[StaticTraceOp],
+    log_idx: usize,
+    scan_window: usize,
+    break_on_jump: bool,
+) -> Option<EventSelector> {
+    if log_idx == 0 {
+        return None;
     }
 
+    // Before LOGx executes, topic0 is 3rd stack item from the top:
+    // [mstart, msize, topic0, ...]
+    let mut tracked_slot = 2usize;
+    let mut scanned = 0usize;
+    let mut idx = log_idx;
+
+    while idx > 0 && scanned < scan_window {
+        idx -= 1;
+        scanned += 1;
+        let instr = ops[idx];
+
+        if !instr.known {
+            return None;
+        }
+
+        if matches!(instr.op, op::STOP | op::RETURN | op::SELFDESTRUCT) {
+            break;
+        }
+        if matches!(instr.op, op::INVALID | op::REVERT) {
+            // `JUMPI; INVALID/REVERT; JUMPDEST` is often an inline guard trap.
+            // Treat it as a branch marker, not as a hard barrier.
+            if is_inline_guard_trap(ops, idx) {
+                continue;
+            }
+            break;
+        }
+        if break_on_jump {
+            if instr.op == op::JUMP {
+                break;
+            }
+        }
+
+        match instr.op {
+            op::PUSH32 => {
+                if tracked_slot == 0 {
+                    if let Some(topic) = instr.push32
+                        && is_plausible_event_hash(&topic)
+                    {
+                        return Some(topic);
+                    }
+                    return None;
+                }
+                tracked_slot -= 1;
+            }
+            op::PUSH0 | op::PUSH1..=op::PUSH31 => {
+                if tracked_slot == 0 {
+                    return None;
+                }
+                tracked_slot -= 1;
+            }
+            op::DUP1..=op::DUP16 => {
+                let n = (instr.op - op::DUP1 + 1) as usize;
+                if tracked_slot == 0 {
+                    tracked_slot = n - 1;
+                } else if tracked_slot <= n - 1 {
+                    tracked_slot -= 1;
+                }
+            }
+            op::SWAP1..=op::SWAP16 => {
+                let n = (instr.op - op::SWAP1 + 1) as usize;
+                if tracked_slot == 0 {
+                    tracked_slot = n;
+                } else if tracked_slot == n {
+                    tracked_slot = 0;
+                }
+            }
+            op::POP => tracked_slot = tracked_slot.saturating_add(1),
+            _ => {
+                if tracked_slot < instr.stack_out {
+                    return None;
+                }
+                tracked_slot = tracked_slot - instr.stack_out + instr.stack_in;
+            }
+        }
+
+        if tracked_slot > 1024 {
+            return None;
+        }
+    }
+
+    None
+}
+
+fn static_event_candidates_from_push32_forward(
+    ops: &[StaticTraceOp],
+    scan_window: usize,
+    break_on_jump: bool,
+) -> HashSet<EventSelector> {
     let mut candidates: HashSet<EventSelector> = HashSet::default();
     for i in 0..ops.len() {
-        let Some(topic0) = ops[i].1 else {
+        let Some(topic0) = ops[i].push32 else {
             continue;
         };
         if !is_plausible_event_hash(&topic0) {
@@ -624,15 +748,15 @@ fn static_event_candidate_set(
         }
 
         let mut near_log = false;
-        for (opv, _) in ops.iter().skip(i + 1).take(scan_window as usize) {
-            if (op::LOG1..=op::LOG4).contains(opv) {
+        for opv in ops.iter().skip(i + 1).take(scan_window).map(|v| v.op) {
+            if (op::LOG1..=op::LOG4).contains(&opv) {
                 near_log = true;
                 break;
             }
             if matches!(
-                *opv,
+                opv,
                 op::STOP | op::RETURN | op::REVERT | op::INVALID | op::SELFDESTRUCT
-            ) || (break_on_jump && matches!(*opv, op::JUMP | op::JUMPI))
+            ) || (break_on_jump && matches!(opv, op::JUMP | op::JUMPI))
             {
                 break;
             }
@@ -646,8 +770,41 @@ fn static_event_candidate_set(
     candidates
 }
 
+fn static_event_candidate_set(
+    code: &[u8],
+    scan_window: u8,
+    break_on_jump: bool,
+) -> HashSet<EventSelector> {
+    if code.is_empty() {
+        return HashSet::default();
+    }
+
+    let ops = static_trace_ops(code);
+    let mut candidates: HashSet<EventSelector> = HashSet::default();
+    for (idx, instr) in ops.iter().enumerate() {
+        if !(op::LOG1..=op::LOG4).contains(&instr.op) {
+            continue;
+        }
+        if let Some(topic) =
+            trace_topic0_push32_from_log(&ops, idx, scan_window as usize, break_on_jump)
+        {
+            candidates.insert(topic);
+        }
+    }
+    candidates
+}
+
 fn static_event_candidates(code: &[u8]) -> usize {
-    static_event_candidate_set(code, STATIC_EVENT_SCAN_WINDOW, true).len()
+    if code.is_empty() {
+        return 0;
+    }
+    let ops = static_trace_ops(code);
+    static_event_candidates_from_push32_forward(
+        &ops,
+        STATIC_EVENT_SCAN_WINDOW_METRIC as usize,
+        true,
+    )
+    .len()
 }
 
 fn static_supplement_window() -> u8 {
@@ -655,12 +812,13 @@ fn static_supplement_window() -> u8 {
         .ok()
         .and_then(|v| v.parse::<u8>().ok())
         .filter(|v| *v > 0)
-        .unwrap_or(STATIC_EVENT_SCAN_WINDOW)
+        .unwrap_or(STATIC_EVENT_SCAN_WINDOW_SUPPLEMENT)
 }
 
 struct LogPathIndex {
     pc_to_block: Vec<usize>,
     edges_by_context: HashMap<usize, HashMap<usize, HashSet<usize>>>,
+    distance_by_context: HashMap<usize, HashMap<usize, u16>>,
 }
 
 impl LogPathIndex {
@@ -669,6 +827,11 @@ impl LogPathIndex {
             .get(pc)
             .copied()
             .and_then(|v| if v == usize::MAX { None } else { Some(v) })
+    }
+
+    fn distance_for_pc(&self, context: usize, pc: usize) -> Option<u16> {
+        let block = self.block_for_pc(pc)?;
+        self.distance_by_context.get(&context)?.get(&block).copied()
     }
 }
 
@@ -756,6 +919,7 @@ fn build_log_path_index(code: &[u8], contexts: &[usize]) -> Option<LogPathIndex>
     }
 
     let mut edges_by_context: HashMap<usize, HashMap<usize, HashSet<usize>>> = HashMap::default();
+    let mut distance_by_context: HashMap<usize, HashMap<usize, u16>> = HashMap::default();
     for &context in contexts {
         let Some(entry_block) = find_block_start(&cfg.blocks, context) else {
             continue;
@@ -781,22 +945,57 @@ fn build_log_path_index(code: &[u8], contexts: &[usize]) -> Option<LogPathIndex>
 
         if !allowed.is_empty() {
             let mut allowed_edges: HashMap<usize, HashSet<usize>> = HashMap::default();
+            let mut allowed_pred: HashMap<usize, HashSet<usize>> = HashMap::default();
             for &from in &allowed {
                 if let Some(nexts) = succ.get(&from) {
                     for &to in nexts {
                         if allowed.contains(&to) {
                             allowed_edges.entry(from).or_default().insert(to);
+                            allowed_pred.entry(to).or_default().insert(from);
                         }
                     }
                 }
             }
-            edges_by_context.insert(context, allowed_edges);
+
+            if !allowed_edges.is_empty() {
+                edges_by_context.insert(context, allowed_edges);
+            }
+
+            let mut distance: HashMap<usize, u16> = HashMap::default();
+            let mut queue: VecDeque<usize> = VecDeque::new();
+            for &node in &allowed {
+                if log_blocks.contains(&node) {
+                    distance.insert(node, 0);
+                    queue.push_back(node);
+                }
+            }
+
+            while let Some(node) = queue.pop_front() {
+                let cur_dist = distance.get(&node).copied().unwrap_or(0);
+                let next_dist = cur_dist.saturating_add(1);
+                if let Some(preds) = allowed_pred.get(&node) {
+                    for &pred_node in preds {
+                        let update = distance
+                            .get(&pred_node)
+                            .is_none_or(|&existing| next_dist < existing);
+                        if update {
+                            distance.insert(pred_node, next_dist);
+                            queue.push_back(pred_node);
+                        }
+                    }
+                }
+            }
+
+            if !distance.is_empty() {
+                distance_by_context.insert(context, distance);
+            }
         }
     }
 
     Some(LogPathIndex {
         pc_to_block,
         edges_by_context,
+        distance_by_context,
     })
 }
 
@@ -894,6 +1093,7 @@ fn classify_jump(
     context: usize,
     other_pc: usize,
     can_fork: bool,
+    prefer_other_on_tie: bool,
     probe_steps: u16,
     probe_gas: u32,
     static_dead_cache: &mut HashMap<usize, bool>,
@@ -976,7 +1176,11 @@ fn classify_jump(
             needs_more: false,
         },
         Ordering::Equal => JumpClassify {
-            decision: JumpDecision::KeepCurrent,
+            decision: if prefer_other_on_tie {
+                JumpDecision::SwitchOther
+            } else {
+                JumpDecision::KeepCurrent
+            },
             // Only keep escalating when both branches look equally open-ended.
             needs_more: current == ProbeOutcome::Alive,
         },
@@ -990,6 +1194,24 @@ fn collect_event(
 ) {
     if is_plausible_event_hash(&topic0) && seen.insert(topic0) {
         events.push(topic0);
+    }
+}
+
+fn prefer_other_branch_by_log_distance(
+    path_index: Option<&LogPathIndex>,
+    context: usize,
+    current_pc: usize,
+    other_pc: usize,
+) -> bool {
+    let Some(index) = path_index else {
+        return false;
+    };
+    let current_dist = index.distance_for_pc(context, current_pc);
+    let other_dist = index.distance_for_pc(context, other_pc);
+    match (current_dist, other_dist) {
+        (Some(cd), Some(od)) => od < cd,
+        (None, Some(_)) => true,
+        _ => false,
     }
 }
 
@@ -1276,6 +1498,8 @@ fn execute_paths_batch<'a>(
                     let probe_gas = gas_limit.saturating_sub(gas_used).min(PROBE_GAS_LIMIT);
                     let can_fork_raw = depth < max_depth && queue.len() < MAX_PENDING_STATES;
                     let mut can_fork = can_fork_raw;
+                    let prefer_other_on_tie =
+                        prefer_other_branch_by_log_distance(path_index, context, vm.pc, other_pc);
                     let mut fork_dedupe_key_for_enqueue = None;
                     let mut call_fail_fork_key_for_enqueue = None;
                     let force_call_cond_fork = call_cond_key.is_some_and(|key| {
@@ -1337,6 +1561,7 @@ fn execute_paths_batch<'a>(
                             context,
                             other_pc,
                             true,
+                            prefer_other_on_tie,
                             PROBE_STEP_LIMIT,
                             probe_gas,
                             static_dead_cache,
@@ -1352,6 +1577,7 @@ fn execute_paths_batch<'a>(
                             state: jump_state,
                             step_pc,
                             other_pc,
+                            prefer_other_on_tie,
                             probe_steps: PROBE_STEP_LIMIT,
                             probe_gas,
                         };
@@ -1371,6 +1597,7 @@ fn execute_paths_batch<'a>(
                                 context,
                                 other_pc,
                                 false,
+                                prefer_other_on_tie,
                                 PROBE_STEP_LIMIT,
                                 probe_gas,
                                 static_dead_cache,
@@ -1987,6 +2214,44 @@ mod tests {
 
         let events = contract_events(&code);
         assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_static_event_candidates_from_log_long_distance() {
+        let topic = [0x7a; 32];
+        let mut code = Vec::new();
+        code.push(op::PUSH32);
+        code.extend_from_slice(&topic);
+        for _ in 0..80 {
+            code.extend_from_slice(&[op::PUSH1, 0x00, op::POP]);
+        }
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00, op::LOG1, op::STOP]);
+
+        let short_window = static_event_candidate_set(&code, 24, true);
+        assert!(!short_window.contains(&topic));
+
+        let long_window = static_event_candidate_set(&code, 192, true);
+        assert!(long_window.contains(&topic));
+    }
+
+    #[test]
+    fn test_static_event_candidates_cross_inline_invalid_guard() {
+        let topic = [0x6b; 32];
+        let mut code = Vec::new();
+        code.push(op::PUSH32);
+        code.extend_from_slice(&topic);
+
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x01]);
+        let jump_dest_patch = code.len() - 3;
+        code.push(op::JUMPI);
+        code.push(op::INVALID);
+        let jump_dest = code.len();
+        code.push(op::JUMPDEST);
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00, op::LOG1, op::STOP]);
+        code[jump_dest_patch] = u8::try_from(jump_dest).unwrap();
+
+        let candidates = static_event_candidate_set(&code, 64, true);
+        assert!(candidates.contains(&topic));
     }
 
     #[test]
