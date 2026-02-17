@@ -96,9 +96,16 @@ const MEMORY_FINGERPRINT_WRITES: usize = 6;
 const MEMORY_FINGERPRINT_BYTES: usize = 8;
 const MAX_PENDING_STATES: usize = 4_096;
 const MAX_VISITED_STATES: usize = 50_000;
+const STARVATION_LOCAL_UPLIFT_MAX_VISITED_STATES: usize = 120_000;
+const STARVATION_LOCAL_UPLIFT_MAX_PENDING_SELECTORS: usize = 32;
+const STARVATION_LOCAL_UPLIFT_MAX_CHUNKS: usize = 2;
 const MAX_JUMPI_FORKS_PER_CONTEXT_PC: u16 = 128;
 const MAX_JUMPI_FORKS_PER_EQUIV_KEY: u8 = 2;
 const MAX_CALL_FAIL_FORKS_PER_CONTEXT_PC: u8 = 1;
+const DYNAMIC_JUMP_HOT_FANOUT_MIN: usize = 24;
+const DYNAMIC_JUMP_EXTRA_TARGETS_PER_HIT: usize = 2;
+const MAX_DYNAMIC_JUMP_EXTRA_FORKS_PER_SITE: u16 = 16;
+const MAX_DYNAMIC_JUMP_EXTRA_FORKS_PER_TARGET: u8 = 1;
 const MAX_JUMP_CLASSIFY_CACHE: usize = 100_000;
 const MAX_ENTRY_STATE_CACHE: usize = 16_384;
 const FAST_EXEC_ROUNDS: [(u32, u8, u32); 3] = [
@@ -116,6 +123,14 @@ const RECALL_EXEC_ROUNDS_PARTIAL: [(u32, u8, u32); 1] = [
     // Lighter recall when we already found at least one event.
     (320_000, 6, 20_000),
 ];
+
+fn should_run_starvation_local_uplift(
+    _selectors_total: usize,
+    pending_selectors: usize,
+    starved_pending: usize,
+) -> bool {
+    pending_selectors > 0 && starved_pending > 0
+}
 
 /// Checks if a 32-byte value looks like a keccak256 hash (event selector).
 fn is_plausible_event_hash(val: &[u8; 32]) -> bool {
@@ -815,6 +830,21 @@ fn static_supplement_window() -> u8 {
         .unwrap_or(STATIC_EVENT_SCAN_WINDOW_SUPPLEMENT)
 }
 
+fn parse_selector_hex(s: &str) -> Option<Selector> {
+    let t = s.trim();
+    let h = t.strip_prefix("0x").unwrap_or(t);
+    if h.len() != 8 {
+        return None;
+    }
+    let raw = alloy_primitives::hex::decode(h).ok()?;
+    if raw.len() != 4 {
+        return None;
+    }
+    let mut out = [0u8; 4];
+    out.copy_from_slice(&raw);
+    Some(out)
+}
+
 struct LogPathIndex {
     pc_to_block: Vec<usize>,
     edges_by_context: HashMap<usize, HashMap<usize, HashSet<usize>>>,
@@ -1215,6 +1245,63 @@ fn prefer_other_branch_by_log_distance(
     }
 }
 
+fn dynamic_jump_extra_targets(
+    path_index: Option<&LogPathIndex>,
+    context: usize,
+    step_pc: usize,
+    current_pc: usize,
+) -> Vec<usize> {
+    let Some(index) = path_index else {
+        return Vec::new();
+    };
+    let Some(src_block) = index.block_for_pc(step_pc) else {
+        return Vec::new();
+    };
+    let Some(current_block) = index.block_for_pc(current_pc) else {
+        return Vec::new();
+    };
+    let Some(edges) = index.edges_by_context.get(&context) else {
+        return Vec::new();
+    };
+    let Some(nexts) = edges.get(&src_block) else {
+        return Vec::new();
+    };
+    if nexts.len() < DYNAMIC_JUMP_HOT_FANOUT_MIN {
+        return Vec::new();
+    }
+
+    let mut log_targets: Vec<(u16, usize)> = Vec::new();
+    let mut other_targets: Vec<(u16, usize)> = Vec::new();
+
+    for &target in nexts {
+        if target == current_block || target == src_block {
+            continue;
+        }
+        let Some(dist) = index.distance_for_pc(context, target) else {
+            continue;
+        };
+        if dist == 0 {
+            log_targets.push((dist, target));
+        } else {
+            other_targets.push((dist, target));
+        }
+    }
+
+    log_targets.sort_unstable_by(|a, b| a.1.cmp(&b.1));
+    other_targets.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+
+    let mut out = Vec::with_capacity(log_targets.len() + other_targets.len());
+    if let Some((_, target)) = log_targets.first() {
+        out.push(*target);
+    }
+    if let Some((_, target)) = other_targets.first() {
+        out.push(*target);
+    }
+    out.extend(log_targets.into_iter().skip(1).map(|(_, target)| target));
+    out.extend(other_targets.into_iter().skip(1).map(|(_, target)| target));
+    out
+}
+
 struct BatchState<'a> {
     idx: usize,
     context: usize,
@@ -1239,6 +1326,7 @@ fn execute_paths<'a>(
     gas_limit: u32,
     max_depth: u8,
     max_steps: u32,
+    max_visited_states: usize,
 ) -> bool {
     let needs_more = execute_paths_batch(
         vec![BatchState {
@@ -1262,6 +1350,8 @@ fn execute_paths<'a>(
         gas_limit,
         max_depth,
         max_steps,
+        max_visited_states,
+        None,
     );
     needs_more.into_iter().next().unwrap_or(false)
 }
@@ -1281,15 +1371,24 @@ fn execute_paths_batch<'a>(
     gas_limit: u32,
     max_depth: u8,
     max_steps: u32,
+    max_visited_states: usize,
+    mut visited_cap_hit_by_idx: Option<&mut [bool]>,
 ) -> Vec<bool> {
     let disable_reachability_prune =
         std::env::var_os("EVMOLE_DISABLE_REACHABILITY_PRUNE").is_some();
     let disable_context_edge_prune =
         std::env::var_os("EVMOLE_DISABLE_CONTEXT_EDGE_PRUNE").is_some();
+    let enable_dynamic_jump_second_pass =
+        std::env::var_os("EVMOLE_DISABLE_DYNAMIC_JUMP_SECOND_PASS").is_none();
     let disable_fork_throttle = std::env::var_os("EVMOLE_DISABLE_FORK_THROTTLE").is_some();
     let disable_fork_dedupe = std::env::var_os("EVMOLE_DISABLE_FORK_DEDUPE").is_some();
     let enable_call_fail_fork = std::env::var_os("EVMOLE_DISABLE_CALL_FAIL_FORK").is_none();
     let trace_log_pc = std::env::var("EVMOLE_TRACE_LOG_PC").ok().and_then(|v| {
+        let s = v.trim();
+        let h = s.strip_prefix("0x").unwrap_or(s);
+        usize::from_str_radix(h, 16).ok()
+    });
+    let trace_pc = std::env::var("EVMOLE_TRACE_PC").ok().and_then(|v| {
         let s = v.trim();
         let h = s.strip_prefix("0x").unwrap_or(s);
         usize::from_str_radix(h, 16).ok()
@@ -1322,6 +1421,8 @@ fn execute_paths_batch<'a>(
     let mut visited: HashSet<StateKey> = HashSet::default();
     let mut jumpi_fork_counts: HashMap<(usize, usize), u16> = HashMap::default();
     let mut jumpi_fork_dedupe_counts: HashMap<ForkDedupeKey, u8> = HashMap::default();
+    let mut dynamic_jump_fork_counts: HashMap<(usize, usize), u16> = HashMap::default();
+    let mut dynamic_jump_target_counts: HashMap<(usize, usize, usize), u8> = HashMap::default();
     let mut call_fail_fork_counts: HashMap<(usize, usize), u8> = HashMap::default();
     while let Some(state) = queue.pop() {
         if let Some(p) = profile.as_deref_mut() {
@@ -1349,6 +1450,19 @@ fn execute_paths_batch<'a>(
                 Err(_) => break,
             };
 
+            if trace_pc == Some(step_pc) {
+                eprintln!(
+                    "[trace-pc] pc=0x{step_pc:x} op={} next_pc=0x{:x} context=0x{:x} depth={} gas={} steps={} stack_len={}",
+                    op::info(ret.op).name,
+                    vm.pc,
+                    context,
+                    depth,
+                    gas_used,
+                    steps,
+                    vm.stack.data.len()
+                );
+            }
+
             gas_used = gas_used.saturating_add(ret.gas_used);
             steps += 1;
 
@@ -1372,12 +1486,18 @@ fn execute_paths_batch<'a>(
                     }
                 }
                 op::JUMPI => {
+                    let trace_this_jump = trace_pc == Some(step_pc);
                     if let Some(p) = profile.as_deref_mut() {
                         p.jumpi_total = p.jumpi_total.saturating_add(1);
                         bump_pc(&mut p.jumpi_by_pc, step_pc);
                     }
-                    if visited.len() >= MAX_VISITED_STATES {
+                    if visited.len() >= max_visited_states {
                         needs_more[idx] = true;
+                        if let Some(by_idx) = visited_cap_hit_by_idx.as_deref_mut()
+                            && let Some(hit) = by_idx.get_mut(idx)
+                        {
+                            *hit = true;
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.visited_cap_hits = p.visited_cap_hits.saturating_add(1);
                         }
@@ -1385,6 +1505,12 @@ fn execute_paths_batch<'a>(
                     }
                     let jump_state = state_key(&vm, context);
                     if !visited.insert(jump_state) {
+                        if trace_this_jump {
+                            eprintln!(
+                                "[trace-jumpi] pc=0x{step_pc:x} visited_break current_pc=0x{:x}",
+                                vm.pc
+                            );
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.jumpi_visited_breaks = p.jumpi_visited_breaks.saturating_add(1);
                             bump_pc(&mut p.jumpi_visited_breaks_by_pc, step_pc);
@@ -1400,6 +1526,12 @@ fn execute_paths_batch<'a>(
                     };
 
                     let Some(other_pc) = other_pc else {
+                        if trace_this_jump {
+                            eprintln!(
+                                "[trace-jumpi] pc=0x{step_pc:x} invalid_other_pc cond_zero={} current_pc=0x{:x}",
+                                cond_zero, vm.pc
+                            );
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.jumpi_invalid_other_pc = p.jumpi_invalid_other_pc.saturating_add(1);
                             bump_pc(&mut p.jumpi_invalid_other_pc_by_pc, step_pc);
@@ -1414,6 +1546,12 @@ fn execute_paths_batch<'a>(
                     };
 
                     if !other_is_valid {
+                        if trace_this_jump {
+                            eprintln!(
+                                "[trace-jumpi] pc=0x{step_pc:x} other_not_valid cond_zero={} other_pc=0x{other_pc:x} current_pc=0x{:x}",
+                                cond_zero, vm.pc
+                            );
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.jumpi_invalid_other_pc = p.jumpi_invalid_other_pc.saturating_add(1);
                             bump_pc(&mut p.jumpi_invalid_other_pc_by_pc, step_pc);
@@ -1472,6 +1610,12 @@ fn execute_paths_batch<'a>(
                         }
                     }
                     if !current_can_reach && !other_can_reach {
+                        if trace_this_jump {
+                            eprintln!(
+                                "[trace-jumpi] pc=0x{step_pc:x} prune=both current_pc=0x{:x} other_pc=0x{other_pc:x}",
+                                vm.pc
+                            );
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.jumpi_unreachable_both = p.jumpi_unreachable_both.saturating_add(1);
                             bump_pc(&mut p.jumpi_unreachable_both_by_pc, step_pc);
@@ -1479,6 +1623,12 @@ fn execute_paths_batch<'a>(
                         break;
                     }
                     if !current_can_reach {
+                        if trace_this_jump {
+                            eprintln!(
+                                "[trace-jumpi] pc=0x{step_pc:x} prune=current current_pc=0x{:x} other_pc=0x{other_pc:x}",
+                                vm.pc
+                            );
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.jumpi_unreachable_current =
                                 p.jumpi_unreachable_current.saturating_add(1);
@@ -1488,6 +1638,12 @@ fn execute_paths_batch<'a>(
                         continue;
                     }
                     if !other_can_reach {
+                        if trace_this_jump {
+                            eprintln!(
+                                "[trace-jumpi] pc=0x{step_pc:x} prune=other current_pc=0x{:x} other_pc=0x{other_pc:x}",
+                                vm.pc
+                            );
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.jumpi_unreachable_other = p.jumpi_unreachable_other.saturating_add(1);
                             bump_pc(&mut p.jumpi_unreachable_other_by_pc, step_pc);
@@ -1617,12 +1773,24 @@ fn execute_paths_batch<'a>(
 
                     match jump.decision {
                         JumpDecision::KeepCurrent => {
+                            if trace_this_jump {
+                                eprintln!(
+                                    "[trace-jumpi] pc=0x{step_pc:x} decision=keep current_pc=0x{:x} other_pc=0x{other_pc:x}",
+                                    vm.pc
+                                );
+                            }
                             if let Some(p) = profile.as_deref_mut() {
                                 p.jumpi_decision_keep = p.jumpi_decision_keep.saturating_add(1);
                                 bump_pc(&mut p.jumpi_decision_keep_by_pc, step_pc);
                             }
                         }
                         JumpDecision::SwitchOther => {
+                            if trace_this_jump {
+                                eprintln!(
+                                    "[trace-jumpi] pc=0x{step_pc:x} decision=switch current_pc=0x{:x} other_pc=0x{other_pc:x}",
+                                    vm.pc
+                                );
+                            }
                             if let Some(p) = profile.as_deref_mut() {
                                 p.jumpi_decision_switch = p.jumpi_decision_switch.saturating_add(1);
                                 bump_pc(&mut p.jumpi_decision_switch_by_pc, step_pc);
@@ -1630,6 +1798,12 @@ fn execute_paths_batch<'a>(
                             vm.pc = other_pc
                         }
                         JumpDecision::ForkBoth => {
+                            if trace_this_jump {
+                                eprintln!(
+                                    "[trace-jumpi] pc=0x{step_pc:x} decision=fork current_pc=0x{:x} other_pc=0x{other_pc:x} can_fork={}",
+                                    vm.pc, can_fork
+                                );
+                            }
                             if let Some(p) = profile.as_deref_mut() {
                                 p.jumpi_decision_fork = p.jumpi_decision_fork.saturating_add(1);
                                 bump_pc(&mut p.jumpi_decision_fork_by_pc, step_pc);
@@ -1669,8 +1843,13 @@ fn execute_paths_batch<'a>(
                     if let Some(p) = profile.as_deref_mut() {
                         p.jump_total = p.jump_total.saturating_add(1);
                     }
-                    if visited.len() >= MAX_VISITED_STATES {
+                    if visited.len() >= max_visited_states {
                         needs_more[idx] = true;
+                        if let Some(by_idx) = visited_cap_hit_by_idx.as_deref_mut()
+                            && let Some(hit) = by_idx.get_mut(idx)
+                        {
+                            *hit = true;
+                        }
                         if let Some(p) = profile.as_deref_mut() {
                             p.visited_cap_hits = p.visited_cap_hits.saturating_add(1);
                         }
@@ -1681,6 +1860,71 @@ fn execute_paths_batch<'a>(
                             p.jump_visited_breaks = p.jump_visited_breaks.saturating_add(1);
                         }
                         break;
+                    }
+
+                    if enable_dynamic_jump_second_pass {
+                        let extra_targets =
+                            dynamic_jump_extra_targets(path_index, context, step_pc, vm.pc);
+                        if !extra_targets.is_empty() {
+                            let can_fork = depth < max_depth && queue.len() < MAX_PENDING_STATES;
+                            if !can_fork {
+                                needs_more[idx] = true;
+                                continue;
+                            }
+
+                            let site_key = (context, step_pc);
+                            let site_used = dynamic_jump_fork_counts
+                                .get(&site_key)
+                                .copied()
+                                .unwrap_or(0);
+                            if site_used >= MAX_DYNAMIC_JUMP_EXTRA_FORKS_PER_SITE {
+                                needs_more[idx] = true;
+                                continue;
+                            }
+
+                            let mut pushed = 0u16;
+                            for target_pc in extra_targets {
+                                if pushed >= DYNAMIC_JUMP_EXTRA_TARGETS_PER_HIT as u16
+                                    || queue.len() >= MAX_PENDING_STATES
+                                    || depth >= max_depth
+                                {
+                                    break;
+                                }
+                                let target_key = (context, step_pc, target_pc);
+                                let target_used = dynamic_jump_target_counts
+                                    .get(&target_key)
+                                    .copied()
+                                    .unwrap_or(0);
+                                if target_used >= MAX_DYNAMIC_JUMP_EXTRA_FORKS_PER_TARGET {
+                                    continue;
+                                }
+
+                                let mut forked = vm.fork();
+                                forked.pc = target_pc;
+                                queue.push(BatchState {
+                                    idx,
+                                    context,
+                                    vm: forked,
+                                    gas_used,
+                                    depth: depth + 1,
+                                    steps,
+                                });
+                                if let Some(p) = profile.as_deref_mut() {
+                                    p.states_pushed = p.states_pushed.saturating_add(1);
+                                    p.queue_peak = p.queue_peak.max(queue.len());
+                                }
+
+                                let used =
+                                    dynamic_jump_target_counts.entry(target_key).or_insert(0);
+                                *used = used.saturating_add(1);
+                                pushed = pushed.saturating_add(1);
+                            }
+
+                            if pushed > 0 {
+                                let used = dynamic_jump_fork_counts.entry(site_key).or_insert(0);
+                                *used = used.saturating_add(pushed);
+                            }
+                        }
                     }
                 }
                 _ => {}
@@ -1705,6 +1949,7 @@ fn execute_from_entry(
     gas_limit: u32,
     max_depth: u8,
     max_steps: u32,
+    max_visited_states: usize,
 ) -> bool {
     let vm = Vm::new(code, calldata);
     execute_paths(
@@ -1722,6 +1967,7 @@ fn execute_from_entry(
         gas_limit,
         max_depth,
         max_steps,
+        max_visited_states,
     )
 }
 
@@ -1732,6 +1978,12 @@ fn contract_events_with_stats_internal(
     let mut stats = EventExtractionStats::default();
     if code.is_empty() {
         return (Vec::new(), stats);
+    }
+
+    struct BatchRoundResult {
+        pending: Vec<([u8; 4], usize)>,
+        starved_pending: Vec<([u8; 4], usize)>,
+        had_visited_cap_hits: bool,
     }
 
     fn run_batch_round(
@@ -1751,9 +2003,14 @@ fn contract_events_with_stats_internal(
         gas_limit: u32,
         max_depth: u8,
         max_steps: u32,
-    ) -> Vec<([u8; 4], usize)> {
+        max_visited_states: usize,
+    ) -> BatchRoundResult {
         if pending.is_empty() {
-            return pending;
+            return BatchRoundResult {
+                pending,
+                starved_pending: Vec::new(),
+                had_visited_cap_hits: false,
+            };
         }
 
         let calldatas: Vec<CallDataImpl> = pending
@@ -1765,6 +2022,7 @@ fn contract_events_with_stats_internal(
 
         let mut initial_states = Vec::with_capacity(pending.len());
         let mut round_needs_more = vec![false; pending.len()];
+        let mut round_visited_cap_hits = vec![false; pending.len()];
 
         for (idx, ((selector, offset), calldata)) in
             pending.iter().zip(calldatas.iter()).enumerate()
@@ -1846,23 +2104,32 @@ fn contract_events_with_stats_internal(
             gas_limit,
             max_depth,
             max_steps,
+            max_visited_states,
+            Some(&mut round_visited_cap_hits),
         );
 
         for (dst, src) in round_needs_more.iter_mut().zip(batch_needs_more.iter()) {
             *dst |= *src;
         }
 
-        pending
-            .into_iter()
-            .enumerate()
-            .filter_map(|(idx, item)| {
-                if round_needs_more[idx] {
-                    Some(item)
-                } else {
-                    None
-                }
-            })
-            .collect()
+        let had_visited_cap_hits = round_visited_cap_hits.iter().any(|v| *v);
+        let mut pending_out = Vec::new();
+        let mut starved_pending = Vec::new();
+        for (idx, item) in pending.into_iter().enumerate() {
+            if !round_needs_more[idx] {
+                continue;
+            }
+            if round_visited_cap_hits[idx] {
+                starved_pending.push(item);
+            }
+            pending_out.push(item);
+        }
+
+        BatchRoundResult {
+            pending: pending_out,
+            starved_pending,
+            had_visited_cap_hits,
+        }
     }
 
     let may_reach_log = compute_may_reach_log(code);
@@ -1871,9 +2138,30 @@ fn contract_events_with_stats_internal(
     let selectors_all_vec: Vec<(Selector, usize)> = selectors_all.into_iter().collect();
     let allow_direct_entry = std::env::var_os("EVMOLE_ENABLE_DIRECT_ENTRY").is_some()
         && std::env::var_os("EVMOLE_DISABLE_DIRECT_ENTRY").is_none();
+    let base_max_visited_states = std::env::var("EVMOLE_MAX_VISITED_STATES")
+        .ok()
+        .and_then(|v| v.trim().parse::<usize>().ok())
+        .unwrap_or(MAX_VISITED_STATES);
+    let starvation_uplift_max_visited_states =
+        std::env::var("EVMOLE_STARVATION_UPLIFT_MAX_VISITED_STATES")
+            .ok()
+            .and_then(|v| v.trim().parse::<usize>().ok())
+            .unwrap_or_else(|| {
+                STARVATION_LOCAL_UPLIFT_MAX_VISITED_STATES.max(base_max_visited_states * 2)
+            });
+    let disable_starvation_local_uplift =
+        std::env::var_os("EVMOLE_DISABLE_STARVATION_LOCAL_UPLIFT").is_some();
+    let trace_starvation_local_uplift =
+        std::env::var_os("EVMOLE_TRACE_STARVATION_LOCAL_UPLIFT").is_some();
     stats.selectors_total = selectors_all_vec.len() as u64;
     let has_any_selector = !selectors_all_vec.is_empty();
     let mut selectors = selectors_all_vec;
+    let only_selector = std::env::var("EVMOLE_ONLY_SELECTOR")
+        .ok()
+        .and_then(|v| parse_selector_hex(&v));
+    if let Some(sel) = only_selector {
+        selectors.retain(|(s, _)| *s == sel);
+    }
     if std::env::var_os("EVMOLE_FORCE_FALLBACK_SCAN").is_some() {
         selectors.clear();
     }
@@ -1913,6 +2201,7 @@ fn contract_events_with_stats_internal(
                 gas_limit,
                 max_depth,
                 max_steps,
+                base_max_visited_states,
             );
             if seen.len() == before {
                 stable_rounds += 1;
@@ -1950,6 +2239,7 @@ fn contract_events_with_stats_internal(
                     gas_limit,
                     max_depth,
                     max_steps,
+                    base_max_visited_states,
                 );
             }
         }
@@ -1958,14 +2248,15 @@ fn contract_events_with_stats_internal(
             .iter()
             .map(|(selector, offset)| (*selector, *offset))
             .collect();
+        let mut starvation_pending: Vec<([u8; 4], usize)> = Vec::new();
+        let mut had_visited_cap_hits = false;
 
         for &(gas_limit, max_depth, max_steps) in &FAST_EXEC_ROUNDS {
             if pending.is_empty() {
                 break;
             }
             let before = seen.len();
-
-            pending = run_batch_round(
+            let round = run_batch_round(
                 code,
                 pending,
                 allow_direct_entry,
@@ -1982,7 +2273,11 @@ fn contract_events_with_stats_internal(
                 gas_limit,
                 max_depth,
                 max_steps,
+                base_max_visited_states,
             );
+            pending = round.pending;
+            starvation_pending = round.starved_pending;
+            had_visited_cap_hits |= round.had_visited_cap_hits;
 
             if seen.len() == before {
                 stable_rounds += 1;
@@ -1992,6 +2287,98 @@ fn contract_events_with_stats_internal(
             } else {
                 stable_rounds = 0;
             }
+        }
+
+        if !pending.is_empty()
+            && !disable_starvation_local_uplift
+            && had_visited_cap_hits
+            && should_run_starvation_local_uplift(
+                selectors.len(),
+                pending.len(),
+                starvation_pending.len(),
+            )
+        {
+            if trace_starvation_local_uplift {
+                eprintln!(
+                    "[trace-starvation-uplift] trigger pending={} starved={} max_visited={} uplift_max={}",
+                    pending.len(),
+                    starvation_pending.len(),
+                    base_max_visited_states,
+                    starvation_uplift_max_visited_states
+                );
+            }
+            let mut uplift_candidates = starvation_pending.clone();
+            uplift_candidates.sort_by(|a, b| {
+                let da = path_index
+                    .as_ref()
+                    .and_then(|index| index.distance_for_pc(a.1, a.1))
+                    .unwrap_or(u16::MAX);
+                let db = path_index
+                    .as_ref()
+                    .and_then(|index| index.distance_for_pc(b.1, b.1))
+                    .unwrap_or(u16::MAX);
+                da.cmp(&db).then_with(|| a.1.cmp(&b.1))
+            });
+
+            let (gas_limit, max_depth, max_steps) = FAST_EXEC_ROUNDS[FAST_EXEC_ROUNDS.len() - 1];
+            for (chunk_idx, chunk) in uplift_candidates
+                .chunks(STARVATION_LOCAL_UPLIFT_MAX_PENDING_SELECTORS)
+                .take(STARVATION_LOCAL_UPLIFT_MAX_CHUNKS)
+                .enumerate()
+            {
+                if pending.is_empty() {
+                    break;
+                }
+                let target_set: HashSet<([u8; 4], usize)> = chunk.iter().copied().collect();
+                let uplift_pending: Vec<([u8; 4], usize)> = pending
+                    .iter()
+                    .copied()
+                    .filter(|item| target_set.contains(item))
+                    .collect();
+                if trace_starvation_local_uplift {
+                    eprintln!(
+                        "[trace-starvation-uplift] chunk={} selected={} chunk_size={}",
+                        chunk_idx,
+                        uplift_pending.len(),
+                        chunk.len()
+                    );
+                }
+                if uplift_pending.is_empty() {
+                    continue;
+                }
+
+                let uplift = run_batch_round(
+                    code,
+                    uplift_pending,
+                    allow_direct_entry,
+                    &mut events,
+                    &mut seen,
+                    &may_reach_log,
+                    path_index.as_ref(),
+                    &mut static_dead_cache,
+                    &mut probe_cache,
+                    &mut entry_state_cache,
+                    &mut jump_classify_cache,
+                    &mut stats,
+                    &mut profile,
+                    gas_limit,
+                    max_depth,
+                    max_steps,
+                    starvation_uplift_max_visited_states,
+                );
+                let unresolved_uplift: HashSet<([u8; 4], usize)> =
+                    uplift.pending.into_iter().collect();
+                pending
+                    .retain(|item| !target_set.contains(item) || unresolved_uplift.contains(item));
+            }
+        } else if trace_starvation_local_uplift {
+            eprintln!(
+                "[trace-starvation-uplift] skip pending={} starved={} had_cap_hit={} disabled={}",
+                pending.len(),
+                starvation_pending.len(),
+                had_visited_cap_hits,
+                disable_starvation_local_uplift
+            );
         }
 
         if !pending.is_empty()
@@ -2029,7 +2416,9 @@ fn contract_events_with_stats_internal(
                     gas_limit,
                     max_depth,
                     max_steps,
-                );
+                    base_max_visited_states,
+                )
+                .pending;
             }
         }
     }
@@ -2052,10 +2441,13 @@ fn contract_events_with_stats_internal(
             gas_limit,
             max_depth,
             max_steps,
+            base_max_visited_states,
         );
     }
 
-    if std::env::var_os("EVMOLE_DISABLE_STATIC_SUPPLEMENT").is_none() {
+    let enable_static_supplement = std::env::var_os("EVMOLE_ENABLE_STATIC_SUPPLEMENT").is_some()
+        && std::env::var_os("EVMOLE_DISABLE_STATIC_SUPPLEMENT").is_none();
+    if enable_static_supplement {
         let break_on_jump = std::env::var_os("EVMOLE_STATIC_SUPPLEMENT_CROSS_JUMP").is_none();
         let window = static_supplement_window();
         for topic in static_event_candidate_set(code, window, break_on_jump) {
