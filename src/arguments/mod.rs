@@ -316,7 +316,6 @@ fn analyze(
                     _ => (),
                 }
             }
-
         }
 
         StepResult {
