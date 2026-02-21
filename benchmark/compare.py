@@ -5,6 +5,7 @@ import pathlib
 import re
 import subprocess
 from collections import defaultdict
+from typing import Optional
 
 
 def get_mode_defaults() -> dict:
@@ -35,6 +36,10 @@ def get_mode_defaults() -> dict:
         'selectors': {
             'datasets': makefile_vars.get('DATASETS', []),
             'providers': makefile_vars.get('PROVIDERS_SELECTORS', []),
+        },
+        'events': {
+            'datasets': makefile_vars.get('DATASETS', []),
+            'providers': makefile_vars.get('PROVIDERS_EVENTS', []),
         },
         'arguments': {
             'datasets': makefile_vars.get('DATASETS', []),
@@ -75,8 +80,8 @@ def load_data(btype: str, dname: str, providers: list[str], results_dir: str) ->
         times.append({'total': total_time, 'p50': ptimes[50], 'p99': ptimes[99]})
     return data, times
 
-def process_selectors(dname: str, providers: list[str], results_dir: str):
-    pdata, ptimes = load_data('selectors', dname, providers, results_dir)
+def process_selectors(dname: str, providers: list[str], results_dir: str, btype: str = 'selectors'):
+    pdata, ptimes = load_data(btype, dname, providers, results_dir)
     results = []
     ground_truth_provider = pdata[0]
     for fname, (_, ground_truth) in ground_truth_provider.items():
@@ -161,7 +166,11 @@ def markdown_selectors(providers: list[str], all_results: list):
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
     print('</table>')
 
-def markdown_arguments_or_mutability(providers: list[str], all_results: list, second_results: list|None):
+def markdown_arguments_or_mutability(
+    providers: list[str],
+    all_results: list,
+    second_results: Optional[list],
+):
     print('<table>')
     print(' <tr>')
     print('  <td>Dataset</td>')
@@ -222,7 +231,7 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
                     print(f'      FN  : {fn}')
         print('')
 
-def normalize_args(args: str, rules: set[str]|None) -> str:
+def normalize_args(args: str, rules: Optional[set[str]]) -> str:
     if rules is None:
         return args
 
@@ -500,7 +509,7 @@ def show_arguments_or_mutability(providers: list[str], all_results: list, show_e
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', type=str, default=pathlib.Path(__file__).parent / 'results', help='results directory')
-    parser.add_argument('--mode', choices=['selectors', 'arguments', 'mutability', 'storage', 'flow'], default='selectors', help='mode')
+    parser.add_argument('--mode', choices=['selectors', 'events', 'arguments', 'mutability', 'storage', 'flow'], default='selectors', help='mode')
     parser.add_argument('--providers', nargs='+', default=None)
     parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
@@ -521,6 +530,14 @@ if __name__ == '__main__':
 
     if cfg.mode == 'selectors':
         results = [process_selectors(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
+
+        if cfg.markdown:
+            markdown_selectors(cfg.providers, results)
+        else:
+            show_selectors(cfg.providers, results, cfg.show_errors)
+
+    if cfg.mode == 'events':
+        results = [process_selectors(d, cfg.providers, cfg.results_dir, 'events') for d in cfg.datasets]
 
         if cfg.markdown:
             markdown_selectors(cfg.providers, results)

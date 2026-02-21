@@ -20,6 +20,7 @@ enum Mode {
     Selectors,
     Arguments,
     Mutability,
+    Events,
     Storage,
     Blocks,
     Flow,
@@ -109,6 +110,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .unwrap()
                             .iter()
                             .map(|f| hex::encode(f.selector))
+                            .collect(),
+                    ),
+                );
+            }
+            Mode::Events => {
+                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_events());
+                ret_selectors.insert(
+                    fname,
+                    (
+                        dur,
+                        info
+                            .events
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|e| hex::encode(e))
                             .collect(),
                     ),
                 );
@@ -248,7 +264,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let file = fs::File::create(cfg.output_file)?;
     let mut bw = BufWriter::new(file);
-    if cfg.mode == Mode::Selectors {
+    if cfg.mode == Mode::Selectors || cfg.mode == Mode::Events {
         let _ = serde_json::to_writer(&mut bw, &ret_selectors);
     } else if cfg.mode == Mode::Blocks || cfg.mode == Mode::Flow {
         let _ = serde_json::to_writer(&mut bw, &ret_flow);
