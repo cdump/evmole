@@ -350,12 +350,10 @@ where
             op::SAR => self.bop(op, |_, s0, _, s1| {
                 (
                     3,
-                    if s0 < VAL_256 {
-                        s1 >> s0
-                    } else if s1.bit(U256::BITS - 1) {
-                        U256::MAX
+                    if s0 >= VAL_256 {
+                        if s1.bit(U256::BITS - 1) { U256::MAX } else { U256::ZERO }
                     } else {
-                        U256::ZERO
+                        I256::from_raw(s1).asr(s0.to()).into_raw()
                     },
                 )
             }),
@@ -828,6 +826,54 @@ mod tests {
             assert!(vm.exec_opcode(op).is_ok());
             let r = vm.stack.pop_uint().unwrap();
             assert_eq!(r, expected);
+        }
+    }
+
+    #[test]
+    fn test_sar() {
+        // SAR(shift, value): s0=shift (top), s1=value; arithmetic (sign-extending) right shift.
+        // In the test array: (shift, op::SAR, value, expected).
+        // push_uint(rhs=value) first (→ s1), then push_uint(lhs=shift) (→ s0).
+        let mut vm = Vm::new(&[], &DummyCallData {});
+        let neg1 = I256::unchecked_from(-1_i32).into_raw(); // 0xFF..FF
+
+        let cases: &[(U256, op::OpCode, U256, U256)] = &[
+            // Positive value: arithmetic shift == logical shift
+            (U256::from(1u32), op::SAR, U256::from(4u32), U256::from(2u32)),
+            // Shift by 0: identity
+            (U256::ZERO, op::SAR, U256::from(0x42u32), U256::from(0x42u32)),
+            // -1 >> 1 == -1  (sign extends; old logical-shift gave 0x7FFF..FF)
+            (U256::from(1u32), op::SAR, neg1, neg1),
+            // -1 >> 255 == -1
+            (U256::from(255u32), op::SAR, neg1, neg1),
+            // I256::MIN >> 1 == 0xC000..00  (old code gave 0x4000..00)
+            (
+                U256::from(1u32),
+                op::SAR,
+                I256::MIN.into_raw(),
+                uint!(0xC000000000000000000000000000000000000000000000000000000000000000_U256),
+            ),
+            // I256::MIN >> 255 == -1
+            (U256::from(255u32), op::SAR, I256::MIN.into_raw(), neg1),
+            // I256::MAX >> 255 == 0  (positive, so no sign extension)
+            (U256::from(255u32), op::SAR, I256::MAX.into_raw(), U256::ZERO),
+            // shift >= 256, negative value → U256::MAX
+            (U256::from(256u32), op::SAR, neg1, neg1),
+            // shift >= 256, positive value → 0
+            (U256::from(256u32), op::SAR, U256::from(1u32), U256::ZERO),
+            // shift = U256::MAX, negative → U256::MAX
+            (U256::MAX, op::SAR, neg1, neg1),
+        ];
+
+        for (shift, op, value, expected) in cases.iter().copied() {
+            vm.stack.push_uint(value);
+            vm.stack.push_uint(shift);
+            assert!(vm.exec_opcode(op).is_ok());
+            let r = vm.stack.pop_uint().unwrap();
+            assert_eq!(
+                r, expected,
+                "SAR(shift={shift}, value={value:#x}): got {r:#x}, want {expected:#x}"
+            );
         }
     }
 }
