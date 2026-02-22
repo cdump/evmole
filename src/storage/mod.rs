@@ -6,7 +6,7 @@ use crate::{
     collections::HashMap,
     evm::{
         U256, VAL_1, VAL_1_B, VAL_32_B,
-        calldata::{CallDataLabel, CallDataLabelType},
+        calldata::{CallDataImpl, CallDataLabel, CallDataLabelType},
         element::Element,
         op,
         vm::{StepResult, Vm},
@@ -18,9 +18,6 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
-
-pub(crate) mod calldata;
-use calldata::CallDataImpl;
 
 mod keccak_precalc;
 use keccak_precalc::KEC_PRECALC;
