@@ -18,7 +18,6 @@ mod reachable;
 mod resolver;
 mod state;
 
-
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 /// A basic block in the control flow graph representing a sequence of instructions
