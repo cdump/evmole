@@ -125,12 +125,14 @@ pub fn dummy_control_flow_graph() {}
 const DOC_BLOCK: &'static str = r#"
 /**
    Represents a basic block in the control flow graph
+ * @property id - Unique block identifier (CFG key)
  * @property start - Byte offset where the block's first opcode begins
  * @property end - Byte offset where the block's last opcode begins
  * @property type - Block type
  * @property data - Type-specific data
  */
 export type Block = {
+    id: number,
     start: number,
     end: number,
     type: 'Terminate' | 'Jump' | 'Jumpi' | 'DynamicJump' | 'DynamicJumpi';
@@ -160,6 +162,7 @@ export type Block = {
 
 /// @typedef {Object} Block
 /// @description Represents a basic block in the control flow graph
+/// @property {number} id - Unique block identifier (CFG key)
 /// @property {number} start - Byte offset where the block's first opcode begins
 /// @property {number} end - Byte offset where the block's last opcode begins
 /// @property {('Terminate'|'Jump'|'Jumpi'|'DynamicJump'|'DynamicJumpi')} type - Block type
@@ -177,15 +180,15 @@ pub fn dummy_block_data_terminate() {}
 
 // {{{ Data Jump Block
 /// @typedef {Object} DataJump
-/// @property {number} to - Destination basic block offset
+/// @property {number} to - Destination block ID; use Block.start to get the bytecode offset
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_jump() {}
 // }}}
 
 // {{{ Data Jumpi Block
 /// @typedef {Object} DataJumpi
-/// @property {number} true_to - Destination if condition is true
-/// @property {number} false_to - Destination if condition is false (fall-through)
+/// @property {number} true_to - Destination block ID if condition is true; use Block.start to get the bytecode offset
+/// @property {number} false_to - Destination block ID if condition is false; use Block.start to get the bytecode offset
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_jumpi() {}
 // }}}
@@ -200,7 +203,7 @@ pub fn dummy_block_data_dynamic_jump() {}
 // {{{ Data DynamicJumpi Block
 /// @typedef {Object} DataDynamicJumpi
 /// @property {DynamicJump} true_to - Possible computed jump destinations if true
-/// @property {number} false_to - Destination if condition is false (fall-through)
+/// @property {number} false_to - Destination block ID if condition is false; use Block.start to get the bytecode offset
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_dynamic_jumpi() {}
 // }}}
@@ -210,8 +213,8 @@ pub fn dummy_block_data_dynamic_jumpi() {}
 const DOC_DYNAMIC_JUMP: &'static str = r#"
 /**
    Represents a dynamic jump destination in the control flow
- * @property path - Path of basic blocks leading to this jump
- * @property to - Target basic block offset if known
+ * @property path - Path of block IDs leading to this jump
+ * @property to - Destination block ID if known; use Block.start to get the bytecode offset
  */
 export type DynamicJump = {
     path: number[];
@@ -220,8 +223,8 @@ export type DynamicJump = {
 "#;
 /// @typedef {Object} DynamicJump
 /// @description Represents a dynamic jump destination in the control flow
-/// @property {number[]} path - Path of basic blocks leading to this jump
-/// @property {number} [to] - Target basic block offset if known. Optional
+/// @property {number[]} path - Path of block IDs leading to this jump
+/// @property {number} [to] - Destination block ID if known; use Block.start to get the bytecode offset. Optional
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_dynamic_jump() {}
 // }}}

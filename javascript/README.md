@@ -184,11 +184,12 @@ Represents the control flow graph of the contract bytecode
 ### Block : <code>Object</code>
 Represents a basic block in the control flow graph
 
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
+| id | <code>number</code> | Unique block identifier (CFG key) |
 | start | <code>number</code> | Byte offset where the block's first opcode begins |
 | end | <code>number</code> | Byte offset where the block's last opcode begins |
 | type | <code>&#x27;Terminate&#x27;</code> \| <code>&#x27;Jump&#x27;</code> \| <code>&#x27;Jumpi&#x27;</code> \| <code>&#x27;DynamicJump&#x27;</code> \| <code>&#x27;DynamicJumpi&#x27;</code> | Block type |
@@ -207,28 +208,28 @@ Represents a basic block in the control flow graph
 <a name="DataJump"></a>
 
 ### DataJump : <code>Object</code>
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| to | <code>number</code> | Destination basic block offset |
+| to | <code>number</code> | Destination block ID; use `Block.start` to get the bytecode offset |
 
 <a name="DataJumpi"></a>
 
 ### DataJumpi : <code>Object</code>
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| true_to | <code>number</code> | Destination if condition is true |
-| false_to | <code>number</code> | Destination if condition is false (fall-through) |
+| true_to | <code>number</code> | Destination block ID if condition is true; use `Block.start` to get the bytecode offset |
+| false_to | <code>number</code> | Destination block ID if condition is false; use `Block.start` to get the bytecode offset |
 
 <a name="DataDynamicJump"></a>
 
 ### DataDynamicJump : <code>Object</code>
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
@@ -238,23 +239,23 @@ Represents a basic block in the control flow graph
 <a name="DataDynamicJumpi"></a>
 
 ### DataDynamicJumpi : <code>Object</code>
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
 | true_to | [<code>DynamicJump</code>](#DynamicJump) | Possible computed jump destinations if true |
-| false_to | <code>number</code> | Destination if condition is false (fall-through) |
+| false_to | <code>number</code> | Destination block ID if condition is false; use `Block.start` to get the bytecode offset |
 
 <a name="DynamicJump"></a>
 
 ### DynamicJump : <code>Object</code>
 Represents a dynamic jump destination in the control flow
 
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
 | --- | --- | --- |
-| path | <code>Array.&lt;number&gt;</code> | Path of basic blocks leading to this jump |
-| [to] | <code>number</code> | Target basic block offset if known. Optional |
+| path | <code>Array.&lt;number&gt;</code> | Path of block IDs leading to this jump |
+| [to] | <code>number</code> | Destination block ID if known; use `Block.start` to get the bytecode offset. Optional |
