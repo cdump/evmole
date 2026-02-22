@@ -351,7 +351,11 @@ where
                 (
                     3,
                     if s0 >= VAL_256 {
-                        if s1.bit(U256::BITS - 1) { U256::MAX } else { U256::ZERO }
+                        if s1.bit(U256::BITS - 1) {
+                            U256::MAX
+                        } else {
+                            U256::ZERO
+                        }
                     } else {
                         I256::from_raw(s1).asr(s0.to()).into_raw()
                     },
@@ -839,9 +843,19 @@ mod tests {
 
         let cases: &[(U256, op::OpCode, U256, U256)] = &[
             // Positive value: arithmetic shift == logical shift
-            (U256::from(1u32), op::SAR, U256::from(4u32), U256::from(2u32)),
+            (
+                U256::from(1u32),
+                op::SAR,
+                U256::from(4u32),
+                U256::from(2u32),
+            ),
             // Shift by 0: identity
-            (U256::ZERO, op::SAR, U256::from(0x42u32), U256::from(0x42u32)),
+            (
+                U256::ZERO,
+                op::SAR,
+                U256::from(0x42u32),
+                U256::from(0x42u32),
+            ),
             // -1 >> 1 == -1  (sign extends; old logical-shift gave 0x7FFF..FF)
             (U256::from(1u32), op::SAR, neg1, neg1),
             // -1 >> 255 == -1
@@ -856,7 +870,12 @@ mod tests {
             // I256::MIN >> 255 == -1
             (U256::from(255u32), op::SAR, I256::MIN.into_raw(), neg1),
             // I256::MAX >> 255 == 0  (positive, so no sign extension)
-            (U256::from(255u32), op::SAR, I256::MAX.into_raw(), U256::ZERO),
+            (
+                U256::from(255u32),
+                op::SAR,
+                I256::MAX.into_raw(),
+                U256::ZERO,
+            ),
             // shift >= 256, negative value → U256::MAX
             (U256::from(256u32), op::SAR, neg1, neg1),
             // shift >= 256, positive value → 0

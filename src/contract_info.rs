@@ -231,7 +231,6 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         None
     };
 
-
     Contract {
         functions,
         storage,
