@@ -80,10 +80,85 @@ def load_data(btype: str, dname: str, providers: list[str], results_dir: str) ->
         times.append({'total': total_time, 'p50': ptimes[50], 'p99': ptimes[99]})
     return data, times
 
-def process_selectors(dname: str, providers: list[str], results_dir: str, btype: str = 'selectors'):
+def normalize_hex_token(s: str) -> str:
+    s = s.strip().lower()
+    if s.startswith('0x'):
+        s = s[2:]
+    return s
+
+
+def load_runtime_code_hex(dataset_file: pathlib.Path) -> str:
+    try:
+        with dataset_file.open('r') as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return ''
+    code = data.get('runtimeBytecode') or data.get('code')
+    if not isinstance(code, str):
+        return ''
+    return normalize_hex_token(code)
+
+
+def has_event_hash_evidence(code_hex: str, h32: str, mode: str) -> bool:
+    if mode == 'push32':
+        return f'7f{h32}' in code_hex
+    return h32 in code_hex
+
+
+def build_events_uncertain_hashes(
+    dname: str,
+    dataset_dir: pathlib.Path,
+    ground_truth_provider: dict,
+    evidence_mode: str,
+) -> tuple[dict[str, set[str]], dict]:
+    code_cache = {}
+    uncertain_by_file = {}
+    uncertain_contracts = 0
+    uncertain_signatures = 0
+
+    for fname, (_, ground_truth) in ground_truth_provider.items():
+        dataset_file = dataset_dir / dname / fname
+        if fname not in code_cache:
+            code_cache[fname] = load_runtime_code_hex(dataset_file)
+        code_hex = code_cache[fname]
+        uncertain = set()
+        for h in ground_truth:
+            h_norm = normalize_hex_token(h)
+            if len(h_norm) != 64 or not has_event_hash_evidence(code_hex, h_norm, evidence_mode):
+                uncertain.add(h)
+        uncertain_by_file[fname] = uncertain
+        uncertain_signatures += len(uncertain)
+        if len(uncertain) > 0:
+            uncertain_contracts += 1
+
+    meta = {
+        'mode': evidence_mode,
+        'uncertain_contracts': uncertain_contracts,
+        'uncertain_signatures': uncertain_signatures,
+    }
+    return uncertain_by_file, meta
+
+
+def process_selectors(
+    dname: str,
+    providers: list[str],
+    results_dir: str,
+    btype: str = 'selectors',
+    events_denoise_mode: str = 'none',
+    datasets_dir: pathlib.Path = pathlib.Path(__file__).parent / 'datasets',
+):
     pdata, ptimes = load_data(btype, dname, providers, results_dir)
     results = []
     ground_truth_provider = pdata[0]
+    events_denoise_meta = None
+    uncertain_by_file = {}
+    if btype == 'events' and events_denoise_mode != 'none':
+        uncertain_by_file, events_denoise_meta = build_events_uncertain_hashes(
+            dname,
+            pathlib.Path(datasets_dir),
+            ground_truth_provider,
+            events_denoise_mode,
+        )
     for fname, (_, ground_truth) in ground_truth_provider.items():
         ground_truth_set = set(ground_truth)
         provider_comparisons = []
@@ -92,7 +167,12 @@ def process_selectors(dname: str, providers: list[str], results_dir: str, btype:
             provider_set = set(provider_data[fname][1])
             false_positives = list(provider_set - ground_truth_set)
             false_negatives = list(ground_truth_set - provider_set)
-            provider_comparisons.append([false_positives, false_negatives])
+            if btype == 'events' and events_denoise_mode != 'none':
+                uncertain_set = uncertain_by_file.get(fname, set())
+                false_negatives_denoised = list((ground_truth_set - uncertain_set) - provider_set)
+                provider_comparisons.append([false_positives, false_negatives, false_negatives_denoised])
+            else:
+                provider_comparisons.append([false_positives, false_negatives])
 
         results.append({
             'addr': fname[2:-5], # '0xFF.json' => 'FF'
@@ -100,7 +180,10 @@ def process_selectors(dname: str, providers: list[str], results_dir: str, btype:
             'data': provider_comparisons,
         })
 
-    return { 'dataset': dname, 'results': results, 'timings': ptimes[1:] }
+    ret = {'dataset': dname, 'results': results, 'timings': ptimes[1:]}
+    if events_denoise_meta is not None:
+        ret['events_denoise'] = events_denoise_meta
+    return ret
 
 
 def format_time_val(val_us: int) -> str:
@@ -129,22 +212,38 @@ def markdown_selectors(providers: list[str], all_results: list):
         print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
     print(' </tr>')
     for dataset_idx, dataset_result in enumerate(all_results):
+        has_denoised_fn = 'events_denoise' in dataset_result
         dataset_name = dataset_result['dataset']
         cnt_contracts = len(dataset_result['results'])
         cnt_funcs = sum(len(x['ground_truth']) for x in dataset_result['results'])
+        rowspan = 7 if has_denoised_fn else 5
         print(' <tr>')
-        print(f'  <td rowspan="5"><b>{dataset_name}</b><br><sub>{cnt_contracts}<br>addresses<br><br>{cnt_funcs}<br>functions</sub></td>')
+        if has_denoised_fn:
+            denoise = dataset_result['events_denoise']
+            print(
+                f'  <td rowspan="{rowspan}"><b>{dataset_name}</b><br><sub>{cnt_contracts}<br>addresses<br><br>{cnt_funcs}<br>signatures<br><br>uncertain={denoise["uncertain_signatures"]}</sub></td>'
+            )
+        else:
+            print(f'  <td rowspan="{rowspan}"><b>{dataset_name}</b><br><sub>{cnt_contracts}<br>addresses<br><br>{cnt_funcs}<br>functions</sub></td>')
         print('  <td><i>FP <sub>addrs</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fp_contracts = sum(len(x['data'][idx][0]) > 0 for x in dataset_result['results'])
             print(f'  <td>{fp_contracts}</td>')
         print(' </tr>')
         print(' <tr>')
-        print('  <td><i>FN <sub>addrs</sub></i></td>')
+        fn_addr_label = 'FN(raw)' if has_denoised_fn else 'FN'
+        print(f'  <td><i>{fn_addr_label} <sub>addrs</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fn_contracts = sum(len(x['data'][idx][1]) > 0 for x in dataset_result['results'])
             print(f'  <td>{fn_contracts}</td>')
         print(' </tr>')
+        if has_denoised_fn:
+            print(' <tr>')
+            print('  <td><i>FN(denoised) <sub>addrs</sub></i></td>')
+            for idx in range(0, len(providers) - 1): # skip ground_truth provider
+                fn_contracts = sum(len(x['data'][idx][2]) > 0 for x in dataset_result['results'])
+                print(f'  <td>{fn_contracts}</td>')
+            print(' </tr>')
         print(' <tr>')
         print('  <td><i>FP <sub>funcs</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
@@ -152,11 +251,19 @@ def markdown_selectors(providers: list[str], all_results: list):
             print(f'  <td>{fp_signatures}</td>')
         print(' </tr>')
         print(' <tr>')
-        print('  <td><i>FN <sub>funcs</sub></i></td>')
+        fn_funcs_label = 'FN(raw)' if has_denoised_fn else 'FN'
+        print(f'  <td><i>{fn_funcs_label} <sub>funcs</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fn_signatures = sum(len(x['data'][idx][1]) for x in dataset_result['results'])
             print(f'  <td>{fn_signatures}</td>')
         print(' </tr>')
+        if has_denoised_fn:
+            print(' <tr>')
+            print('  <td><i>FN(denoised) <sub>funcs</sub></i></td>')
+            for idx in range(0, len(providers) - 1): # skip ground_truth provider
+                fn_signatures = sum(len(x['data'][idx][2]) for x in dataset_result['results'])
+                print(f'  <td>{fn_signatures}</td>')
+            print(' </tr>')
         print(' <tr>')
         print('  <td><i>Time</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
@@ -206,8 +313,16 @@ def markdown_arguments_or_mutability(
 
 def show_selectors(providers: list[str], all_results: list, show_errors: bool):
     for dataset_result in all_results:
+        has_denoised_fn = 'events_denoise' in dataset_result
         cnt_contracts = len(dataset_result['results'])
         cnt_funcs = sum(len(x['ground_truth']) for x in dataset_result['results'])
+        if has_denoised_fn:
+            denoise = dataset_result['events_denoise']
+            print(
+                f'dataset {dataset_result["dataset"]}: events denoise={denoise["mode"]}, '
+                f'uncertain_signatures={denoise["uncertain_signatures"]}, '
+                f'uncertain_contracts={denoise["uncertain_contracts"]}'
+            )
         for provider_idx, name in enumerate(providers[1:]):
             fp_signatures = sum(len(x['data'][provider_idx][0]) for x in dataset_result['results'])
             fn_signatures = sum(len(x['data'][provider_idx][1]) for x in dataset_result['results'])
@@ -216,7 +331,16 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
             print(f'dataset {dataset_result["dataset"]} ({cnt_contracts} contracts, {cnt_funcs} signatures), {name}:')
             print(f'  time: {format_time(dataset_result["timings"][provider_idx])}')
             print(f'  False Positive: {fp_signatures} signatures, {fp_contracts} contracts')
-            print(f'  False Negative: {fn_signatures} signatures, {fn_contracts} contracts')
+            if has_denoised_fn:
+                print(f'  False Negative(raw): {fn_signatures} signatures, {fn_contracts} contracts')
+            else:
+                print(f'  False Negative: {fn_signatures} signatures, {fn_contracts} contracts')
+            if has_denoised_fn:
+                fn_signatures_denoised = sum(len(x['data'][provider_idx][2]) for x in dataset_result['results'])
+                fn_contracts_denoised = sum(len(x['data'][provider_idx][2]) > 0 for x in dataset_result['results'])
+                print(
+                    f'  False Negative(denoised): {fn_signatures_denoised} signatures, {fn_contracts_denoised} contracts'
+                )
             if show_errors is not True:
                 continue
             print('  errors:')
@@ -224,11 +348,14 @@ def show_selectors(providers: list[str], all_results: list, show_errors: bool):
                 want = sorted(x['ground_truth'])
                 fp = sorted(x['data'][provider_idx][0])
                 fn = sorted(x['data'][provider_idx][1])
+                fn_denoised = sorted(x['data'][provider_idx][2]) if has_denoised_fn else []
                 if len(fp) > 0 or len(fn) > 0:
                     print('   ', x['addr'])
                     print(f'      want: {want}')
                     print(f'      FP  : {fp}')
-                    print(f'      FN  : {fn}')
+                    print(f'      FN(raw)  : {fn}')
+                    if has_denoised_fn:
+                        print(f'      FN(denoised)  : {fn_denoised}')
         print('')
 
 def normalize_args(args: str, rules: Optional[set[str]]) -> str:
@@ -509,12 +636,14 @@ def show_arguments_or_mutability(providers: list[str], all_results: list, show_e
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--results-dir', type=str, default=pathlib.Path(__file__).parent / 'results', help='results directory')
+    parser.add_argument('--datasets-dir', type=pathlib.Path, default=pathlib.Path(__file__).parent / 'datasets', help='datasets directory (for event denoise)')
     parser.add_argument('--mode', choices=['selectors', 'events', 'arguments', 'mutability', 'storage', 'flow'], default='selectors', help='mode')
     parser.add_argument('--providers', nargs='+', default=None)
     parser.add_argument('--datasets', nargs='+', default=None)
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
     parser.add_argument('--show-errors', nargs='?', default=False, const=True, help='show errors')
     parser.add_argument('--normalize-args', nargs='+', required=False, choices=['fixed-size-array', 'tuples', 'string-bytes'], help='normalize arguments rules')
+    parser.add_argument('--events-denoise-mode', choices=['none', 'substring', 'push32'], default='none', help='event FN denoise by checking GT hash evidence in runtime bytecode')
     cfg = parser.parse_args()
 
     mode_defaults = get_mode_defaults()
@@ -537,7 +666,16 @@ if __name__ == '__main__':
             show_selectors(cfg.providers, results, cfg.show_errors)
 
     if cfg.mode == 'events':
-        results = [process_selectors(d, cfg.providers, cfg.results_dir, 'events') for d in cfg.datasets]
+        results = [
+            process_selectors(
+                d,
+                cfg.providers,
+                cfg.results_dir,
+                'events',
+                cfg.events_denoise_mode,
+                cfg.datasets_dir,
+            ) for d in cfg.datasets
+        ]
 
         if cfg.markdown:
             markdown_selectors(cfg.providers, results)
