@@ -64,8 +64,7 @@ python3 compare.py --mode=arguments --normalize-args fixed-size-array tuples str
 python3 compare.py --mode=selectors --markdown
 
 # Events mode with GT denoise (runtime evidence check)
-python3 compare.py --mode=events --events-denoise-mode substring
-python3 compare.py --mode=events --events-denoise-mode push32
+python3 compare.py --mode=events
 ```
 
 ## Control Flow Graph Analysis

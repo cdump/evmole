@@ -99,9 +99,7 @@ def load_runtime_code_hex(dataset_file: pathlib.Path) -> str:
     return normalize_hex_token(code)
 
 
-def has_event_hash_evidence(code_hex: str, h32: str, mode: str) -> bool:
-    if mode == 'push32':
-        return f'7f{h32}' in code_hex
+def has_event_hash_evidence(code_hex: str, h32: str) -> bool:
     return h32 in code_hex
 
 
@@ -109,7 +107,6 @@ def build_events_uncertain_hashes(
     dname: str,
     dataset_dir: pathlib.Path,
     ground_truth_provider: dict,
-    evidence_mode: str,
 ) -> tuple[dict[str, set[str]], dict]:
     code_cache = {}
     uncertain_by_file = {}
@@ -124,7 +121,7 @@ def build_events_uncertain_hashes(
         uncertain = set()
         for h in ground_truth:
             h_norm = normalize_hex_token(h)
-            if len(h_norm) != 64 or not has_event_hash_evidence(code_hex, h_norm, evidence_mode):
+            if len(h_norm) != 64 or not has_event_hash_evidence(code_hex, h_norm):
                 uncertain.add(h)
         uncertain_by_file[fname] = uncertain
         uncertain_signatures += len(uncertain)
@@ -132,7 +129,7 @@ def build_events_uncertain_hashes(
             uncertain_contracts += 1
 
     meta = {
-        'mode': evidence_mode,
+        'mode': 'substring',
         'uncertain_contracts': uncertain_contracts,
         'uncertain_signatures': uncertain_signatures,
     }
@@ -144,7 +141,6 @@ def process_selectors(
     providers: list[str],
     results_dir: str,
     btype: str = 'selectors',
-    events_denoise_mode: str = 'none',
     datasets_dir: pathlib.Path = pathlib.Path(__file__).parent / 'datasets',
 ):
     pdata, ptimes = load_data(btype, dname, providers, results_dir)
@@ -152,12 +148,11 @@ def process_selectors(
     ground_truth_provider = pdata[0]
     events_denoise_meta = None
     uncertain_by_file = {}
-    if btype == 'events' and events_denoise_mode != 'none':
+    if btype == 'events':
         uncertain_by_file, events_denoise_meta = build_events_uncertain_hashes(
             dname,
             pathlib.Path(datasets_dir),
             ground_truth_provider,
-            events_denoise_mode,
         )
     for fname, (_, ground_truth) in ground_truth_provider.items():
         ground_truth_set = set(ground_truth)
@@ -167,7 +162,7 @@ def process_selectors(
             provider_set = set(provider_data[fname][1])
             false_positives = list(provider_set - ground_truth_set)
             false_negatives = list(ground_truth_set - provider_set)
-            if btype == 'events' and events_denoise_mode != 'none':
+            if btype == 'events':
                 uncertain_set = uncertain_by_file.get(fname, set())
                 false_negatives_denoised = list((ground_truth_set - uncertain_set) - provider_set)
                 provider_comparisons.append([false_positives, false_negatives, false_negatives_denoised])
@@ -643,7 +638,6 @@ if __name__ == '__main__':
     parser.add_argument('--markdown', nargs='?', default=False, const=True, help='show markdown output')
     parser.add_argument('--show-errors', nargs='?', default=False, const=True, help='show errors')
     parser.add_argument('--normalize-args', nargs='+', required=False, choices=['fixed-size-array', 'tuples', 'string-bytes'], help='normalize arguments rules')
-    parser.add_argument('--events-denoise-mode', choices=['none', 'substring', 'push32'], default='none', help='event FN denoise by checking GT hash evidence in runtime bytecode')
     cfg = parser.parse_args()
 
     mode_defaults = get_mode_defaults()
@@ -672,7 +666,6 @@ if __name__ == '__main__':
                 cfg.providers,
                 cfg.results_dir,
                 'events',
-                cfg.events_denoise_mode,
                 cfg.datasets_dir,
             ) for d in cfg.datasets
         ]
