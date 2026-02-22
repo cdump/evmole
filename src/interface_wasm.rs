@@ -155,6 +155,7 @@ struct ControlFlowGraphResult {
 
 #[derive(serde::Serialize)]
 struct BlockResult {
+    id: usize,
     start: usize,
     end: usize,
     #[serde(flatten)]
@@ -225,6 +226,7 @@ impl ContractResult {
                 .blocks
                 .into_values()
                 .map(|bl| BlockResult {
+                    id: bl.id,
                     start: bl.start,
                     end: bl.end,
                     btype: match bl.btype {

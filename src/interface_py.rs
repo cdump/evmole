@@ -162,6 +162,7 @@ mod evmole {
     #[pyclass(name = "Block", get_all)]
     #[derive(Clone)]
     struct PyBlock {
+        id: usize,
         start: usize,
         end: usize,
         btype: PyBlockType,
@@ -170,7 +171,8 @@ mod evmole {
     impl PyBlock {
         fn __repr__(&self) -> String {
             format!(
-                "Block(start={}, end={}, btype=BlockType.{})",
+                "Block(id={}, start={}, end={}, btype=BlockType.{})",
+                self.id,
                 self.start,
                 self.end,
                 self.btype.__repr__()
@@ -325,6 +327,7 @@ mod evmole {
                 .blocks
                 .into_values()
                 .map(|bl| PyBlock {
+                    id: bl.id,
                     start: bl.start,
                     end: bl.end,
                     btype: match bl.btype {

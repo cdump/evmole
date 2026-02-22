@@ -18,17 +18,14 @@ mod reachable;
 mod resolver;
 mod state;
 
-/// Constant used to mark invalid jump destinations (jumps not to JUMPDEST).
-/// Any jump destination value equal to or greater than this constant should be considered invalid.
-/// Value is deliberately chosen to be larger than the maximum possible EVM contract
-/// code size, ensuring it cannot occur in valid code.
-pub const INVALID_JUMP_START: usize = 30_000;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 /// A basic block in the control flow graph representing a sequence of instructions
 /// with a single entry point and a single exit point
 pub struct Block {
+    /// Unique CFG block identity, can be not equal to start
+    pub id: usize,
     /// Byte offset where the block's first opcode begins
     pub start: usize,
     /// Byte offset where the block's last opcode begins

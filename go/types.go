@@ -104,6 +104,8 @@ type ControlFlowGraph struct {
 
 // Block is a basic block in the control flow graph.
 type Block struct {
+	// ID is the unique block identifier (CFG key).
+	ID int `json:"id"`
 	// Start is the byte offset where the block's first opcode begins.
 	Start int `json:"start"`
 	// End is the byte offset where the block's last opcode begins.
@@ -116,6 +118,7 @@ type Block struct {
 func (b *Block) UnmarshalJSON(data []byte) error {
 	// First unmarshal the basic fields
 	type blockAlias struct {
+		ID    int             `json:"id"`
 		Start int             `json:"start"`
 		End   int             `json:"end"`
 		Type  string          `json:"type"`
@@ -125,6 +128,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
+	b.ID = alias.ID
 	b.Start = alias.Start
 	b.End = alias.End
 

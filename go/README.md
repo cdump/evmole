@@ -104,16 +104,22 @@ info, err := evmole.ContractInfo(ctx, bytecode, evmole.Options{
     ControlFlowGraph: true,  // Note: also enables BasicBlocks
 })
 
+// Build a map from block ID to bytecode start offset
+idToStart := make(map[int]int, len(info.ControlFlowGraph.Blocks))
+for _, b := range info.ControlFlowGraph.Blocks {
+    idToStart[b.ID] = b.Start
+}
+
 for _, block := range info.ControlFlowGraph.Blocks {
     fmt.Printf("Block %d-%d: ", block.Start, block.End)
     switch block.Type.Kind {
     case evmole.BlockKindTerminate:
         fmt.Printf("Terminate(success=%v)\n", block.Type.Terminate.Success)
     case evmole.BlockKindJump:
-        fmt.Printf("Jump(to=%d)\n", block.Type.Jump.To)
+        fmt.Printf("Jump(to=%d)\n", idToStart[block.Type.Jump.To])
     case evmole.BlockKindJumpi:
         fmt.Printf("Jumpi(true=%d, false=%d)\n",
-            block.Type.Jumpi.TrueTo, block.Type.Jumpi.FalseTo)
+            idToStart[block.Type.Jumpi.TrueTo], idToStart[block.Type.Jumpi.FalseTo])
     }
 }
 ```
@@ -177,6 +183,18 @@ type StorageRecord struct {
     Writes []string // Function selectors that write
 }
 ```
+
+#### Block
+```go
+type Block struct {
+    ID    int       // Unique block identifier (CFG key)
+    Start int       // Byte offset where the block's first opcode begins
+    End   int       // Byte offset where the block's last opcode begins
+    Type  BlockType // Control flow type
+}
+```
+
+Jump destination fields (`Jump.To`, `Jumpi.TrueTo`, `Jumpi.FalseTo`, `DynamicJumpi.FalseTo`, `DynamicJump.To`) are **block IDs**, not bytecode offsets. Use `Block.Start` (looked up by ID) to get the actual bytecode offset.
 
 ## Thread Safety
 

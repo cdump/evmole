@@ -41,8 +41,8 @@ class DynamicJump:
     Represents a dynamic jump destination in the control flow.
 
     Attributes:
-        path (List[int]): Path of basic blocks leading to this jump.
-        to (Optional[int]): Target basic block offset if known, None otherwise.
+        path (List[int]): Path of block IDs leading to this jump.
+        to (Optional[int]): Destination block ID if known, None otherwise; use Block.start to get the bytecode offset.
     """
     path: List[int]
     to: Optional[int]
@@ -58,12 +58,12 @@ class BlockType:
 
     class Jump:
         """Block ends with unconditional jump"""
-        to: int  # Destination basic block offset
+        to: int  # Destination block ID; use Block.start to get the bytecode offset
 
     class Jumpi:
         """Block ends with conditional jump"""
-        true_to: int   # Destination if condition is true
-        false_to: int  # Destination if condition is false (fall-through)
+        true_to: int   # Destination block ID if condition is true; use Block.start to get the bytecode offset
+        false_to: int  # Destination block ID if condition is false; use Block.start to get the bytecode offset
 
     class DynamicJump:
         """Block ends with jump to computed destination"""
@@ -72,17 +72,19 @@ class BlockType:
     class DynamicJumpi:
         """Block ends with conditional jump to computed destination"""
         true_to: List[DynamicJump]  # Possible computed jump destinations if true
-        false_to: int               # Destination if condition is false (fall-through)
+        false_to: int               # Destination block ID if condition is false; use Block.start to get the bytecode offset
 
 class Block:
     """
     Represents a basic block in the control flow graph.
 
     Attributes:
+        id (int): Unique block identifier (CFG key)
         start (int): Byte offset where the block's first opcode begins
         end (int): Byte offset where the block's last opcode begins
         btype (BlockType): Type of the block and its control flow.
     """
+    id: int
     start: int
     end: int
     btype: BlockType

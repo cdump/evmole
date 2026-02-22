@@ -124,6 +124,7 @@ Represents the control flow graph of the contract bytecode.
 
 ```python
 class Block():
+    id: int
     start: int
     end: int
     btype: BlockType
@@ -133,6 +134,7 @@ Represents a basic block in the control flow graph.
 
 **Attributes**:
 
+- `id` - Unique block identifier (CFG key)
 - `start` - Byte offset where the block's first opcode begins
 - `end` - Byte offset where the block's last opcode begins
 - `btype` - Type of the block and its control flow
@@ -171,12 +173,12 @@ Block terminates execution
 
 #### Jump
 Block ends with unconditional jump
-- `to` -  Destination basic block offset
+- `to` - Destination block ID; use `Block.start` to get the bytecode offset
 
 #### Jumpi
 Block ends with conditional jump
-- `true_to` - Destination if condition is true
-- `false_to` - Destination if condition is false (fall-through)
+- `true_to` - Destination block ID if condition is true; use `Block.start` to get the bytecode offset
+- `false_to` - Destination block ID if condition is false; use `Block.start` to get the bytecode offset
 
 #### DynamicJump
 Block ends with jump to computed destination
@@ -184,8 +186,8 @@ Block ends with jump to computed destination
 
 #### DynamicJumpi
 Block ends with conditional jump to computed destination
-- `true_to` -  Possible computed jump destinations if true
-- `false_to` - Destination if condition is false (fall-through)
+- `true_to` - Possible computed jump destinations if true
+- `false_to` - Destination block ID if condition is false; use `Block.start` to get the bytecode offset
 
 
 ### DynamicJump
@@ -200,6 +202,6 @@ Represents a dynamic jump destination in the control flow.
 
 **Attributes**:
 
-- `path` - Path of basic blocks leading to this jump
-- `to` - Target basic block offset if known, None otherwise
+- `path` - Path of block IDs leading to this jump
+- `to` - Destination block ID if known, None otherwise; use `Block.start` to get the bytecode offset
 

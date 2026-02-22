@@ -7,7 +7,7 @@ use crate::evm::{
     op,
 };
 
-use super::{Block, BlockType, INVALID_JUMP_START};
+use super::{Block, BlockType};
 
 fn is_static_jump(code: &[u8], prev_pc: usize) -> Option<usize> {
     match code[prev_pc] {
@@ -23,6 +23,7 @@ fn is_static_jump(code: &[u8], prev_pc: usize) -> Option<usize> {
 
 fn new_block(start: usize) -> Block {
     Block {
+        id: start,
         start,
         end: 0,
         btype: BlockType::Terminate { success: false }, // always overwritten
@@ -39,6 +40,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
     for (pc, CodeOp { op, opi, .. }) in iterate_code(code, 0, None) {
         if wait_jumpdest {
             if op == op::JUMPDEST {
+                block.id = pc;
                 block.start = pc;
                 wait_jumpdest = false;
             }
@@ -52,7 +54,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
                     // jdest could be after jumpi - already new block
                     block.end = prev_pc;
                     block.btype = BlockType::Jump { to: pc };
-                    blocks.insert(block.start, block);
+                    blocks.insert(block.id, block);
                     block = new_block(pc);
                 }
             }
@@ -70,7 +72,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
                     }
                 };
                 block.end = pc;
-                blocks.insert(block.start, block);
+                blocks.insert(block.id, block);
                 block = new_block(pc + opi.size);
             }
 
@@ -81,7 +83,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
                     BlockType::DynamicJump { to: Vec::new() }
                 };
                 block.end = pc;
-                blocks.insert(block.start, block);
+                blocks.insert(block.id, block);
                 block = new_block(pc + opi.size);
                 wait_jumpdest = true;
             }
@@ -92,7 +94,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
                 };
 
                 block.end = pc;
-                blocks.insert(block.start, block);
+                blocks.insert(block.id, block);
                 block = new_block(pc + opi.size);
                 wait_jumpdest = true;
             }
@@ -105,7 +107,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
                     if block.start == 0 {
                         block.end = prev_pc;
                         block.btype = BlockType::Terminate { success: false };
-                        blocks.insert(block.start, block);
+                        blocks.insert(block.id, block);
                         block = new_block(pc /* start will be overwritten in wait_jumpdest*/);
                         break;
                     }
@@ -114,7 +116,7 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
                         // have valid instructions in block
                         block.end = prev_pc;
                         block.btype = BlockType::Terminate { success: false };
-                        blocks.insert(block.start, block);
+                        blocks.insert(block.id, block);
                         block = new_block(pc /* start will be overwritten in wait_jumpdest*/);
                     }
                 }
@@ -128,12 +130,11 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
         // jdest could be after jumpi - already new block
         block.end = prev_pc;
         block.btype = BlockType::Terminate { success: false };
-        blocks.insert(block.start, block);
+        blocks.insert(block.id, block);
     }
 
     let keys: HashSet<_> = blocks.keys().copied().collect();
 
-    let mut next_invalid_jmp = INVALID_JUMP_START;
     for bl in blocks.values_mut() {
         assert!(
             bl.end >= bl.start,
@@ -141,27 +142,27 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
             bl,
             op::info(code[bl.start])
         );
-        match bl.btype {
-            BlockType::Jump { ref mut to } => {
+        let new_btype = match &bl.btype {
+            BlockType::Jump { to } => {
                 if !keys.contains(to) || code[*to] != op::JUMPDEST {
-                    next_invalid_jmp += 1;
-                    *to = next_invalid_jmp; /* greater than max code size */
+                    Some(BlockType::Terminate { success: false })
+                } else {
+                    None
                 }
             }
-            BlockType::Jumpi {
-                ref mut true_to,
-                ref mut false_to,
-            } => {
-                if !keys.contains(true_to) || code[*true_to] != op::JUMPDEST {
-                    next_invalid_jmp += 1;
-                    *true_to = next_invalid_jmp; /* greater than max code size */
-                }
-                if !keys.contains(false_to) {
-                    next_invalid_jmp += 1;
-                    *false_to = next_invalid_jmp; /* greater than max code size */
+            BlockType::Jumpi { true_to, false_to } => {
+                let true_valid = keys.contains(true_to) && code[*true_to] == op::JUMPDEST;
+                let false_valid = keys.contains(false_to);
+                match (true_valid, false_valid) {
+                    (true, true) => None,
+                    (false, true) => Some(BlockType::Jump { to: *false_to }),
+                    (_, false) => Some(BlockType::Terminate { success: false }),
                 }
             }
-            _ => {}
+            _ => None,
+        };
+        if let Some(btype) = new_btype {
+            bl.btype = btype;
         }
     }
     blocks

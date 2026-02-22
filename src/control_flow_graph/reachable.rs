@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::collections::HashSet;
 
-use super::{Block, BlockType, INVALID_JUMP_START};
+use super::{Block, BlockType};
 
 pub fn get_reachable_nodes(
     blocks: &BTreeMap<usize, Block>,
@@ -16,9 +16,6 @@ pub fn get_reachable_nodes(
         let mut visited = HashSet::default();
         let mut queue = vec![from];
         while let Some(current) = queue.pop() {
-            if current >= INVALID_JUMP_START {
-                continue;
-            }
             if !visited.insert(current) {
                 continue;
             }
@@ -69,6 +66,7 @@ mod tests {
 
     fn create_basic_block(btype: BlockType) -> Block {
         Block {
+            id: 0,
             start: 0,
             end: 1,
             btype,
