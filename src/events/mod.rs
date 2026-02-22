@@ -11,6 +11,7 @@ use crate::control_flow_graph::{
 use crate::evm::{code_iterator::iterate_code, element::Element, memory::LabeledVec, op, vm::Vm};
 use crate::utils::execute_until_function_start;
 
+mod bottom_up;
 mod calldata;
 use calldata::CallDataImpl;
 
@@ -1978,6 +1979,11 @@ fn contract_events_with_stats_internal(
     let mut stats = EventExtractionStats::default();
     if code.is_empty() {
         return (Vec::new(), stats);
+    }
+    if std::env::var_os("EVMOLE_EVENTS_BOTTOM_UP").is_some()
+        && std::env::var_os("EVMOLE_DISABLE_EVENTS_BOTTOM_UP").is_none()
+    {
+        return (bottom_up::contract_events_bottom_up(code), stats);
     }
 
     struct BatchRoundResult {
