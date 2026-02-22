@@ -53,22 +53,24 @@ for fname in os.listdir(cfg.input_dir):
             r = info.basic_blocks
         elif cfg.mode == 'flow':
             r = []
-            for bl in info.control_flow_graph.blocks:
+            blocks = info.control_flow_graph.blocks
+            block_start = {bl.id: bl.start for bl in blocks}
+            for bl in blocks:
                 match bl.btype:
                     case BlockType.Jump(to):
-                        r.append((bl.start, to))
+                        r.append((bl.start, block_start[to]))
                     case BlockType.Jumpi(true_to, false_to):
-                        r.append((bl.start, true_to))
-                        r.append((bl.start, false_to))
+                        r.append((bl.start, block_start[true_to]))
+                        r.append((bl.start, block_start[false_to]))
                     case BlockType.DynamicJump(to):
                         for v in to:
                             if v.to is not None:
-                                r.append((bl.start, v.to))
+                                r.append((bl.start, block_start[v.to]))
                     case BlockType.DynamicJumpi(true_to, false_to):
                         for v in true_to:
                             if v.to is not None:
-                                r.append((bl.start, v.to))
-                        r.append((bl.start, false_to))
+                                r.append((bl.start, block_start[v.to]))
+                        r.append((bl.start, block_start[false_to]))
                     case BlockType.Terminate:
                         pass
         else:

@@ -25,7 +25,6 @@ enum Mode {
     Flow,
 }
 
-
 #[derive(Parser)]
 struct Args {
     mode: Mode,
@@ -43,8 +42,7 @@ struct Args {
     filter_selector: Option<String>,
 }
 
-fn timeit(args: evmole::ContractInfoArgs) -> (evmole::Contract, u64)
-{
+fn timeit(args: evmole::ContractInfoArgs) -> (evmole::Contract, u64) {
     let now = Instant::now();
     let result = evmole::contract_info(args);
     let duration_us = now.elapsed().as_micros() as u64;
@@ -60,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Mode::Arguments | Mode::Mutability => {
             let file_content = fs::read_to_string(cfg.selectors_file.unwrap())?;
             serde_json::from_str(&file_content)?
-        },
+        }
         _ => HashMap::default(),
     };
 
@@ -160,7 +158,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &selectors[&fname].1
                 };
 
-                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_state_mutability());
+                let (info, dur) =
+                    timeit(evmole::ContractInfoArgs::new(&code).with_state_mutability());
                 let smut: HashMap<String, String> = info
                     .functions
                     .unwrap()
@@ -208,37 +207,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Mode::Blocks => {
                 let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_basic_blocks());
-                ret_flow.insert(fname, (dur, info.basic_blocks.unwrap().into_iter().collect()));
+                ret_flow.insert(
+                    fname,
+                    (dur, info.basic_blocks.unwrap().into_iter().collect()),
+                );
             }
 
             Mode::Flow => {
-                let (info, dur) = timeit(evmole::ContractInfoArgs::new(&code).with_control_flow_graph());
+                let (info, dur) =
+                    timeit(evmole::ContractInfoArgs::new(&code).with_control_flow_graph());
+                let cfg = info.control_flow_graph.unwrap();
+
+                // node id to block's bytecode start
+                let real_offset = |id: usize| -> usize { cfg.blocks[&id].start };
+
                 let mut flow: BTreeSet<(usize, usize)> = BTreeSet::new();
-                for block in info.control_flow_graph.unwrap().blocks.values() {
+                for block in cfg.blocks.values() {
                     match block.btype {
-                        BlockType::Jump{to} => {
-                            flow.insert((block.start, to));
-                        },
-                        BlockType::Jumpi{true_to, false_to} => {
-                            flow.insert((block.start, true_to));
-                            flow.insert((block.start, false_to));
-                        },
+                        BlockType::Jump { to } => {
+                            flow.insert((block.start, real_offset(to)));
+                        }
+                        BlockType::Jumpi { true_to, false_to } => {
+                            flow.insert((block.start, real_offset(true_to)));
+                            flow.insert((block.start, real_offset(false_to)));
+                        }
                         BlockType::DynamicJump { ref to } => {
                             for x in to {
                                 if let Some(v) = x.to {
-                                    flow.insert((block.start, v));
+                                    flow.insert((block.start, real_offset(v)));
                                 }
                             }
-                        },
-                        BlockType::DynamicJumpi { ref true_to, false_to } => {
+                        }
+                        BlockType::DynamicJumpi {
+                            ref true_to,
+                            false_to,
+                        } => {
                             for x in true_to {
                                 if let Some(v) = x.to {
-                                    flow.insert((block.start, v));
+                                    flow.insert((block.start, real_offset(v)));
                                 }
                             }
-                            flow.insert((block.start, false_to));
-                        },
-                        BlockType::Terminate{..} => {},
+                            flow.insert((block.start, real_offset(false_to)));
+                        }
+                        BlockType::Terminate { .. } => {}
                     }
                 }
                 ret_flow.insert(fname, (dur, flow));
