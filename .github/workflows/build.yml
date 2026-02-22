@@ -11,7 +11,7 @@ on:
         type: string
 
 env:
-  MATURIN_VERSION: 1.10.0
+  MATURIN_VERSION: 1.12.4
 
 jobs:
   prepare-release:
