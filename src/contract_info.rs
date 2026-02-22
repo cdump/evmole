@@ -175,6 +175,19 @@ impl<'a> ContractInfoArgs<'a> {
 pub fn contract_info(args: ContractInfoArgs) -> Contract {
     const GAS_LIMIT: u32 = 0;
 
+    let (basic_blocks, control_flow_graph): (Option<Vec<_>>, _) = if args.need_basic_blocks {
+        let bb = basic_blocks(args.code);
+        let blocks = Some(bb.values().map(|bl| (bl.start, bl.end)).collect());
+        let cfg = if args.need_control_flow_graph {
+            Some(control_flow_graph(args.code, bb))
+        } else {
+            None
+        };
+        (blocks, cfg)
+    } else {
+        (None, None)
+    };
+
     let functions = if args.need_selectors {
         let (selectors, _selectors_gas_used) = function_selectors(args.code, GAS_LIMIT);
         Some(
@@ -218,18 +231,6 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         None
     };
 
-    let (basic_blocks, control_flow_graph): (Option<Vec<_>>, _) = if args.need_basic_blocks {
-        let bb = basic_blocks(args.code);
-        let blocks = Some(bb.values().map(|bl| (bl.start, bl.end)).collect());
-        let cfg = if args.need_control_flow_graph {
-            Some(control_flow_graph(args.code, bb))
-        } else {
-            None
-        };
-        (blocks, cfg)
-    } else {
-        (None, None)
-    };
 
     Contract {
         functions,

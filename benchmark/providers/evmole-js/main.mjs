@@ -49,29 +49,30 @@ function extract(fileData, mode, fname) {
     return [duration_us, r.basicBlocks];
   } else if (mode === 'flow') {
     let [duration_us, r] = timeit(() => contractInfo(code, {controlFlowGraph: true}));
+    const blockStart = new Map(r.controlFlowGraph.blocks.map(b => [b.get('id'), b.get('start')]));
     let ret = []
     for (const b of r.controlFlowGraph.blocks) {
       let bt = b.get('type');
       let start = b.get('start');
       let data = b.get('data');
       if (bt === 'Jump') {
-        ret.push([start, data.to])
+        ret.push([start, blockStart.get(data.to)])
       } else if (bt === 'Jumpi') {
-        ret.push([start, data.true_to])
-        ret.push([start, data.false_to])
+        ret.push([start, blockStart.get(data.true_to)])
+        ret.push([start, blockStart.get(data.false_to)])
       } else if (bt === 'DynamicJump') {
         for (let v of data.to) {
           if(v.to) {
-            ret.push([start, v.to])
+            ret.push([start, blockStart.get(v.to)])
           }
         }
       } else if (bt === 'DynamicJumpi') {
         for (let v of data.true_to) {
           if(v.to) {
-            ret.push([start, v.to])
+            ret.push([start, blockStart.get(v.to)])
           }
         }
-        ret.push([start, data.false_to])
+        ret.push([start, blockStart.get(data.false_to)])
       } else if (bt === 'Terminate') {
         // do nothing
       } else {

@@ -177,27 +177,31 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
+			idToStart := make(map[int]int, len(info.ControlFlowGraph.Blocks))
+			for _, b := range info.ControlFlowGraph.Blocks {
+				idToStart[b.ID] = b.Start
+			}
 			edges := make([][2]int, 0)
 			for _, block := range info.ControlFlowGraph.Blocks {
 				switch block.Type.Kind {
 				case evmole.BlockKindJump:
-					edges = append(edges, [2]int{block.Start, block.Type.Jump.To})
+					edges = append(edges, [2]int{block.Start, idToStart[block.Type.Jump.To]})
 				case evmole.BlockKindJumpi:
-					edges = append(edges, [2]int{block.Start, block.Type.Jumpi.TrueTo})
-					edges = append(edges, [2]int{block.Start, block.Type.Jumpi.FalseTo})
+					edges = append(edges, [2]int{block.Start, idToStart[block.Type.Jumpi.TrueTo]})
+					edges = append(edges, [2]int{block.Start, idToStart[block.Type.Jumpi.FalseTo]})
 				case evmole.BlockKindDynamicJump:
 					for _, v := range block.Type.DynamicJump.To {
 						if v.To != nil {
-							edges = append(edges, [2]int{block.Start, *v.To})
+							edges = append(edges, [2]int{block.Start, idToStart[*v.To]})
 						}
 					}
 				case evmole.BlockKindDynamicJumpi:
 					for _, v := range block.Type.DynamicJumpi.TrueTo {
 						if v.To != nil {
-							edges = append(edges, [2]int{block.Start, *v.To})
+							edges = append(edges, [2]int{block.Start, idToStart[*v.To]})
 						}
 					}
-					edges = append(edges, [2]int{block.Start, block.Type.DynamicJumpi.FalseTo})
+					edges = append(edges, [2]int{block.Start, idToStart[block.Type.DynamicJumpi.FalseTo]})
 				case evmole.BlockKindTerminate:
 					// do nothing
 				}
