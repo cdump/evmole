@@ -207,9 +207,7 @@ pub(super) fn resolve_classified_log_sites(
 // ---------------------------------------------------------------------------
 
 fn resolve_push32(code: &[u8], pc: usize, out: &mut HashSet<EventSelector>) {
-    if let Some(topic) = push32_value(code, pc)
-        && is_plausible_event_hash(&topic)
-    {
+    if let Some(topic) = push32_value(code, pc) {
         out.insert(topic);
     }
 }
@@ -232,9 +230,7 @@ fn push32_value(code: &[u8], pc: usize) -> Option<[u8; 32]> {
 // ---------------------------------------------------------------------------
 
 fn resolve_pushn(code: &[u8], pc: usize, out: &mut HashSet<EventSelector>) {
-    if let Some(topic) = pushn_value(code, pc)
-        && is_plausible_event_hash(&topic)
-    {
+    if let Some(topic) = pushn_value(code, pc) {
         out.insert(topic);
     }
 }
@@ -416,8 +412,20 @@ fn resolve_topic_at_pc(code: &[u8], pc: usize, index: &CfgIndex, out: &mut HashS
         return;
     };
     match opcode {
-        op::PUSH32 => resolve_push32(code, pc, out),
-        op::PUSH5..=op::PUSH31 => resolve_pushn(code, pc, out),
+        op::PUSH32 => {
+            if let Some(topic) = push32_value(code, pc)
+                && is_plausible_event_hash(&topic)
+            {
+                out.insert(topic);
+            }
+        }
+        op::PUSH5..=op::PUSH31 => {
+            if let Some(topic) = pushn_value(code, pc)
+                && is_plausible_event_hash(&topic)
+            {
+                out.insert(topic);
+            }
+        }
         op::MLOAD => {
             if let Some(block_start) = find_block_start(&index.blocks, pc) {
                 resolve_mload_codecopy(code, pc, block_start, out);
