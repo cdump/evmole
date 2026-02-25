@@ -7,12 +7,16 @@
 
 pub use contract_info::contract_info;
 pub use contract_info::{Contract, ContractInfoArgs, Function};
+pub use events::{
+    EventLogClass, EventLogClassRecord, EventSelector, contract_event_log_classes, contract_events,
+};
 pub use storage::StorageRecord;
 
 mod arguments;
 mod collections;
 mod contract_info;
 pub mod control_flow_graph;
+mod events;
 mod evm;
 mod selectors;
 mod state_mutability;

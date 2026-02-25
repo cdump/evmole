@@ -103,6 +103,8 @@ class Contract:
     Attributes:
         functions (Optional[List[Function]]): List of detected contract functions.
             None if no functions were extracted
+        events (Optional[List[str]]): List of event selectors found in the contract bytecode as hex strings.
+            None if events were not extracted
         storage (Optional[List[StorageRecord]]): List of contract storage records.
             None if storage layout was not extracted
         disassembled (Optional[List[Tuple[int, str]]]): List of bytecode instructions, where each element is [offset, instruction].
@@ -114,6 +116,7 @@ class Contract:
     """
 
     functions: Optional[List[Function]]
+    events: Optional[List[str]]
     storage: Optional[List[StorageRecord]]
     disassembled: Optional[List[Tuple[int, str]]]
     basic_blocks: Optional[List[Tuple[int, int]]]
@@ -125,6 +128,7 @@ def contract_info(
     selectors: bool = False,
     arguments: bool = False,
     state_mutability: bool = False,
+    events: bool = False,
     storage: bool = False,
     disassemble: bool = False,
     basic_blocks: bool = False,
@@ -140,6 +144,8 @@ def contract_info(
         arguments (bool, optional): When True, extracts function arguments. Defaults to False.
         state_mutability (bool, optional): When True, extracts function state mutability.
             Defaults to False.
+        events (bool, optional): When True, extracts event selectors found in the contract bytecode.
+            Defaults to False.
         storage (bool, optional): When True, extracts the contract's storage layout.
             Defaults to False.
         disassemble (bool, optional): When True, includes disassembled bytecode.
@@ -154,3 +160,4 @@ def contract_info(
             weren't requested to be extracted will be None.
     """
     ...
+

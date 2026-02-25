@@ -81,6 +81,15 @@ where
     T: std::fmt::Debug + Clone + Eq,
     U: CallData<T>,
 {
+    fn merge_labels(lhs: &Option<T>, rhs: &Option<T>) -> Option<T> {
+        match (lhs, rhs) {
+            (Some(l), Some(r)) if l == r => Some(l.clone()),
+            (Some(l), None) => Some(l.clone()),
+            (None, Some(r)) => Some(r.clone()),
+            _ => None,
+        }
+    }
+
     pub fn new(code: &'a [u8], calldata: &'a U) -> Self {
         Self {
             code,
@@ -131,8 +140,11 @@ where
         let s1: U256 = (&raws1).into();
 
         let (gas_used, res) = f(&raws0, s0, &raws1, s1);
-
-        self.stack.push_uint(res);
+        let label = Self::merge_labels(&raws0.label, &raws1.label);
+        self.stack.push(Element {
+            data: res.to_be_bytes(),
+            label,
+        });
         let mut ret = StepResult::new(op, gas_used);
         ret.args[0] = raws0;
         ret.args[1] = raws1;
@@ -297,10 +309,13 @@ where
 
             op::ISZERO => {
                 let raws0 = self.stack.pop()?;
-                self.stack.push_data(if raws0.data == VAL_0_B {
-                    VAL_1_B
-                } else {
-                    VAL_0_B
+                self.stack.push(Element {
+                    data: if raws0.data == VAL_0_B {
+                        VAL_1_B
+                    } else {
+                        VAL_0_B
+                    },
+                    label: raws0.label.clone(),
                 });
                 let mut ret = StepResult::new(op, 3);
                 ret.args[0] = raws0;
@@ -316,7 +331,10 @@ where
             op::NOT => {
                 let raws0 = self.stack.pop()?;
                 let v: U256 = (&raws0).into();
-                self.stack.push_uint(!v);
+                self.stack.push(Element {
+                    data: (!v).to_be_bytes(),
+                    label: raws0.label.clone(),
+                });
                 let mut ret = StepResult::new(op, 3);
                 ret.args[0] = raws0;
                 Ok(ret)
@@ -829,5 +847,41 @@ mod tests {
             let r = vm.stack.pop_uint().unwrap();
             assert_eq!(r, expected);
         }
+    }
+
+    #[test]
+    fn test_bop_label_propagation_single_source() {
+        let code = [op::EQ];
+        let mut vm = Vm::new(&code, &DummyCallData {});
+        vm.stack.push(Element {
+            data: U256::from(1).to_be_bytes(),
+            label: Some(7u8),
+        });
+        vm.stack.push(Element {
+            data: U256::from(1).to_be_bytes(),
+            label: None,
+        });
+
+        assert!(vm.step().is_ok());
+        let out = vm.stack.pop().unwrap();
+        assert_eq!(out.label, Some(7u8));
+    }
+
+    #[test]
+    fn test_bop_label_propagation_conflict_clears_label() {
+        let code = [op::EQ];
+        let mut vm = Vm::new(&code, &DummyCallData {});
+        vm.stack.push(Element {
+            data: U256::from(1).to_be_bytes(),
+            label: Some(1u8),
+        });
+        vm.stack.push(Element {
+            data: U256::from(1).to_be_bytes(),
+            label: Some(2u8),
+        });
+
+        assert!(vm.step().is_ok());
+        let out = vm.stack.pop().unwrap();
+        assert_eq!(out.label, None);
     }
 }

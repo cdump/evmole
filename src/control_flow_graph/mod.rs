@@ -16,7 +16,7 @@ use resolver::resolve_dynamic_jumps;
 mod initial;
 mod reachable;
 mod resolver;
-mod state;
+pub(crate) mod state;
 
 /// Constant used to mark invalid jump destinations (jumps not to JUMPDEST).
 /// Any jump destination value equal to or greater than this constant should be considered invalid.

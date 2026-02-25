@@ -1,5 +1,6 @@
 PROVIDER_BASE = etherscan
 PROVIDERS_SELECTORS ?= whatsabi evm-hound-rs sevm evmole-rs evmole-js evmole-py evmole-go
+PROVIDERS_EVENTS ?= evmole-rs
 PROVIDERS_ARGUMENTS ?= evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_MUTABILITY ?= whatsabi sevm evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_STORAGE ?= evmole-rs evmole-js evmole-py evmole-go smlxl
@@ -18,9 +19,11 @@ RSYNC_EXCLUDES := --exclude benchmark --exclude target --exclude dist \
 
 PROVIDERS_SELECTORS := $(PROVIDER_BASE) $(PROVIDERS_SELECTORS)
 PROVIDERS_ARGUMENTS := $(PROVIDER_BASE) $(PROVIDERS_ARGUMENTS)
+PROVIDERS_EVENTS := $(PROVIDER_BASE) $(PROVIDERS_EVENTS)
 PROVIDERS_MUTABILITY := $(PROVIDER_BASE) $(PROVIDERS_MUTABILITY)
 PROVIDERS_STORAGE := $(PROVIDER_BASE) $(PROVIDERS_STORAGE)
-PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_BLOCKS) $(PROVIDERS_FLOW))
+PROVIDERS_EVENTS := $(sort $(PROVIDER_BASE) $(PROVIDERS_EVENTS))
+PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_EVENTS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_BLOCKS) $(PROVIDERS_FLOW))
 
 DATASET := $(shell pwd)/datasets
 RES := $(shell pwd)/results
@@ -28,15 +31,17 @@ RES := $(shell pwd)/results
 BUILD_TARGETS := $(addsuffix .build, $(PROVIDERS_UNIQ))
 UNPACK_TARGETS := $(foreach d,$(DATASETS) $(DATASETS_STORAGE),$(addprefix datasets/, $(d)))
 RUN_SELECTORS_TARGETS := $(foreach p,$(PROVIDERS_SELECTORS),$(addprefix $(p).selectors/, $(DATASETS)))
+RUN_EVENTS_TARGETS := $(foreach p,$(PROVIDERS_EVENTS),$(addprefix $(p).events/, $(DATASETS)))
 RUN_ARGUMENTS_TARGETS := $(foreach p,$(PROVIDERS_ARGUMENTS),$(addprefix $(p).arguments/, $(DATASETS)))
 RUN_MUTABILITY_TARGETS := $(foreach p,$(PROVIDERS_MUTABILITY),$(addprefix $(p).mutability/, $(DATASETS)))
 RUN_STORAGE_TARGETS := $(foreach p,$(PROVIDERS_STORAGE),$(addprefix $(p).storage/, $(DATASETS_STORAGE)))
 RUN_BLOCKS_TARGETS := $(foreach p,$(PROVIDERS_BLOCKS),$(addprefix $(p).blocks/, $(DATASETS_FLOW)))
 RUN_FLOW_TARGETS := $(foreach p,$(PROVIDERS_FLOW),$(addprefix $(p).flow/, $(DATASETS_FLOW)))
 
-RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS) $(RUN_BLOCKS_TARGETS) $(RUN_FLOW_TARGETS)
+RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_EVENTS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS) $(RUN_BLOCKS_TARGETS) $(RUN_FLOW_TARGETS)
 
 benchmark-selectors: $(addsuffix .build, $(PROVIDERS_SELECTORS)) run-selectors
+benchmark-events: $(addsuffix .build, $(PROVIDERS_EVENTS)) run-events
 benchmark-arguments: $(addsuffix .build, $(PROVIDERS_ARGUMENTS)) run-arguments
 benchmark-mutability: $(addsuffix .build, $(PROVIDERS_MUTABILITY)) run-mutability
 benchmark-storage: $(addsuffix .build, $(PROVIDERS_STORAGE)) run-storage
@@ -44,6 +49,7 @@ benchmark-flow: $(addsuffix .build, $(PROVIDERS_FLOW)) run-blocks run-flow
 
 build: $(BUILD_TARGETS)
 run-selectors: $(RUN_SELECTORS_TARGETS)
+run-events: $(RUN_EVENTS_TARGETS)
 run-arguments: $(RUN_ARGUMENTS_TARGETS)
 run-mutability: $(RUN_MUTABILITY_TARGETS)
 run-storage: $(RUN_STORAGE_TARGETS)
@@ -74,13 +80,13 @@ $(UNPACK_TARGETS):
 .SECONDEXPANSION:
 $(RUN_TARGETS): datasets/$$(notdir $$@)
 	$(info [*] Running $@...)
-		$(DOCKER) run --init --network=none --cpus=$(DOCKER_CPUS) --rm \
+	$(DOCKER) run --init --network=none --cpus=$(DOCKER_CPUS) --rm \
 		-v $(DATASET)/$(notdir $@):/dataset \
 		-v $(RES):/mnt \
 		$(DOCKER_PREFIX)-$(basename $(subst /,,$(dir $@))) \
 		$(subst .,,$(suffix $(subst /,,$(dir $@)))) \
 		/dataset \
 		/mnt/$(subst /,_,$@).json \
-		/mnt/$(PROVIDER_BASE).selectors_$(notdir $@).json
+		/mnt/$(PROVIDER_BASE).$(subst .,,$(suffix $(subst /,,$(dir $@))))_$(notdir $@).json
 
-.PHONY: benchmark-selectors benchmark-arguments benchmark-mutability build run-selectors run-arguments run-mutability $(BUILD_TARGETS) $(RUN_TARGETS)
+.PHONY: benchmark-selectors benchmark-events benchmark-arguments benchmark-mutability build run-selectors run-events run-arguments run-mutability $(BUILD_TARGETS) $(RUN_TARGETS)

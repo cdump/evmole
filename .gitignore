@@ -13,6 +13,8 @@ dist/
 target/
 .aider*
 .gradle
+.venv
+bench*.py
 
 # Go WASM - use compressed version only
 go/wasm/evmole.wasm

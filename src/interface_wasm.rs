@@ -38,6 +38,7 @@ const OPT_STORAGE: u32 = 8;
 const OPT_DISASSEMBLE: u32 = 16;
 const OPT_BASIC_BLOCKS: u32 = 32;
 const OPT_CONTROL_FLOW_GRAPH: u32 = 64;
+const OPT_EVENTS: u32 = 128;
 
 /// Analyze EVM bytecode and return contract information as JSON.
 ///
@@ -71,6 +72,9 @@ pub extern "C" fn contract_info(code_ptr: *const u8, code_len: usize, opts: u32)
     }
     if opts & OPT_STATE_MUTABILITY != 0 {
         args = args.with_state_mutability();
+    }
+    if opts & OPT_EVENTS != 0 {
+        args = args.with_events();
     }
     if opts & OPT_STORAGE != 0 {
         args = args.with_storage();
@@ -119,6 +123,8 @@ pub extern "C" fn contract_info(code_ptr: *const u8, code_len: usize, opts: u32)
 struct ContractResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     functions: Option<Vec<FunctionResult>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    events: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     storage: Option<Vec<StorageRecordResult>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -259,8 +265,13 @@ impl ContractResult {
                 .collect(),
         });
 
+        let events = info
+            .events
+            .map(|evts| evts.into_iter().map(hex::encode).collect());
+
         ContractResult {
             functions,
+            events,
             storage,
             disassembled: info.disassembled,
             basic_blocks: info.basic_blocks,

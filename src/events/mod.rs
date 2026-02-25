@@ -1,0 +1,676 @@
+mod classify;
+mod resolve;
+
+/// Event selector is a 32-byte keccak256 hash of the event signature
+pub type EventSelector = [u8; 32];
+
+/// Coarse-grained category for `LOGx` topic0 extraction complexity.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub enum EventLogClass {
+    /// Topic0 resolves to a single PUSH32 inside the same basic block.
+    SameBlockSinglePush32,
+    /// Topic0 resolves to PUSH32 in the same block, but multiple PUSH32 exist before LOG.
+    SameBlockMultiPush32,
+    /// Topic0 comes from predecessor blocks (symbol is Before(n) at LOG site).
+    CrossBlockBefore,
+    /// Any other source (non-PUSH32 producer or unresolved pattern).
+    Other,
+}
+
+/// Per-`LOGx` classification record.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct EventLogClassRecord {
+    pub log_pc: usize,
+    pub block_start: usize,
+    pub class: EventLogClass,
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+/// Checks if a 32-byte value looks like a keccak256 hash (event selector).
+///
+/// Heuristics (empirically tuned to filter non-event constants while preserving real selectors):
+/// - All-zero rejected (null value)
+/// - First 6 bytes all zero → likely an address or small integer, not a hash
+/// - Last 6 bytes all zero → likely a bit-mask or padded constant
+/// - Known non-event constants (role hashes, EIP-712 type hashes) → blocklist
+/// - 4+ consecutive 0x00 or 0xFF bytes → structured constant, not a hash
+fn is_plausible_event_hash(val: &[u8; 32]) -> bool {
+    if val == &[0u8; 32] {
+        return false;
+    }
+    if val[..6] == [0u8; 6] {
+        return false;
+    }
+    if val[26..] == [0u8; 6] {
+        return false;
+    }
+    if is_known_non_event_constant(val) {
+        return false;
+    }
+    let mut zero_run = 0u8;
+    let mut ff_run = 0u8;
+    for &b in val {
+        if b == 0 {
+            zero_run += 1;
+            if zero_run >= 4 {
+                return false;
+            }
+        } else {
+            zero_run = 0;
+        }
+        if b == 0xff {
+            ff_run += 1;
+            if ff_run >= 4 {
+                return false;
+            }
+        } else {
+            ff_run = 0;
+        }
+    }
+    true
+}
+
+macro_rules! hex_bytes32 {
+    ($s:literal) => {{
+        const BYTES: [u8; 32] = {
+            const fn hex_val(c: u8) -> u8 {
+                match c {
+                    b'0'..=b'9' => c - b'0',
+                    b'a'..=b'f' => c - b'a' + 10,
+                    b'A'..=b'F' => c - b'A' + 10,
+                    _ => panic!("invalid hex char"),
+                }
+            }
+            let s = $s.as_bytes();
+            let mut out = [0u8; 32];
+            let mut i = 0;
+            while i < 32 {
+                out[i] = (hex_val(s[i * 2]) << 4) | hex_val(s[i * 2 + 1]);
+                i += 1;
+            }
+            out
+        };
+        BYTES
+    }};
+}
+
+/// Well-known non-event keccak256 constants that commonly appear as PUSH32
+/// but are NOT event selectors. These include:
+/// - OpenZeppelin AccessControl role hashes (PAUSER_ROLE, MINTER_ROLE, etc.)
+/// - EIP-712 type hashes (domain separator, Permit, Delegation)
+/// - EIP-712 version/name hashes (keccak256("1"), keccak256(""))
+///
+/// Curated from production false-positive analysis across 1730+ contracts.
+/// Each entry eliminates FP in 20-65 contracts with zero TP loss.
+#[rustfmt::skip]
+const KNOWN_NON_EVENT_HASHES: &[[u8; 32]] = &[
+    // keccak256("PAUSER_ROLE")
+    hex_bytes32!("65d7a28e3265b37a6474929f336521b332c1681b933f6cb9f3376673440d862a"),
+    // keccak256("MINTER_ROLE")
+    hex_bytes32!("9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"),
+    // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
+    hex_bytes32!("8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f"),
+    // keccak256("ADMIN_ROLE") — OpenZeppelin AccessControl (not DEFAULT_ADMIN_ROLE which is 0x00)
+    hex_bytes32!("a49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775"),
+    // keccak256("1") — EIP-712 version hash
+    hex_bytes32!("c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6"),
+    // keccak256("") — empty hash, used for EXTCODEHASH sentinel
+    hex_bytes32!("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"),
+    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
+    hex_bytes32!("6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9"),
+    // keccak256("UPGRADER_ROLE")
+    hex_bytes32!("189ab7a9244df0848122154315af71fe140f3db0fe014031783b0946b8c9d2e3"),
+    // keccak256("OPERATOR_ROLE")
+    hex_bytes32!("97667070c54ef182b0f5858b034beac1b6f3089aa2d3188bb1e8929f4fa9b929"),
+    // keccak256("SNAPSHOT_ROLE")
+    hex_bytes32!("5fdbd35e8da83ee755d5e62a539e5ed7f47126abede0b8b10f9ea43dc6eed07f"),
+    // keccak256("BURNER_ROLE")
+    hex_bytes32!("3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848"),
+    // keccak256("EXECUTOR_ROLE")
+    hex_bytes32!("d8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63"),
+    // keccak256("CANCELLER_ROLE")
+    hex_bytes32!("fd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783"),
+    // keccak256("PROPOSER_ROLE")
+    hex_bytes32!("b09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1"),
+    // keccak256("TIMELOCK_ADMIN_ROLE")
+    hex_bytes32!("5f58e3a2316349923ce3780f8d587db2d72378aed66a8261c916544fa6846ca5"),
+    // keccak256("PREDICATE_ROLE")
+    hex_bytes32!("12ff340d0cd9c652c747ca35727e68c547d0f0bfa7758c2e59b9aadc721a202b"),
+    // keccak256("DEPOSITOR_ROLE")
+    hex_bytes32!("8f4f2da22e8ac8f11e15f9fc141cddbb5deea8800186560abb6e68c5496619a9"),
+    // keccak256("URI_SETTER_ROLE")
+    hex_bytes32!("7804d923f43a17d325d77e781528e0793b2edd7d8aa4a317c18bf4cd7da5db7e"),
+    // keccak256("MANAGER_ROLE")
+    hex_bytes32!("241ecf16d79d0f8dbfb92cbc07fe17840425976cf0667f022fe9877caa831b08"),
+    // keccak256("GOVERNANCE_ROLE")
+    hex_bytes32!("71840dc4906352362b0cdaf79870196c8e42acafade72d5d5a6d59291253ceb1"),
+    // keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)")
+    hex_bytes32!("e48329057bfd03d55e49b547132e39cffd9c1820ad7b9d4c5307691425d15adf"),
+    // keccak256("MetaTransaction(uint256 nonce,address from,bytes functionSignature)")
+    hex_bytes32!("2d0335ab174d301747ad37e568a4556fead940e3d2551a80ae05629fc44e80b0"),
+    // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)")
+    hex_bytes32!("d87cd6ef79d4e2b95e15ce8abf732db51ec771f1ca2edccf22a46c729ac56472"),
+    // keccak256("EIP712Domain(string name,uint256 chainId,address verifyingContract)")
+    hex_bytes32!("b1188b85de397c4c89df42e52e9bb3e936e8e7a3983bbb543b71ba9ea5234396"),
+    // keccak256("KEEPER_ROLE")
+    hex_bytes32!("fc8737ab85eb45125971625a9ebdb75cc78e01d5c1fa80c4c6e5203f47bc4fab"),
+    // keccak256("GUARDIAN_ROLE")
+    hex_bytes32!("55435dd261a4b9b3364963f7738a7a662ad9c84396d64be3365284bb7f0a5041"),
+    // keccak256("RELAYER_ROLE")
+    hex_bytes32!("e2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4"),
+];
+
+fn is_known_non_event_constant(val: &[u8; 32]) -> bool {
+    KNOWN_NON_EVENT_HASHES.iter().any(|known| known == val)
+}
+
+// ---------------------------------------------------------------------------
+// Vyper detection & bypass
+// ---------------------------------------------------------------------------
+
+/// Detects Vyper-compiled bytecode from bytecode prefix patterns.
+///
+/// Vyper uses internal function call patterns that produce dynamic JUMPs the CFG
+/// resolver cannot follow, causing LOG-containing blocks to appear unreachable.
+/// Three prefix patterns cover all known Vyper compiler versions (0.2–0.4+):
+fn is_likely_vyper(code: &[u8]) -> bool {
+    // PUSH1 4; CALLDATASIZE; LT — Vyper 0.2–0.3
+    code.starts_with(&[0x60, 0x04, 0x36])
+    // PUSH1 3; CALLDATASIZE; GT — Vyper 0.4+
+        || code.starts_with(&[0x60, 0x03, 0x36, 0x11])
+    // CALLVALUE; ISZERO; PUSH2 0x00xx — Vyper non-payable entry
+        || code.starts_with(&[0x34, 0x15, 0x61, 0x00])
+}
+
+/// Scans entire bytecode for LOG1–LOG4 sites regardless of CFG reachability.
+///
+/// For each LOG, finds the enclosing pseudo-block (nearest prior JUMPDEST or code
+/// start), runs lightweight symbolic execution to identify topic0's source, and
+/// extracts the value if it's a same-block PUSH32 or PUSHn.
+fn vyper_scan_all_log_sites(code: &[u8]) -> Vec<EventSelector> {
+    use crate::control_flow_graph::state::{StackSym, State};
+    use crate::evm::{code_iterator::iterate_code, op};
+
+    let mut out: crate::collections::HashSet<EventSelector> =
+        crate::collections::HashSet::default();
+
+    // Pass 1: collect all LOG1–LOG4 sites with their pseudo-block starts.
+    // Split pseudo-blocks at LOG instructions: after a LOG consumes items from the
+    // stack, the next LOG's topic0 is built from scratch, so we must restart symbolic
+    // execution from after the previous LOG to avoid stale stack values.
+    let mut block_start = 0usize;
+    let mut log_sites: Vec<(usize, usize)> = Vec::new();
+    for (pc, cop) in iterate_code(code, 0, None) {
+        if cop.op == op::JUMPDEST {
+            block_start = pc;
+        }
+        if (op::LOG0..=op::LOG4).contains(&cop.op) {
+            if (op::LOG1..=op::LOG4).contains(&cop.op) {
+                log_sites.push((pc, block_start));
+            }
+            // After any LOG, the next instruction starts a new pseudo-block
+            block_start = pc + 1;
+        }
+    }
+
+    // Pass 2: symbolically execute each pseudo-block to resolve topic0.
+    //
+    // State::exec terminates at JUMP/JUMPI/REVERT/RETURN/STOP (it's designed for
+    // CFG basic blocks). In Vyper pseudo-blocks, these can appear mid-block (e.g.,
+    // a require guard's JUMPI before the event emit). To handle this, find the last
+    // such "barrier" before the LOG and start execution from the instruction after it.
+    for (log_pc, bs) in log_sites {
+        // Find the last barrier instruction in [bs, log_pc) to use as exec start.
+        let exec_start = {
+            let mut last_barrier_end = bs;
+            for (pc, cop) in iterate_code(code, bs, Some(log_pc)) {
+                if pc == log_pc {
+                    break;
+                }
+                if matches!(
+                    cop.op,
+                    op::JUMP
+                        | op::JUMPI
+                        | op::STOP
+                        | op::RETURN
+                        | op::REVERT
+                        | op::INVALID
+                        | op::SELFDESTRUCT
+                ) {
+                    last_barrier_end = pc + cop.opi.size;
+                }
+            }
+            last_barrier_end
+        };
+
+        let prev_pc = classify::find_prev_instruction_pc(code, exec_start, log_pc);
+        let mut state = State::new();
+        if let Some(prev) = prev_pc {
+            let _ = state.exec(code, exec_start, Some(prev));
+        }
+
+        // topic0 is always at stack position 2 for LOG1–LOG4
+        let mut sym = state.get_stack(2);
+
+        // If topic0 is Before(n), the value came from before the barrier.
+        // Try resolving through a parent state (block_start → barrier).
+        if matches!(sym, StackSym::Before(_)) && exec_start > bs {
+            let mut parent = State::new();
+            if let Some(prev) = classify::find_prev_instruction_pc(code, bs, exec_start) {
+                let _ = parent.exec(code, bs, Some(prev));
+            }
+            let resolved = state.resolve_with_parent(&parent);
+            sym = resolved.get_stack(2);
+        }
+
+        if let StackSym::Other(pc) = sym {
+            let Some(&opcode) = code.get(pc) else {
+                continue;
+            };
+            match opcode {
+                op::PUSH32 => {
+                    if pc + 33 <= code.len() {
+                        let mut topic = [0u8; 32];
+                        topic.copy_from_slice(&code[pc + 1..pc + 33]);
+                        if is_plausible_event_hash(&topic) {
+                            out.insert(topic);
+                        }
+                    }
+                }
+                op::PUSH5..=op::PUSH31 => {
+                    let n = (opcode - op::PUSH1 + 1) as usize;
+                    let start = pc + 1;
+                    if let Some(end) = start.checked_add(n)
+                        && end <= code.len()
+                    {
+                        let mut topic = [0u8; 32];
+                        topic[32 - n..].copy_from_slice(&code[start..end]);
+                        if is_plausible_event_hash(&topic) {
+                            out.insert(topic);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    out.into_iter().collect()
+}
+
+// ---------------------------------------------------------------------------
+// Entry points
+// ---------------------------------------------------------------------------
+
+fn contract_events_internal(code: &[u8]) -> Vec<EventSelector> {
+    if code.is_empty() {
+        return Vec::new();
+    }
+    let Ok((index, classified)) = std::panic::catch_unwind(|| classify::classify_log_sites(code))
+    else {
+        return Vec::new();
+    };
+    let mut events = resolve::resolve_classified_log_sites(code, &index, &classified);
+
+    if is_likely_vyper(code) {
+        let supplement = vyper_scan_all_log_sites(code);
+        if !supplement.is_empty() {
+            let mut set: crate::collections::HashSet<EventSelector> = events.drain(..).collect();
+            set.extend(supplement);
+            events = set.into_iter().collect();
+            events.sort_unstable();
+        }
+    }
+
+    events
+}
+
+/// Extracts all event selectors from contract bytecode.
+pub fn contract_events(code: &[u8]) -> Vec<EventSelector> {
+    contract_events_internal(code)
+}
+
+/// Classifies each `LOGx` site by topic0 source complexity.
+///
+/// This is a lightweight diagnostic helper intended for analysis/demo usage.
+pub fn contract_event_log_classes(code: &[u8]) -> Vec<EventLogClassRecord> {
+    if code.is_empty() {
+        return Vec::new();
+    }
+    let Ok((_, classified)) = std::panic::catch_unwind(|| classify::classify_log_sites(code))
+    else {
+        return Vec::new();
+    };
+    classified
+        .into_iter()
+        .map(|v| EventLogClassRecord {
+            log_pc: v.site.pc,
+            block_start: v.site.block_start,
+            class: map_log_site_class(code, &v),
+        })
+        .collect()
+}
+
+fn map_log_site_class(code: &[u8], site: &classify::ClassifiedLogSite) -> EventLogClass {
+    match site.class {
+        classify::LogSiteClass::Push32 { .. } => {
+            use crate::evm::{code_iterator::iterate_code, op};
+            let count = iterate_code(code, site.site.block_start, Some(site.site.pc))
+                .filter(|(_, cop)| cop.op == op::PUSH32)
+                .count();
+            if count <= 1 {
+                EventLogClass::SameBlockSinglePush32
+            } else {
+                EventLogClass::SameBlockMultiPush32
+            }
+        }
+        classify::LogSiteClass::PushN { .. } | classify::LogSiteClass::MloadCodecopy { .. } => {
+            EventLogClass::Other
+        }
+        classify::LogSiteClass::CrossBlock { .. } => EventLogClass::CrossBlockBefore,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+    use crate::evm::op;
+
+    fn append_log1(code: &mut Vec<u8>, selector: [u8; 32]) {
+        code.push(op::PUSH32);
+        code.extend_from_slice(&selector);
+        // stack: [topic0]
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00, op::LOG1]);
+    }
+
+    fn append_single_selector_dispatch(code: &mut Vec<u8>, selector: [u8; 4]) -> usize {
+        code.extend_from_slice(&[
+            op::PUSH1,
+            0x00,
+            op::CALLDATALOAD,
+            op::PUSH1,
+            0xE0,
+            op::SHR,
+            op::PUSH4,
+        ]);
+        code.extend_from_slice(&selector);
+        code.push(op::EQ);
+        code.extend_from_slice(&[op::PUSH1, 0x00]);
+        let entry_patch = code.len() - 1;
+        code.push(op::JUMPI);
+        code.push(op::STOP);
+        entry_patch
+    }
+
+    fn make_plausible_hash() -> [u8; 32] {
+        // A value that passes is_plausible_event_hash: no long zero/ff runs, non-zero prefix/suffix.
+        [0xabu8; 32]
+    }
+
+    // --- Public API tests ---
+
+    #[test]
+    fn test_simple_log1() {
+        let selector = [0xab; 32];
+        let mut code = Vec::new();
+        append_log1(&mut code, selector);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![selector]);
+    }
+
+    #[test]
+    fn test_require_guarded_event() {
+        let function_selector = [0xaa, 0xbb, 0xcc, 0xdd];
+        let event_selector = [0x42; 32];
+
+        let mut code = Vec::new();
+        let entry_patch = append_single_selector_dispatch(&mut code, function_selector);
+
+        let function_entry = code.len();
+        code[entry_patch] = u8::try_from(function_entry).unwrap();
+        code.push(op::JUMPDEST);
+
+        // Emulate a require guard:
+        // if (!cond) revert(); else emit LOG1(topic0)
+        code.extend_from_slice(&[op::PUSH1, 0x00]); // cond = 0
+        code.extend_from_slice(&[op::PUSH1, 0x00]); // destination (patched below)
+        let emit_patch = code.len() - 1;
+        code.extend_from_slice(&[op::JUMPI, op::PUSH1, 0x00, op::PUSH1, 0x00, op::REVERT]);
+        let emit_pc = code.len();
+        code[emit_patch] = u8::try_from(emit_pc).unwrap();
+
+        code.push(op::JUMPDEST);
+        append_log1(&mut code, event_selector);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![event_selector]);
+    }
+
+    #[test]
+    fn test_forks_when_both_branches_are_alive() {
+        let function_selector = [0xaa, 0xbb, 0xcc, 0xdd];
+        let event_true = [0x11; 32];
+        let event_false = [0x22; 32];
+
+        let mut code = Vec::new();
+        let entry_patch = append_single_selector_dispatch(&mut code, function_selector);
+
+        let function_entry = code.len();
+        code[entry_patch] = u8::try_from(function_entry).unwrap();
+        code.push(op::JUMPDEST);
+
+        // Always-false condition. VM takes fallthrough branch, but both branches emit,
+        // so branch classifier should fork and collect both events.
+        code.extend_from_slice(&[op::PUSH1, 0x00]); // cond = 0
+        code.extend_from_slice(&[op::PUSH1, 0x00]); // true destination (patched below)
+        let true_patch = code.len() - 1;
+        code.push(op::JUMPI);
+
+        code.push(op::JUMPDEST);
+        append_log1(&mut code, event_false);
+        code.push(op::STOP);
+
+        let true_pc = code.len();
+        code[true_patch] = u8::try_from(true_pc).unwrap();
+
+        code.push(op::JUMPDEST);
+        append_log1(&mut code, event_true);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        let found: BTreeSet<_> = events.into_iter().collect();
+        let expected: BTreeSet<_> = [event_true, event_false].into_iter().collect();
+        assert_eq!(found, expected);
+    }
+
+    #[test]
+    fn test_no_events() {
+        let code = alloy_primitives::hex::decode("6080604052348015600e575f80fd5b50").unwrap();
+        let events = contract_events(&code);
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn test_push32_no_log() {
+        let mut code = Vec::new();
+        code.push(op::PUSH32);
+        code.extend_from_slice(&[0xab; 32]);
+        code.push(op::POP);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        assert!(events.is_empty());
+    }
+
+    // --- CC module tests (migrated from cc/mod.rs) ---
+
+    /// Sub-class a: single PUSH32 + LOG1 in one block.
+    #[test]
+    fn cc_push32_extracts_event() {
+        let selector = make_plausible_hash();
+        let mut code = Vec::new();
+        append_log1(&mut code, selector);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![selector]);
+    }
+
+    /// Sub-class e/f: topic0 pushed in a predecessor block, consumed via JUMP.
+    #[test]
+    fn cc_cross_block_extracts_event() {
+        let selector = [0x11u8; 32];
+        let mut code = Vec::new();
+        // Block 0: push selector, jump to JUMPDEST
+        code.push(op::PUSH32);
+        code.extend_from_slice(&selector);
+        // PUSH1 <jumpdest_target>
+        code.extend_from_slice(&[
+            op::PUSH1,
+            0x24, // target = 0x24
+            op::JUMP,
+        ]);
+        // Block 1 at 0x24: JUMPDEST, then emit LOG1
+        code.push(op::JUMPDEST);
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00, op::LOG1]);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![selector]);
+    }
+
+    /// Sub-class d: Other(pc) pointing at a non-PUSH instruction → skip.
+    #[test]
+    fn cc_other_small_push1_returns_empty() {
+        let mut code = Vec::new();
+        // PUSH1 0x01 is a small value, not a plausible event hash
+        code.extend_from_slice(&[
+            op::PUSH1,
+            0x01, // topic0 — small, not PUSH32/PUSHn(5+)
+            op::PUSH1,
+            0x00,
+            op::PUSH1,
+            0x00,
+            op::LOG1,
+            op::STOP,
+        ]);
+
+        let events = contract_events(&code);
+        assert!(events.is_empty());
+    }
+
+    /// Sub-class b: PUSH31 with a plausible hash → extract.
+    #[test]
+    fn cc_push31_extracts_event() {
+        // Build a 32-byte value with leading zero (since PUSH31 only pushes 31 bytes).
+        // The first byte will be 0x00 after right-aligning.
+        // For is_plausible_event_hash: first 6 bytes must not all be zero.
+        // PUSH31 → [0x00, b1..b31] where b1..b6 are non-zero.
+        let mut expected = [0u8; 32];
+        for i in 1..32 {
+            expected[i] = 0xab;
+        }
+        // expected[0] = 0x00, expected[1..] = 0xab
+        // is_plausible_event_hash checks val[..6] != [0;6] — first 6 bytes are [0,ab,ab,ab,ab,ab] → OK
+
+        let mut code = Vec::new();
+        code.push(op::PUSH31);
+        code.extend_from_slice(&expected[1..]); // 31 bytes
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00, op::LOG1]);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![expected]);
+    }
+
+    /// Sub-class c: CODECOPY + MLOAD pattern.
+    #[test]
+    fn cc_mload_codecopy_extracts_event() {
+        // Layout:
+        //   [header: PUSH + PUSH + PUSH + CODECOPY + PUSH + MLOAD + PUSH + PUSH + LOG1 + STOP]
+        //   Then at some offset, place the 32-byte event hash in the bytecode.
+        //
+        // CODECOPY copies code[src..src+32] into memory[dst..dst+32],
+        // then MLOAD reads memory[dst] to get the topic.
+        let selector = make_plausible_hash();
+
+        let mut code = Vec::new();
+        // We'll put the selector at code offset = 0x40 (after the instruction sequence).
+        let selector_offset: u8 = 0x40;
+
+        // PUSH1 0x20 (length = 32)
+        code.extend_from_slice(&[op::PUSH1, 0x20]);
+        // PUSH1 <selector_offset> (source offset in code)
+        code.extend_from_slice(&[op::PUSH1, selector_offset]);
+        // PUSH1 0x00 (dest offset in memory)
+        code.extend_from_slice(&[op::PUSH1, 0x00]);
+        // CODECOPY
+        code.push(op::CODECOPY);
+        // PUSH1 0x00 (memory offset to load)
+        code.extend_from_slice(&[op::PUSH1, 0x00]);
+        // MLOAD — loads 32 bytes from memory[0]
+        code.push(op::MLOAD);
+        // Now topic0 is on stack. Push offset+size for LOG1.
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00]);
+        code.push(op::LOG1);
+        code.push(op::STOP);
+
+        // Pad to selector_offset
+        while code.len() < selector_offset as usize {
+            code.push(0x00);
+        }
+        // Place the selector at the expected offset
+        code.extend_from_slice(&selector);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![selector]);
+    }
+
+    // --- Vyper bypass tests ---
+
+    #[test]
+    fn vyper_detection() {
+        // Vyper 0.2–0.3 prefix: PUSH1 4; CALLDATASIZE; LT
+        assert!(super::is_likely_vyper(&[0x60, 0x04, 0x36, 0x10, 0x00]));
+        // Vyper 0.4+ prefix: PUSH1 3; CALLDATASIZE; GT
+        assert!(super::is_likely_vyper(&[0x60, 0x03, 0x36, 0x11, 0x00]));
+        // Vyper non-payable: CALLVALUE; ISZERO; PUSH2 0x00xx
+        assert!(super::is_likely_vyper(&[0x34, 0x15, 0x61, 0x00, 0x0e]));
+        // Solidity: not detected
+        assert!(!super::is_likely_vyper(&[0x60, 0x80, 0x60, 0x40, 0x52]));
+        // Empty
+        assert!(!super::is_likely_vyper(&[]));
+    }
+
+    /// Vyper-like contract with a LOG1 in an unreachable block (dynamic JUMP return).
+    /// The main CFG pipeline misses it, but the Vyper supplement recovers it.
+    #[test]
+    fn vyper_unreachable_log_recovered() {
+        let selector = make_plausible_hash();
+        let mut code = Vec::new();
+
+        // Vyper prefix: PUSH1 4; CALLDATASIZE; LT → triggers is_likely_vyper()
+        code.extend_from_slice(&[0x60, 0x04, 0x36]);
+        code.push(op::STOP);
+
+        // Unreachable block: JUMPDEST + PUSH32 + offset + size + LOG1 + STOP
+        code.push(op::JUMPDEST);
+        code.push(op::PUSH32);
+        code.extend_from_slice(&selector);
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00, op::LOG1]);
+        code.push(op::STOP);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![selector]);
+    }
+}

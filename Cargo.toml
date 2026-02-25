@@ -33,11 +33,13 @@ wasm = ["serde", "dep:serde_json"]
 trace_selectors = []
 trace_arguments = []
 trace_mutability = []
+trace_events = []
 trace_storage = []
 trace = [
     "trace_selectors",
     "trace_arguments",
     "trace_mutability",
+    "trace_events",
     "trace_storage",
 ]
 

@@ -205,6 +205,7 @@ mod evmole {
     #[pyclass(name = "Contract", get_all)]
     struct PyContract {
         functions: Option<Vec<PyFunction>>,
+        events: Option<Vec<String>>,
         storage: Option<Vec<PyStorageRecord>>,
         disassembled: Option<Vec<(usize, String)>>,
         basic_blocks: Option<Vec<(usize, usize)>>,
@@ -215,7 +216,7 @@ mod evmole {
     impl PyContract {
         fn __repr__(&self) -> String {
             format!(
-                "Contract(functions={}, storage={}, disassembled={}, basic_blocks={}, control_flow_graph={})",
+                "Contract(functions={}, events={}, storage={}, disassembled={}, basic_blocks={}, control_flow_graph={})",
                 self.functions.as_ref().map_or_else(
                     || "None".to_string(),
                     |v| format!(
@@ -226,6 +227,9 @@ mod evmole {
                             .join(", ")
                     )
                 ),
+                self.events
+                    .as_ref()
+                    .map_or_else(|| "None".to_string(), |v| format!("{v:?}")),
                 self.storage.as_ref().map_or_else(
                     || "None".to_string(),
                     |v| format!(
@@ -252,13 +256,14 @@ mod evmole {
 
     // {{{ contract_info
     #[pyfunction]
-    #[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, storage=false, disassemble=false, basic_blocks=false, control_flow_graph=false))]
+    #[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, events=false, storage=false, disassemble=false, basic_blocks=false, control_flow_graph=false))]
     #[allow(clippy::too_many_arguments)]
     fn contract_info(
         code: &Bound<'_, PyAny>,
         selectors: bool,
         arguments: bool,
         state_mutability: bool,
+        events: bool,
         storage: bool,
         disassemble: bool,
         basic_blocks: bool,
@@ -275,6 +280,9 @@ mod evmole {
         }
         if state_mutability {
             args = args.with_state_mutability();
+        }
+        if events {
+            args = args.with_events();
         }
         if storage {
             args = args.with_storage();
@@ -359,8 +367,13 @@ mod evmole {
                 .collect(),
         });
 
+        let events = info
+            .events
+            .map(|evts| evts.into_iter().map(hex::encode).collect());
+
         Ok(PyContract {
             functions,
+            events,
             storage,
             disassembled: info.disassembled,
             basic_blocks: info.basic_blocks,

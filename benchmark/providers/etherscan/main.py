@@ -10,6 +10,10 @@ from Crypto.Hash import keccak
 def sign(inp: bytes) -> str:
     return keccak.new(digest_bits=256, data=inp).digest()[:4].hex()
 
+
+def sign32(inp: bytes) -> str:
+    return keccak.new(digest_bits=256, data=inp).digest().hex()
+
 def join_inputs(inputs) -> str:
     if len(inputs) == 0:
         return ''
@@ -119,6 +123,17 @@ def process_storage(sl):
     return ret
 
 def process(data, mode):
+    if mode == 'events':
+        ret = {}
+        for x in data['abi']:
+            if x['type'] != 'event':
+                continue
+            args = join_inputs(x['inputs'])
+            n = f'{x["name"]}({args})'
+            ret[sign32(n.encode('ascii'))] = True
+
+        return list(ret.keys())
+
     if mode == 'storage':
         return process_storage(data['storageLayout'])
     ret = {}
