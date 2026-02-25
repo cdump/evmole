@@ -292,7 +292,7 @@ export function contractInfo(code: string, args: {
 /// @param {boolean} [args.selectors] - When true, includes function selectors in the output
 /// @param {boolean} [args.arguments] - When true, includes function arguments information
 /// @param {boolean} [args.stateMutability] - When true, includes state mutability information for functions
-/// @param {boolean} [args.events] - When true, includes event selectors emitted by each function
+/// @param {boolean} [args.events] - When true, includes event selectors found in the contract bytecode
 /// @param {boolean} [args.storage] - When true, includes contract storage layout information
 /// @param {boolean} [args.disassemble] - When true, includes disassembled bytecode
 /// @param {boolean} [args.basicBlocks] - When true, includes basic block analysis

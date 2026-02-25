@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 mod classify;
 mod resolve;
 
@@ -29,69 +27,18 @@ pub struct EventLogClassRecord {
     pub class: EventLogClass,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct EventExtractionStats {
-    pub selectors_total: u64,
-    pub selectors_after_mutability_prune: u64,
-    pub selectors_pruned_view_or_pure: u64,
-    pub jump_classify_cache_hits: u64,
-    pub jump_classify_cache_misses: u64,
-    pub entry_state_cache_hits: u64,
-    pub entry_state_cache_misses: u64,
-    pub jump_classify_can_fork_true: u64,
-    pub jump_classify_can_fork_false: u64,
-    pub probe_cache_hits: u64,
-    pub probe_cache_misses: u64,
-    pub static_dead_other_prunes: u64,
-    pub static_dead_current_prunes: u64,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct EventExecutionProfile {
-    pub states_pushed: u64,
-    pub states_popped: u64,
-    pub queue_peak: usize,
-    pub state_limit_breaks: u64,
-    pub visited_cap_hits: u64,
-
-    pub jump_total: u64,
-    pub jump_visited_breaks: u64,
-
-    pub jumpi_total: u64,
-    pub jumpi_visited_breaks: u64,
-    pub jumpi_invalid_other_pc: u64,
-    pub jumpi_unreachable_both: u64,
-    pub jumpi_unreachable_current: u64,
-    pub jumpi_unreachable_other: u64,
-    pub jumpi_fork_throttled: u64,
-    pub jumpi_fork_deduped: u64,
-    pub jumpi_decision_keep: u64,
-    pub jumpi_decision_switch: u64,
-    pub jumpi_decision_fork: u64,
-
-    pub context_start_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_can_fork_true_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_can_fork_false_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_cache_hit_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_cache_miss_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_decision_keep_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_decision_switch_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_decision_fork_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_invalid_other_pc_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_unreachable_both_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_unreachable_current_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_unreachable_other_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_fork_throttled_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_fork_deduped_by_pc: BTreeMap<usize, u64>,
-    pub jumpi_visited_breaks_by_pc: BTreeMap<usize, u64>,
-}
-
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
 
 /// Checks if a 32-byte value looks like a keccak256 hash (event selector).
+///
+/// Heuristics (empirically tuned to filter non-event constants while preserving real selectors):
+/// - All-zero rejected (null value)
+/// - First 6 bytes all zero → likely an address or small integer, not a hash
+/// - Last 6 bytes all zero → likely a bit-mask or padded constant
+/// - Known non-event constants (role hashes, EIP-712 type hashes) → blocklist
+/// - 4+ consecutive 0x00 or 0xFF bytes → structured constant, not a hash
 fn is_plausible_event_hash(val: &[u8; 32]) -> bool {
     if val == &[0u8; 32] {
         return false;
@@ -386,27 +333,6 @@ fn contract_events_internal(code: &[u8]) -> Vec<EventSelector> {
 /// Extracts all event selectors from contract bytecode.
 pub fn contract_events(code: &[u8]) -> Vec<EventSelector> {
     contract_events_internal(code)
-}
-
-pub fn contract_events_with_stats(code: &[u8]) -> (Vec<EventSelector>, EventExtractionStats) {
-    (
-        contract_events_internal(code),
-        EventExtractionStats::default(),
-    )
-}
-
-pub fn contract_events_with_profile(
-    code: &[u8],
-) -> (
-    Vec<EventSelector>,
-    EventExtractionStats,
-    EventExecutionProfile,
-) {
-    (
-        contract_events_internal(code),
-        EventExtractionStats::default(),
-        EventExecutionProfile::default(),
-    )
 }
 
 /// Classifies each `LOGx` site by topic0 source complexity.

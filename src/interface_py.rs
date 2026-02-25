@@ -254,48 +254,6 @@ mod evmole {
     }
     // }}}
 
-    // {{{ EventExtractionStats
-    #[pyclass(name = "EventExtractionStats", get_all)]
-    #[derive(Clone)]
-    struct PyEventExtractionStats {
-        jump_classify_cache_hits: u64,
-        jump_classify_cache_misses: u64,
-        jump_classify_cache_hit_rate: f64,
-        entry_state_cache_hits: u64,
-        entry_state_cache_misses: u64,
-        entry_state_cache_hit_rate: f64,
-        jump_classify_can_fork_true: u64,
-        jump_classify_can_fork_false: u64,
-        probe_cache_hits: u64,
-        probe_cache_misses: u64,
-        probe_cache_hit_rate: f64,
-        static_dead_other_prunes: u64,
-        static_dead_current_prunes: u64,
-    }
-
-    #[pymethods]
-    impl PyEventExtractionStats {
-        fn __repr__(&self) -> String {
-            format!(
-                "EventExtractionStats(jump_classify_cache_hits={}, jump_classify_cache_misses={}, jump_classify_cache_hit_rate={:.4}, entry_state_cache_hits={}, entry_state_cache_misses={}, entry_state_cache_hit_rate={:.4}, jump_classify_can_fork_true={}, jump_classify_can_fork_false={}, probe_cache_hits={}, probe_cache_misses={}, probe_cache_hit_rate={:.4}, static_dead_other_prunes={}, static_dead_current_prunes={})",
-                self.jump_classify_cache_hits,
-                self.jump_classify_cache_misses,
-                self.jump_classify_cache_hit_rate,
-                self.entry_state_cache_hits,
-                self.entry_state_cache_misses,
-                self.entry_state_cache_hit_rate,
-                self.jump_classify_can_fork_true,
-                self.jump_classify_can_fork_false,
-                self.probe_cache_hits,
-                self.probe_cache_misses,
-                self.probe_cache_hit_rate,
-                self.static_dead_other_prunes,
-                self.static_dead_current_prunes,
-            )
-        }
-    }
-    // }}}
-
     // {{{ contract_info
     #[pyfunction]
     #[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, events=false, storage=false, disassemble=false, basic_blocks=false, control_flow_graph=false))]
@@ -421,58 +379,6 @@ mod evmole {
             basic_blocks: info.basic_blocks,
             control_flow_graph,
         })
-    }
-    // }}}
-
-    // {{{ event_selectors_with_stats
-    #[pyfunction]
-    fn event_selectors_with_stats(
-        code: &Bound<'_, PyAny>,
-    ) -> PyResult<(Vec<String>, PyEventExtractionStats)> {
-        let code_bytes = input_to_bytes(code)?;
-        let (events, stats) = crate::events::contract_events_with_stats(&code_bytes);
-        let jump_total = stats
-            .jump_classify_cache_hits
-            .saturating_add(stats.jump_classify_cache_misses);
-        let jump_hit_rate = if jump_total == 0 {
-            0.0
-        } else {
-            stats.jump_classify_cache_hits as f64 / jump_total as f64
-        };
-        let entry_total = stats
-            .entry_state_cache_hits
-            .saturating_add(stats.entry_state_cache_misses);
-        let entry_hit_rate = if entry_total == 0 {
-            0.0
-        } else {
-            stats.entry_state_cache_hits as f64 / entry_total as f64
-        };
-        let probe_total = stats
-            .probe_cache_hits
-            .saturating_add(stats.probe_cache_misses);
-        let probe_hit_rate = if probe_total == 0 {
-            0.0
-        } else {
-            stats.probe_cache_hits as f64 / probe_total as f64
-        };
-        Ok((
-            events.into_iter().map(hex::encode).collect(),
-            PyEventExtractionStats {
-                jump_classify_cache_hits: stats.jump_classify_cache_hits,
-                jump_classify_cache_misses: stats.jump_classify_cache_misses,
-                jump_classify_cache_hit_rate: jump_hit_rate,
-                entry_state_cache_hits: stats.entry_state_cache_hits,
-                entry_state_cache_misses: stats.entry_state_cache_misses,
-                entry_state_cache_hit_rate: entry_hit_rate,
-                jump_classify_can_fork_true: stats.jump_classify_can_fork_true,
-                jump_classify_can_fork_false: stats.jump_classify_can_fork_false,
-                probe_cache_hits: stats.probe_cache_hits,
-                probe_cache_misses: stats.probe_cache_misses,
-                probe_cache_hit_rate: probe_hit_rate,
-                static_dead_other_prunes: stats.static_dead_other_prunes,
-                static_dead_current_prunes: stats.static_dead_current_prunes,
-            },
-        ))
     }
     // }}}
 }

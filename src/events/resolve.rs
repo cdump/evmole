@@ -293,13 +293,18 @@ fn mload_codecopy_value(code: &[u8], mload_pc: usize, block_start: usize) -> Opt
                     return None;
                 }
                 let n = (opcode - op::PUSH1 + 1) as usize;
+                // Only PUSH1..PUSH8 can fit in a usize; larger pushes
+                // (PUSH9..PUSH32) cannot represent a valid code offset.
+                if n > 8 {
+                    return None;
+                }
                 let arg_start = pc + 1;
                 let arg_end = arg_start.checked_add(n)?;
                 if arg_end > code.len() {
                     return None;
                 }
                 let mut buf = [0u8; 8];
-                let copy_start = 8usize.saturating_sub(n);
+                let copy_start = 8 - n;
                 buf[copy_start..].copy_from_slice(&code[arg_start..arg_end]);
                 Some(u64::from_be_bytes(buf) as usize)
             }

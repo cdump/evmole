@@ -122,25 +122,6 @@ class Contract:
     basic_blocks: Optional[List[Tuple[int, int]]]
     control_flow_graph: Optional[ControlFlowGraph]
 
-class EventExtractionStats:
-    """
-    Cache hit/miss statistics collected during event selector extraction.
-    """
-
-    jump_classify_cache_hits: int
-    jump_classify_cache_misses: int
-    jump_classify_cache_hit_rate: float
-    entry_state_cache_hits: int
-    entry_state_cache_misses: int
-    entry_state_cache_hit_rate: float
-    jump_classify_can_fork_true: int
-    jump_classify_can_fork_false: int
-    probe_cache_hits: int
-    probe_cache_misses: int
-    probe_cache_hit_rate: float
-    static_dead_other_prunes: int
-    static_dead_current_prunes: int
-
 def contract_info(
     code: Union[bytes, str],
     *,
@@ -180,10 +161,3 @@ def contract_info(
     """
     ...
 
-def event_selectors_with_stats(
-    code: Union[bytes, str],
-) -> Tuple[List[str], EventExtractionStats]:
-    """
-    Extracts event selectors and returns cache hit/miss statistics for the run.
-    """
-    ...

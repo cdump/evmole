@@ -8,9 +8,7 @@
 pub use contract_info::contract_info;
 pub use contract_info::{Contract, ContractInfoArgs, Function};
 pub use events::{
-    EventExecutionProfile, EventExtractionStats, EventLogClass, EventLogClassRecord, EventSelector,
-    contract_event_log_classes, contract_events, contract_events_with_profile,
-    contract_events_with_stats,
+    EventLogClass, EventLogClassRecord, EventSelector, contract_event_log_classes, contract_events,
 };
 pub use storage::StorageRecord;
 
