@@ -223,6 +223,140 @@ fn is_known_non_event_constant(val: &[u8; 32]) -> bool {
 }
 
 // ---------------------------------------------------------------------------
+// Vyper detection & bypass
+// ---------------------------------------------------------------------------
+
+/// Detects Vyper-compiled bytecode from bytecode prefix patterns.
+///
+/// Vyper uses internal function call patterns that produce dynamic JUMPs the CFG
+/// resolver cannot follow, causing LOG-containing blocks to appear unreachable.
+/// Three prefix patterns cover all known Vyper compiler versions (0.2–0.4+):
+fn is_likely_vyper(code: &[u8]) -> bool {
+    // PUSH1 4; CALLDATASIZE; LT — Vyper 0.2–0.3
+    code.starts_with(&[0x60, 0x04, 0x36])
+    // PUSH1 3; CALLDATASIZE; GT — Vyper 0.4+
+        || code.starts_with(&[0x60, 0x03, 0x36, 0x11])
+    // CALLVALUE; ISZERO; PUSH2 0x00xx — Vyper non-payable entry
+        || code.starts_with(&[0x34, 0x15, 0x61, 0x00])
+}
+
+/// Scans entire bytecode for LOG1–LOG4 sites regardless of CFG reachability.
+///
+/// For each LOG, finds the enclosing pseudo-block (nearest prior JUMPDEST or code
+/// start), runs lightweight symbolic execution to identify topic0's source, and
+/// extracts the value if it's a same-block PUSH32 or PUSHn.
+fn vyper_scan_all_log_sites(code: &[u8]) -> Vec<EventSelector> {
+    use crate::control_flow_graph::state::{StackSym, State};
+    use crate::evm::{code_iterator::iterate_code, op};
+
+    let mut out: crate::collections::HashSet<EventSelector> =
+        crate::collections::HashSet::default();
+
+    // Pass 1: collect all LOG1–LOG4 sites with their pseudo-block starts.
+    // Split pseudo-blocks at LOG instructions: after a LOG consumes items from the
+    // stack, the next LOG's topic0 is built from scratch, so we must restart symbolic
+    // execution from after the previous LOG to avoid stale stack values.
+    let mut block_start = 0usize;
+    let mut log_sites: Vec<(usize, usize)> = Vec::new();
+    for (pc, cop) in iterate_code(code, 0, None) {
+        if cop.op == op::JUMPDEST {
+            block_start = pc;
+        }
+        if (op::LOG0..=op::LOG4).contains(&cop.op) {
+            if (op::LOG1..=op::LOG4).contains(&cop.op) {
+                log_sites.push((pc, block_start));
+            }
+            // After any LOG, the next instruction starts a new pseudo-block
+            block_start = pc + 1;
+        }
+    }
+
+    // Pass 2: symbolically execute each pseudo-block to resolve topic0.
+    //
+    // State::exec terminates at JUMP/JUMPI/REVERT/RETURN/STOP (it's designed for
+    // CFG basic blocks). In Vyper pseudo-blocks, these can appear mid-block (e.g.,
+    // a require guard's JUMPI before the event emit). To handle this, find the last
+    // such "barrier" before the LOG and start execution from the instruction after it.
+    for (log_pc, bs) in log_sites {
+        // Find the last barrier instruction in [bs, log_pc) to use as exec start.
+        let exec_start = {
+            let mut last_barrier_end = bs;
+            for (pc, cop) in iterate_code(code, bs, Some(log_pc)) {
+                if pc == log_pc {
+                    break;
+                }
+                if matches!(
+                    cop.op,
+                    op::JUMP
+                        | op::JUMPI
+                        | op::STOP
+                        | op::RETURN
+                        | op::REVERT
+                        | op::INVALID
+                        | op::SELFDESTRUCT
+                ) {
+                    last_barrier_end = pc + cop.opi.size;
+                }
+            }
+            last_barrier_end
+        };
+
+        let prev_pc = classify::find_prev_instruction_pc(code, exec_start, log_pc);
+        let mut state = State::new();
+        if let Some(prev) = prev_pc {
+            let _ = state.exec(code, exec_start, Some(prev));
+        }
+
+        // topic0 is always at stack position 2 for LOG1–LOG4
+        let mut sym = state.get_stack(2);
+
+        // If topic0 is Before(n), the value came from before the barrier.
+        // Try resolving through a parent state (block_start → barrier).
+        if matches!(sym, StackSym::Before(_)) && exec_start > bs {
+            let mut parent = State::new();
+            if let Some(prev) = classify::find_prev_instruction_pc(code, bs, exec_start) {
+                let _ = parent.exec(code, bs, Some(prev));
+            }
+            let resolved = state.resolve_with_parent(&parent);
+            sym = resolved.get_stack(2);
+        }
+
+        if let StackSym::Other(pc) = sym {
+            let Some(&opcode) = code.get(pc) else {
+                continue;
+            };
+            match opcode {
+                op::PUSH32 => {
+                    if pc + 33 <= code.len() {
+                        let mut topic = [0u8; 32];
+                        topic.copy_from_slice(&code[pc + 1..pc + 33]);
+                        if is_plausible_event_hash(&topic) {
+                            out.insert(topic);
+                        }
+                    }
+                }
+                op::PUSH5..=op::PUSH31 => {
+                    let n = (opcode - op::PUSH1 + 1) as usize;
+                    let start = pc + 1;
+                    if let Some(end) = start.checked_add(n)
+                        && end <= code.len()
+                    {
+                        let mut topic = [0u8; 32];
+                        topic[32 - n..].copy_from_slice(&code[start..end]);
+                        if is_plausible_event_hash(&topic) {
+                            out.insert(topic);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    out.into_iter().collect()
+}
+
+// ---------------------------------------------------------------------------
 // Entry points
 // ---------------------------------------------------------------------------
 
@@ -234,7 +368,19 @@ fn contract_events_internal(code: &[u8]) -> Vec<EventSelector> {
     else {
         return Vec::new();
     };
-    resolve::resolve_classified_log_sites(code, &index, &classified)
+    let mut events = resolve::resolve_classified_log_sites(code, &index, &classified);
+
+    if is_likely_vyper(code) {
+        let supplement = vyper_scan_all_log_sites(code);
+        if !supplement.is_empty() {
+            let mut set: crate::collections::HashSet<EventSelector> = events.drain(..).collect();
+            set.extend(supplement);
+            events = set.into_iter().collect();
+            events.sort_unstable();
+        }
+    }
+
+    events
 }
 
 /// Extracts all event selectors from contract bytecode.
@@ -559,6 +705,44 @@ mod tests {
         }
         // Place the selector at the expected offset
         code.extend_from_slice(&selector);
+
+        let events = contract_events(&code);
+        assert_eq!(events, vec![selector]);
+    }
+
+    // --- Vyper bypass tests ---
+
+    #[test]
+    fn vyper_detection() {
+        // Vyper 0.2–0.3 prefix: PUSH1 4; CALLDATASIZE; LT
+        assert!(super::is_likely_vyper(&[0x60, 0x04, 0x36, 0x10, 0x00]));
+        // Vyper 0.4+ prefix: PUSH1 3; CALLDATASIZE; GT
+        assert!(super::is_likely_vyper(&[0x60, 0x03, 0x36, 0x11, 0x00]));
+        // Vyper non-payable: CALLVALUE; ISZERO; PUSH2 0x00xx
+        assert!(super::is_likely_vyper(&[0x34, 0x15, 0x61, 0x00, 0x0e]));
+        // Solidity: not detected
+        assert!(!super::is_likely_vyper(&[0x60, 0x80, 0x60, 0x40, 0x52]));
+        // Empty
+        assert!(!super::is_likely_vyper(&[]));
+    }
+
+    /// Vyper-like contract with a LOG1 in an unreachable block (dynamic JUMP return).
+    /// The main CFG pipeline misses it, but the Vyper supplement recovers it.
+    #[test]
+    fn vyper_unreachable_log_recovered() {
+        let selector = make_plausible_hash();
+        let mut code = Vec::new();
+
+        // Vyper prefix: PUSH1 4; CALLDATASIZE; LT → triggers is_likely_vyper()
+        code.extend_from_slice(&[0x60, 0x04, 0x36]);
+        code.push(op::STOP);
+
+        // Unreachable block: JUMPDEST + PUSH32 + offset + size + LOG1 + STOP
+        code.push(op::JUMPDEST);
+        code.push(op::PUSH32);
+        code.extend_from_slice(&selector);
+        code.extend_from_slice(&[op::PUSH1, 0x00, op::PUSH1, 0x00, op::LOG1]);
+        code.push(op::STOP);
 
         let events = contract_events(&code);
         assert_eq!(events, vec![selector]);
