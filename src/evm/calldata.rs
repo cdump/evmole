@@ -86,7 +86,9 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
                 let xoff = off - 4;
                 if let Some(val) = self.arg_vals.get(&xoff) {
                     //TODO: look to the left to find proper element
-                    data = val.to_be_bytes_vec();
+                    let word: [u8; 32] = val.to_be_bytes();
+                    let n = std::cmp::min(data.len(), word.len());
+                    data[..n].copy_from_slice(&word[..n]);
                 }
                 if let Some((tp, label_type)) = self.arg_types.get(&xoff) {
                     label = T::label(xoff, tp, *label_type);
@@ -243,3 +245,28 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
 //         }
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct TestLabel;
+
+    impl CallDataLabel for TestLabel {
+        fn label(_: usize, _: &DynSolType, _: CallDataLabelType) -> Option<Self> {
+            None
+        }
+    }
+
+    #[test]
+    fn load_preserves_requested_size_for_word_offsets() {
+        let cd = CallDataImpl::<TestLabel>::new([0, 0, 0, 0], &[DynSolType::Bytes]);
+
+        let (data, _) = cd.load(U256::from(4), U256::from(1)).unwrap();
+        assert_eq!(data.len(), 1);
+
+        let (data, _) = cd.load(U256::from(4), U256::from(40)).unwrap();
+        assert_eq!(data.len(), 40);
+    }
+}
