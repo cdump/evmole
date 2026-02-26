@@ -33,7 +33,7 @@ pub trait CallDataLabel: Sized {
 pub struct CallDataImpl<T> {
     pub selector: [u8; 4],
     arg_types: BTreeMap<usize, (DynSolType, CallDataLabelType)>,
-    arg_vals: BTreeMap<usize, usize>,
+    arg_vals: BTreeMap<usize, U256>,
     _phantom: PhantomData<T>,
 }
 
@@ -60,7 +60,7 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
             } else {
                 let xoff = off - 4;
                 if let Some(val) = self.arg_vals.get(&xoff) {
-                    data = U256::from(*val).to_be_bytes();
+                    data = val.to_be_bytes();
                 }
                 if let Some((tp, label_type)) = self.arg_types.get(&xoff) {
                     label = T::label(xoff, tp, *label_type);
@@ -86,7 +86,7 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
                 let xoff = off - 4;
                 if let Some(val) = self.arg_vals.get(&xoff) {
                     //TODO: look to the left to find proper element
-                    data = U256::from(*val).to_be_bytes_vec();
+                    data = val.to_be_bytes_vec();
                 }
                 if let Some((tp, label_type)) = self.arg_types.get(&xoff) {
                     label = T::label(xoff, tp, *label_type);
@@ -121,7 +121,7 @@ fn is_dynamic(ty: &DynSolType) -> bool {
 }
 
 type ArgTypes = Vec<(usize, (DynSolType, CallDataLabelType))>;
-type ArgNonZero = Vec<(usize, usize)>;
+type ArgNonZero = Vec<(usize, U256)>;
 
 fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
     // (offset, type)
@@ -162,21 +162,21 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
     }
 
     for (el_off, ty) in dynamic.into_iter() {
-        ret_nonzero.push((el_off, off));
+        ret_nonzero.push((el_off, U256::from(off)));
         ret_types.push((el_off, (ty.clone(), CallDataLabelType::Offset)));
 
         match ty {
             DynSolType::Bytes | DynSolType::String => {
-                // string '0x41' with len = 1
-                ret_nonzero.push((off, 32));
-                ret_nonzero.push((off + 32, 0x41)); // TODO: pad right, not left
+                // string "A" (0x41) with len = 1; data is right-padded in 32-byte slot
+                ret_nonzero.push((off, U256::from(1)));
+                ret_nonzero.push((off + 32, U256::from(0x41) << 248));
                 ret_types.push((off, (ty.clone(), CallDataLabelType::DynLen)));
                 ret_types.push((off + 32, (ty.clone(), CallDataLabelType::RealValue)));
                 off += 64;
             }
             DynSolType::Array(val) => {
                 // len = 1
-                ret_nonzero.push((off, 1));
+                ret_nonzero.push((off, U256::from(1u64)));
                 off += 32;
 
                 let (dyn_off, dyn_ret_types, dyn_ret_nonzero) = encode(&[*val.clone()]);
@@ -194,7 +194,7 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
                 let (dyn_off, dyn_ret_types, dyn_ret_nonzero) = encode(&[*val.clone()]);
                 let data_start = 32 * sz;
                 for i in 0..*sz {
-                    ret_nonzero.push((off, data_start + i * (dyn_off - 32)));
+                    ret_nonzero.push((off, U256::from(data_start + i * (dyn_off - 32))));
                     off += 32;
                 }
                 for _ in 0..*sz {
