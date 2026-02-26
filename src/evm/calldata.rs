@@ -144,8 +144,7 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
         } else {
             match ty {
                 DynSolType::FixedArray(val, sz) => {
-                    let (sz_off, sz_types, sz_nonzero) =
-                        encode(&vec![*val.clone(); *sz]);
+                    let (sz_off, sz_types, sz_nonzero) = encode(&vec![*val.clone(); *sz]);
                     ret_types.extend(sz_types.into_iter().map(|(o, v)| (o + off, v)));
                     ret_nonzero.extend(sz_nonzero.into_iter().map(|(o, v)| (o + off, v)));
                     off += sz_off;
@@ -293,7 +292,11 @@ mod tests {
         assert_eq!(types.len(), 6);
         assert!(vals.is_empty());
         for i in 0..6usize {
-            assert!(types.contains_key(&(i * 32)), "missing slot at offset {}", i * 32);
+            assert!(
+                types.contains_key(&(i * 32)),
+                "missing slot at offset {}",
+                i * 32
+            );
         }
     }
 
@@ -308,7 +311,11 @@ mod tests {
         assert_eq!(types.len(), 3);
         assert!(vals.is_empty());
         for i in 0..3usize {
-            assert!(types.contains_key(&(i * 32)), "missing slot at offset {}", i * 32);
+            assert!(
+                types.contains_key(&(i * 32)),
+                "missing slot at offset {}",
+                i * 32
+            );
         }
     }
 
