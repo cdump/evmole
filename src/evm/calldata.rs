@@ -144,16 +144,17 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
         } else {
             match ty {
                 DynSolType::FixedArray(val, sz) => {
-                    for _ in 0..*sz {
-                        ret_types.push((off, (*val.clone(), CallDataLabelType::RealValue)));
-                        off += 32;
-                    }
+                    let (sz_off, sz_types, sz_nonzero) =
+                        encode(&vec![*val.clone(); *sz]);
+                    ret_types.extend(sz_types.into_iter().map(|(o, v)| (o + off, v)));
+                    ret_nonzero.extend(sz_nonzero.into_iter().map(|(o, v)| (o + off, v)));
+                    off += sz_off;
                 }
                 DynSolType::Tuple(val) => {
-                    for v in val {
-                        ret_types.push((off, (v.clone(), CallDataLabelType::RealValue)));
-                        off += 32;
-                    }
+                    let (sz_off, sz_types, sz_nonzero) = encode(val);
+                    ret_types.extend(sz_types.into_iter().map(|(o, v)| (o + off, v)));
+                    ret_nonzero.extend(sz_nonzero.into_iter().map(|(o, v)| (o + off, v)));
+                    off += sz_off;
                 }
                 _ => {
                     ret_types.push((off, (ty.clone(), CallDataLabelType::RealValue)));
@@ -217,56 +218,107 @@ fn encode(elements: &[DynSolType]) -> (usize, ArgTypes, ArgNonZero) {
     (off, ret_types, ret_nonzero)
 }
 
-// #[cfg(test)]
-// mod test {
-//     use super::encode;
-//     use std::collections::BTreeMap;
-//
-//     #[test]
-//     fn test_encode() {
-//         let x = vec![
-//             "string[3]".parse().unwrap(),
-//             // "(string)[3]".parse().unwrap(),
-//             // "(uint8, string)[3]".parse().unwrap(),
-//         ];
-//         let (end_off, a, b) = encode(&x);
-//         println!("{}", end_off);
-//         println!("{:?}", a);
-//         println!("{:?}", b);
-//
-//         let ma = BTreeMap::from_iter(a);
-//         let mb = BTreeMap::from_iter(b);
-//
-//         for off in (0..end_off).step_by(32) {
-//             println!("{:064x} - {:?}",
-//                 mb.get(&off).unwrap_or(&0),
-//                 ma.get(&off),
-//             );
-//         }
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeMap;
+
+    fn encode_maps(
+        elements: &[DynSolType],
+    ) -> (
+        usize,
+        BTreeMap<usize, (DynSolType, CallDataLabelType)>,
+        BTreeMap<usize, U256>,
+    ) {
+        let (size, types, vals) = encode(elements);
+        (size, BTreeMap::from_iter(types), BTreeMap::from_iter(vals))
+    }
 
     #[derive(Clone, Debug, PartialEq, Eq)]
-    struct TestLabel;
-
-    impl CallDataLabel for TestLabel {
+    struct NoLabel;
+    impl CallDataLabel for NoLabel {
         fn label(_: usize, _: &DynSolType, _: CallDataLabelType) -> Option<Self> {
             None
         }
     }
 
+    // --- string / bytes encoding ---
+
     #[test]
-    fn load_preserves_requested_size_for_word_offsets() {
-        let cd = CallDataImpl::<TestLabel>::new([0, 0, 0, 0], &[DynSolType::Bytes]);
+    fn encode_string_slot_layout() {
+        // layout: [head: offset=32] [len=1] [data="A" right-padded]
+        let (size, types, vals) = encode_maps(&[DynSolType::String]);
+        assert_eq!(size, 96);
 
-        let (data, _) = cd.load(U256::from(4), U256::from(1)).unwrap();
-        assert_eq!(data.len(), 1);
+        assert_eq!(vals[&0], U256::from(32u64)); // offset ptr → data area
+        assert_eq!(types[&0].1, CallDataLabelType::Offset);
 
-        let (data, _) = cd.load(U256::from(4), U256::from(40)).unwrap();
-        assert_eq!(data.len(), 40);
+        assert_eq!(vals[&32], U256::from(1u64)); // length = 1
+        assert_eq!(types[&32].1, CallDataLabelType::DynLen);
+
+        // "A" must be right-padded: 0x4100...00, not left-padded 0x000...41
+        assert_eq!(vals[&64], U256::from(0x41u64) << 248);
+        assert_eq!(types[&64].1, CallDataLabelType::RealValue);
+    }
+
+    #[test]
+    fn load32_string_data_is_right_padded() {
+        let cd = CallDataImpl::<NoLabel>::new([0; 4], &[DynSolType::String]);
+        // data slot is at calldata offset 4 (selector) + 64 (two words into args)
+        let elem = cd.load32(U256::from(4 + 64));
+        assert_eq!(elem.data[0], 0x41, "first byte must be 0x41");
+        assert_eq!(&elem.data[1..], &[0u8; 31], "rest must be zero-padded");
+    }
+
+    #[test]
+    fn load_string_data_respects_size() {
+        let cd = CallDataImpl::<NoLabel>::new([0; 4], &[DynSolType::String]);
+        let base = U256::from(4 + 64); // calldata offset of data slot
+
+        let (data, _) = cd.load(base, U256::from(1)).unwrap();
+        assert_eq!(data, [0x41]);
+
+        let (data, _) = cd.load(base, U256::from(4)).unwrap();
+        assert_eq!(data, [0x41, 0, 0, 0]);
+    }
+
+    // --- nested static FixedArray ---
+
+    #[test]
+    fn encode_nested_fixed_array_size() {
+        // uint256[2][3] = FixedArray(FixedArray(uint256, 2), 3) → 6 slots, 192 bytes
+        let ty: DynSolType = "uint256[2][3]".parse().unwrap();
+        let (size, types, vals) = encode_maps(&[ty]);
+        assert_eq!(size, 192);
+        assert_eq!(types.len(), 6);
+        assert!(vals.is_empty());
+        for i in 0..6usize {
+            assert!(types.contains_key(&(i * 32)), "missing slot at offset {}", i * 32);
+        }
+    }
+
+    // --- nested static Tuple ---
+
+    #[test]
+    fn encode_nested_tuple_size() {
+        // (uint256, uint256[2]) → 1 + 2 = 3 slots, 96 bytes
+        let ty: DynSolType = "(uint256, uint256[2])".parse().unwrap();
+        let (size, types, vals) = encode_maps(&[ty]);
+        assert_eq!(size, 96);
+        assert_eq!(types.len(), 3);
+        assert!(vals.is_empty());
+        for i in 0..3usize {
+            assert!(types.contains_key(&(i * 32)), "missing slot at offset {}", i * 32);
+        }
+    }
+
+    #[test]
+    fn encode_flat_tuple_unchanged() {
+        // (uint256, address) → 2 slots, 64 bytes — baseline to confirm no regression
+        let ty: DynSolType = "(uint256, address)".parse().unwrap();
+        let (size, types, vals) = encode_maps(&[ty]);
+        assert_eq!(size, 64);
+        assert_eq!(types.len(), 2);
+        assert!(vals.is_empty());
     }
 }
