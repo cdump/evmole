@@ -16,16 +16,16 @@ import { test, expect } from '@playwright/test';
   test(name, async ({ page }) => {
     await page.goto(`http://localhost:${port}/`);
 
-    const s = await page.locator('#selectors')
+    const s = page.locator('#selectors')
     await expect(s).toHaveText('fae7ab82');
 
-    const a = await page.locator('#arguments')
+    const a = page.locator('#arguments')
     await expect(a).toHaveText('uint32');
 
-    const m = await page.locator('#state_mutability')
+    const m = page.locator('#state_mutability')
     await expect(m).toHaveText('pure');
 
-    const d = await page.locator('#disassembled')
+    const d = page.locator('#disassembled')
     await expect(d).toHaveText(/0 PUSH1 80.*/);
   });
 });
