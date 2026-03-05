@@ -145,6 +145,18 @@ fn resolve_dynamic_jump_path(
             break;
         }
 
+        // Cycle detection for direct (single-block) parent paths only.
+        // A direct parent that is already in our current backwards path represents a
+        // CFG back-edge (loop). Each loop iteration inflates the tracked stack position
+        // via state composition, causing the algorithm to look at the wrong slot and
+        // produce None. The base-case path (zero loop iterations) already finds the
+        // correct destination, so skip these back-edges.
+        // Multi-element parent paths (pre-discovered paths from resolved DynamicJumps)
+        // are excluded from this check to avoid blocking legitimate resolution chains.
+        if parent_path.len() == 1 && path.contains(&parent_path[0]) {
+            continue;
+        }
+
         let mut new_path = Vec::with_capacity(path.len() + parent_path.len());
         new_path.extend(&path);
         new_path.extend(parent_path);
