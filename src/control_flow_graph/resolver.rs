@@ -300,6 +300,9 @@ pub fn resolve_dynamic_jumps(
             if !reachable.contains(start) {
                 continue;
             }
+            if total_energy_used >= ENERGY_LIMIT {
+                break;
+            }
 
             let state = rev_idx.get_state(code, *start).to_owned();
             let (jumps, energy_used) = resolve_dynamic_jump_path(
