@@ -347,17 +347,18 @@ pub fn resolve_dynamic_jumps(
         }
     }
 
-    // Merge jump targets if all resolved dynamic jumps from a block lead to the same target.
+    // Merge jump targets if all *resolved* dynamic jumps from a block lead to the same target.
+    // None paths (unresolvable due to analysis limits) are ignored for this check: if every
+    // path that did resolve agrees on one destination, we can safely use that destination.
     for (start, _) in stack_pos {
         let mut one_to = None;
 
-        if let BlockType::DynamicJump { to: ref dj } = blocks.get(&start).unwrap().btype
-            && !dj.is_empty()
-            && dj.iter().all(|v| v.to.is_some())
-        {
-            let first_to = dj[0].to;
-            if dj.iter().all(|v| v.to == first_to) {
-                one_to = Some(first_to.unwrap());
+        if let BlockType::DynamicJump { to: ref dj } = blocks.get(&start).unwrap().btype {
+            let mut resolved = dj.iter().filter_map(|v| v.to);
+            if let Some(first) = resolved.next() {
+                if resolved.all(|t| t == first) {
+                    one_to = Some(first);
+                }
             }
         }
         if let Some(to) = one_to {
