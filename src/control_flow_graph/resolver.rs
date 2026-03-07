@@ -355,10 +355,10 @@ pub fn resolve_dynamic_jumps(
 
         if let BlockType::DynamicJump { to: ref dj } = blocks.get(&start).unwrap().btype {
             let mut resolved = dj.iter().filter_map(|v| v.to);
-            if let Some(first) = resolved.next() {
-                if resolved.all(|t| t == first) {
-                    one_to = Some(first);
-                }
+            if let Some(first) = resolved.next()
+                && resolved.all(|t| t == first)
+            {
+                one_to = Some(first);
             }
         }
         if let Some(to) = one_to {
