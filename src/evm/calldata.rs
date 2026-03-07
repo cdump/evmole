@@ -75,7 +75,11 @@ impl<T: CallDataLabel> CallData<T> for CallDataImpl<T> {
         offset: U256,
         size: U256,
     ) -> Result<(Vec<u8>, Option<T>), Box<dyn error::Error>> {
-        let mut data = vec![0; u8::try_from(size)? as usize]; // max len limited to max_u8
+        let size = usize::try_from(size)?;
+        if size > 32768 {
+            return Err("calldata load size too large".into());
+        }
+        let mut data = vec![0u8; size];
         let mut label = None;
 
         if let Ok(off) = usize::try_from(offset) {
