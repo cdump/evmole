@@ -560,12 +560,14 @@ where
             }
 
             op::MSTORE8 => {
-                let off: u32 = self.stack.pop_uint()?.try_into()?;
+                let raws0 = self.stack.pop()?;
+                let off: u32 = U256::from_be_bytes(raws0.data).try_into()?;
                 let val = self.stack.pop()?;
                 let label = val.label.clone();
                 self.memory.store(off, vec![val.data[31]], label);
                 let mut ret = StepResult::new(op, 3);
-                ret.args[0] = val;
+                ret.args[0] = raws0; // offset
+                ret.args[1] = val; // value
                 Ok(ret)
             }
 
