@@ -626,13 +626,10 @@ where
             op::LOG0..=op::LOG4 => {
                 let n = (op - op::LOG0) as u32;
                 let mut ret = StepResult::new(op, 375 * (n + 1));
-                self.stack.pop()?;
-                self.stack.pop()?;
-                if n > 0 {
-                    ret.args[0] = self.stack.pop()?;
-                    for _ in 0..n - 1 {
-                        self.stack.pop()?;
-                    }
+                ret.args[0] = self.stack.pop()?; // offset
+                ret.args[1] = self.stack.pop()?; // size
+                for _ in 0..n {
+                    ret.exargs.push(self.stack.pop()?); // topics
                 }
                 Ok(ret)
             }
