@@ -24,6 +24,29 @@ impl State {
         Self { stack }
     }
 
+    /// Builds an "identity" entry stack where deeper untouched slots stay addressable as
+    /// `Before(n)` after execution. This is used when replaying cached parent paths that need
+    /// more stack context than the minimal summary kept during the first resolution pass.
+    pub(crate) fn with_identity(depth: usize) -> Self {
+        Self {
+            stack: (0..=depth).rev().map(StackSym::Before).collect(),
+        }
+    }
+
+    pub(crate) fn explicit_len(&self) -> usize {
+        self.stack.len()
+    }
+
+    pub(crate) fn max_before(&self) -> Option<usize> {
+        self.stack
+            .iter()
+            .filter_map(|sym| match sym {
+                StackSym::Before(idx) => Some(*idx),
+                _ => None,
+            })
+            .max()
+    }
+
     /// Returns the symbol at the given stack position (0 is the top of the stack)
     /// If `pos` is beyond the current stack, a new `Before` symbol is synthesized
     pub fn get_stack(&self, pos: usize) -> StackSym {

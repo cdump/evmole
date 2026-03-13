@@ -4,7 +4,7 @@ use crate::collections::{HashMap, HashSet, IndexMap};
 
 use super::{
     Block, BlockType, DynamicJump,
-    reachable::get_reachable_nodes,
+    reachable::{extend_reachable_nodes, get_reachable_nodes},
     state::{StackSym, State},
 };
 
@@ -13,8 +13,18 @@ struct RevIdx {
     /// Maps a block start address to its `State`.
     states: HashMap<usize /*start*/, State>,
 
+    /// Depth-aware block states used when a cached summary does not preserve enough stack.
+    /// Re-executing the block with a deeper identity stack keeps older untouched slots as
+    /// `Before(n)` instead of collapsing them away.
+    deep_states: HashMap<(usize /*start*/, usize /*depth*/), State>,
+
     /// Maps a destination to all parent paths (each as a vector of block addresses) and their associated state.
     parents: HashMap<usize /*to*/, IndexMap<Vec<usize> /*path*/, State>>,
+
+    /// Replayed parent-path states keyed by the flattened path and the requested stack depth.
+    /// A path can be discovered first through a shallow dynamic jump and later reused by a
+    /// nested return trampoline that needs a deeper caller slot.
+    replayed_paths: HashMap<(Vec<usize>, usize /*depth*/), State>,
 
     /// Intermediate states: maps a block (by its last element) to states and the set of jump symbols encountered so far.
     istate: HashMap<usize, HashMap<State, HashSet<StackSym>>>,
@@ -41,6 +51,23 @@ impl RevIdx {
             st.exec(code, start, None);
             st
         })
+    }
+
+    // Re-execute a single block with an identity prefix large enough to keep the requested
+    // untouched caller slots available as `Before(n)`.
+    fn get_state_with_depth(&mut self, code: &[u8], start: usize, depth: usize) -> State {
+        if depth == 0 {
+            return self.get_state(code, start).clone();
+        }
+
+        self.deep_states
+            .entry((start, depth))
+            .or_insert_with(|| {
+                let mut st = State::with_identity(depth);
+                st.exec(code, start, None);
+                st
+            })
+            .clone()
     }
 
     fn insert_direct_parent(&mut self, to: usize, from: usize, state: State) {
@@ -117,19 +144,58 @@ impl RevIdx {
     fn clear_inter_state(&mut self) {
         self.istate.clear();
     }
+
+    fn materialize_path_state(
+        &mut self,
+        code: &[u8],
+        path: &[usize],
+        summary: &State,
+        required_depth: usize,
+    ) -> State {
+        if required_depth < summary.explicit_len() {
+            return summary.clone();
+        }
+
+        if path.len() == 1 {
+            return self.get_state_with_depth(code, path[0], required_depth);
+        }
+
+        // Stored parent-path states are intentionally minimal for the jump that first discovered
+        // them. If a later consumer asks for a deeper stack slot, replay the whole path with a
+        // widened identity prefix and memoize that richer version.
+        let key = (path.to_vec(), required_depth);
+        if let Some(state) = self.replayed_paths.get(&key) {
+            return state.clone();
+        }
+
+        let mut iter = path.iter().copied();
+        let first = iter.next().expect("parent path must not be empty");
+        let mut state = self.get_state_with_depth(code, first, required_depth);
+
+        for start in iter {
+            let depth = required_depth.max(state.max_before().unwrap_or_default());
+            let parent = self.get_state_with_depth(code, start, depth);
+            state = state.resolve_with_parent(&parent);
+        }
+
+        self.replayed_paths.insert(key, state.clone());
+        state
+    }
 }
 
 /// Recursively explores dynamic jump paths starting from a given path
 /// Returns vector for dynamic jumps and energy used
 fn resolve_dynamic_jump_path(
+    code: &[u8],
     rev_idx: &mut RevIdx,
     path: Vec<usize>,
+    path_weight: usize,
     stack_pos: usize,
     state: State,
     energy_limit: usize,
 ) -> (Vec<DynamicJump>, usize) {
-    const MAX_PATH_LEN: usize = 256;
-    assert!(path.len() <= MAX_PATH_LEN);
+    const MAX_PATH_WEIGHT: usize = 256;
+    assert!(path_weight <= MAX_PATH_WEIGHT);
 
     let current = *path.last().unwrap();
     let mut energy_used = 0;
@@ -157,12 +223,45 @@ fn resolve_dynamic_jump_path(
             continue;
         }
 
+        let mut current_state = state.clone();
+        let mut required_depth = current_state
+            .max_before()
+            .map_or(stack_pos, |depth| depth.max(stack_pos));
+
+        loop {
+            // Materializing with a deeper prefix can reveal older `Before(n)` references that
+            // were hidden by the shallower summary, so widen until the dependency frontier stops
+            // growing.
+            let materialized =
+                rev_idx.materialize_path_state(code, &path, &current_state, required_depth);
+            let next_required = materialized
+                .max_before()
+                .map_or(stack_pos, |depth| depth.max(stack_pos));
+            current_state = materialized;
+
+            if next_required <= required_depth {
+                required_depth = next_required;
+                break;
+            }
+
+            required_depth = next_required;
+        }
+
+        let parent_state =
+            rev_idx.materialize_path_state(code, &parent_path, &parent_state, required_depth);
+        let jump_sym = parent_state.get_stack(stack_pos);
+        let new_state = current_state.resolve_with_parent(&parent_state);
+
         let mut new_path = Vec::with_capacity(path.len() + parent_path.len());
         new_path.extend(&path);
         new_path.extend(parent_path);
 
-        if new_path.len() > MAX_PATH_LEN {
-            // Path too long: mark it as bad
+        // Count each reused parent path as one search step. A cached multi-block parent can have
+        // a very long flattened witness path, but replay already treats it as one summarized edge
+        // with richer state recovered on demand. Using the flattened length here would reject
+        // valid nested-return chains before symbolic resolution has a chance to continue.
+        let new_path_weight = path_weight + 1;
+        if new_path_weight > MAX_PATH_WEIGHT {
             if rev_idx.insert_badpath(&new_path) {
                 dynamic_jumps.push(DynamicJump {
                     path: new_path,
@@ -171,9 +270,6 @@ fn resolve_dynamic_jump_path(
             }
             continue;
         }
-
-        let jump_sym = parent_state.get_stack(stack_pos);
-        let new_state = state.resolve_with_parent(&parent_state);
 
         // Only proceed if this (state, jump) combination is new.
         if !rev_idx.add_inter_state(*new_path.last().unwrap(), &new_state, &jump_sym) {
@@ -185,8 +281,10 @@ fn resolve_dynamic_jump_path(
             StackSym::Before(new_stack_pos) => {
                 // eprintln!("before {} from {:?}", b, newpath);
                 let (jumps, used) = resolve_dynamic_jump_path(
+                    code,
                     rev_idx,
                     new_path,
+                    new_path_weight,
                     new_stack_pos,
                     new_state,
                     energy_limit - energy_used,
@@ -297,16 +395,18 @@ pub fn resolve_dynamic_jumps(
 
     let mut total_energy_used = 0;
     const ENERGY_LIMIT: usize = 500_000;
+    let mut reachable = get_reachable_nodes(&blocks, 0, None);
+    let mut witness_targets: HashMap<usize, Vec<usize>> = HashMap::default();
 
     for _itpos in 0..128 {
         if total_energy_used >= ENERGY_LIMIT {
             break;
         }
 
-        let reachable = get_reachable_nodes(&blocks, 0, None);
         rev_idx.set_reachable0(reachable.clone());
 
         let mut found_new_paths = false;
+        let mut new_targets = Vec::new();
 
         for (start, stack_pos) in &stack_pos {
             if !reachable.contains(start) {
@@ -318,8 +418,10 @@ pub fn resolve_dynamic_jumps(
 
             let state = rev_idx.get_state(code, *start).to_owned();
             let (jumps, energy_used) = resolve_dynamic_jump_path(
+                code,
                 &mut rev_idx,
                 vec![*start],
+                1,
                 *stack_pos,
                 state,
                 ENERGY_LIMIT - total_energy_used,
@@ -328,6 +430,13 @@ pub fn resolve_dynamic_jumps(
 
             if !jumps.is_empty() {
                 found_new_paths = true;
+                for jump in &jumps {
+                    if let Some(to) = jump.to {
+                        let witness = *jump.path.last().unwrap();
+                        witness_targets.entry(witness).or_default().push(to);
+                        new_targets.push(to);
+                    }
+                }
                 match blocks.get_mut(start).unwrap().btype {
                     BlockType::DynamicJump { ref mut to } => {
                         to.extend(jumps);
@@ -345,18 +454,27 @@ pub fn resolve_dynamic_jumps(
         if !found_new_paths {
             break;
         }
+        extend_reachable_nodes(&blocks, &mut reachable, &witness_targets, new_targets);
     }
 
-    // Merge jump targets if all *resolved* dynamic jumps from a block lead to the same target.
-    // None paths (unresolvable due to analysis limits) are ignored for this check: if every
-    // path that did resolve agrees on one destination, we can safely use that destination.
+    // `None` paths are usually impossible branch combinations from the backwards search,
+    // such as traversing contradictory `JUMPI` outcomes that cannot both happen in one
+    // top-to-bottom execution. Clear those paths now, because we can't do anything better anyway.
+    for (start, _) in &stack_pos {
+        if let BlockType::DynamicJump { to: ref mut dj } = blocks.get_mut(start).unwrap().btype {
+            dj.retain(|b| b.to.is_some());
+        }
+    }
+
+    // Merge jump targets if all dynamic jumps from a block lead to the same target.
+    // After the `None`-path cleanup above, every remaining entry has `to: Some(...)`.
     for (start, _) in stack_pos {
         let mut one_to = None;
 
         if let BlockType::DynamicJump { to: ref dj } = blocks.get(&start).unwrap().btype {
-            let mut resolved = dj.iter().filter_map(|v| v.to);
-            if let Some(first) = resolved.next()
-                && resolved.all(|t| t == first)
+            let mut targets = dj.iter().map(|v| v.to.unwrap());
+            if let Some(first) = targets.next()
+                && targets.all(|t| t == first)
             {
                 one_to = Some(first);
             }
