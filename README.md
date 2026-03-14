@@ -187,7 +187,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>18ms · 0.3s · 21ms · 0.1s</td>
+  <td>18ms · 0.2s · 22ms · 69ms</td>
   <td>2.3s</td>
   <td>30s<sup>(*)</sup></td>
   <td>56ms</td>
@@ -229,7 +229,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.3s · 2.6s · 0.5s · 5.7s</td>
+  <td>0.5s · 3.1s · 0.6s · 3.1s</td>
   <td>30s</td>
   <td>440s<sup>(*)</sup></td>
   <td>1.6s</td>
@@ -271,7 +271,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>10ms · 0.2s · 10ms · 85ms</td>
+  <td>9ms · 99ms · 11ms · 42ms</td>
   <td>2.0s</td>
   <td>34s<sup>(*)</sup></td>
   <td>26ms</td>
@@ -292,36 +292,36 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  <tr>
   <td rowspan="2"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>14.1% 🥇<br><sub>3447</sub></td>
+  <td>14.0% 🥇<br><sub>3410</sub></td>
   <td>31.1%<br><sub>7603</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s · 1.1s · 0.5s · 2.1s</td>
+  <td>0.6s · 1.3s · 0.7s · 1.8s</td>
   <td>370s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>random50k</b><br><sub>1171102<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>4.8% 🥇<br><sub>56464</sub></td>
+  <td>4.5% 🥇<br><sub>52664</sub></td>
   <td>19.4%<br><sub>227077</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>13s · 26s · 15s · 44s</td>
+  <td>16s · 31s · 20s · 48s</td>
   <td>8579s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>vyper</b><br><sub>21244<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>48.4% 🥇<br><sub>10289</sub></td>
+  <td>46.7% 🥇<br><sub>9914</sub></td>
   <td>100.0%<br><sub>21244</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s · 1.3s · 0.5s · 1.4s</td>
+  <td>0.5s · 1.1s · 0.6s · 1.8s</td>
   <td>29s<sup>(*)</sup></td>
  </tr>
 </table>
@@ -358,7 +358,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>8.0s · 8.2s · 8.5s · 18s</td>
+  <td>10s · 9.7s · 9.7s · 25s</td>
   <td>2.5s</td>
   <td>27s<sup>(*)</sup></td>
   <td>371s<sup>(*)</sup></td>
@@ -381,7 +381,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>157s · 160s · 171s · 354s</td>
+  <td>201s · 184s · 200s · 427s</td>
   <td>51s</td>
   <td>2261s<sup>(*)</sup></td>
   <td>8334s<sup>(*)</sup></td>
@@ -404,7 +404,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>8.4s · 7.6s · 8.4s · 17s</td>
+  <td>11s · 8.7s · 10s · 22s</td>
   <td>1.8s</td>
   <td>35s<sup>(*)</sup></td>
   <td>29s<sup>(*)</sup></td>
@@ -418,7 +418,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
 <table>
  <tr>
   <td></td>
-  <td><a href="benchmark/providers/evmole-rs"><b><i>evmole</i></b></a></td>
+  <td><b><i>evmole</i><b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
   <td><a href="benchmark/providers/ethersolve"><b><i>ethersolve</i></b></a></td>
   <td><a href="benchmark/providers/evm-cfg"><b><i>evm-cfg</i></b></a></td>
   <td><a href="benchmark/providers/sevm"><b><i>sevm</i></b></a></td>
@@ -427,7 +427,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Basic Blocks</i></td>
-  <td>97.0% 🥇<br><sub>661959</sub></td>
+  <td>97.2% 🥇<br><sub>663214</sub></td>
   <td>93.8%<br><sub>640383</sub></td>
   <td>63.0%<br><sub>430011</sub></td>
   <td>41.4%<br><sub>282599</sub></td>
@@ -436,7 +436,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>False Negatives</i></td>
-  <td>3.0% 🥇<br><sub>20482</sub></td>
+  <td>2.8% 🥇<br><sub>19227</sub></td>
   <td>6.2%<br><sub>42058</sub></td>
   <td>37.0%<br><sub>252430</sub></td>
   <td>58.6%<br><sub>399842</sub></td>
@@ -445,7 +445,7 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>19s</td>
+  <td>15s · 20s · 13s · 42s</td>
   <td>643s</td>
   <td>49s</td>
   <td>28s</td>
@@ -460,7 +460,7 @@ dataset largest1k, 1000 contracts, 682,441 blocks
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.8.2; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.6</i>
+<i>versions: evmole v0.8.3; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.6</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 
