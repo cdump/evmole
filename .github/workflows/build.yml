@@ -130,9 +130,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           registry-url: 'https://registry.npmjs.org/'
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -270,9 +270,9 @@ jobs:
         run: cargo publish --allow-dirty
 
       - name: Install Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           registry-url: 'https://registry.npmjs.org/'
 
       - name: Release Notes
@@ -307,8 +307,6 @@ jobs:
             dist-py/*
 
       - name: Publish javascript
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         working-directory: javascript
         run: npm publish --provenance *.tgz
 
