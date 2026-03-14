@@ -1,0 +1,4 @@
+This directory holds the generated Go WASM payload.
+
+`evmole.wasm.gz` is intentionally not tracked on `main`.
+Build it locally with `make -C go wasm`.

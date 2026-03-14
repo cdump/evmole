@@ -62,14 +62,21 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Commit and Tag
+      - name: Commit and Tag Release
         run: |
-          git add Cargo.toml Cargo.lock javascript/package.json go/wasm/evmole.wasm.gz
+          git add Cargo.toml Cargo.lock javascript/package.json
           git commit -m "release ${{ inputs.version }}"
+          release_commit="$(git rev-parse HEAD)"
           git tag "${{ inputs.version }}"
-          git tag "go/v${{ inputs.version }}"
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin "$release_commit:${{ github.ref_name }}"
           git push origin "${{ inputs.version }}"
+          git checkout --detach "$release_commit"
+
+      - name: Tag Go Release
+        run: |
+          git add -f go/wasm/evmole.wasm.gz
+          git commit -m "go release ${{ inputs.version }}"
+          git tag "go/v${{ inputs.version }}"
           git push origin "go/v${{ inputs.version }}"
 
   rust-test:
@@ -98,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('go/v{0}', inputs.version) || '' }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:

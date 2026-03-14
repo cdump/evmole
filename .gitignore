@@ -14,5 +14,6 @@ target/
 .aider*
 .gradle
 
-# Go WASM - use compressed version only
+# Go WASM build outputs
 go/wasm/evmole.wasm
+go/wasm/evmole.wasm.gz

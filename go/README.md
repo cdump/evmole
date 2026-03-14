@@ -14,6 +14,8 @@ Go bindings for [EVMole](https://github.com/cdump/evmole) - a library that extra
 go get github.com/cdump/evmole/go
 ```
 
+Tagged `go/v*` releases embed the WASM binary. If you are building the Go package from a checkout of this repository, run `make wasm` in `go/` first.
+
 ## Usage
 
 ### Basic Usage
