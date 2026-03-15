@@ -323,9 +323,12 @@ where
             }
 
             op::CLZ => {
-                let v = self.stack.pop_uint()?;
+                let raws0 = self.stack.pop()?;
+                let v: U256 = (&raws0).into();
                 self.stack.push_uint(U256::from(v.leading_zeros()));
-                Ok(StepResult::new(op, 5))
+                let mut ret = StepResult::new(op, 5);
+                ret.args[0] = raws0;
+                Ok(ret)
             }
 
             op::BYTE => self.bop(op, |_, s0, raws1, _| {
@@ -409,9 +412,10 @@ where
             }
 
             op::BALANCE => {
-                self.stack.pop()?;
+                let mut ret = StepResult::new(op, 100);
+                ret.args[0] = self.stack.pop()?;
                 self.stack.push_data(VAL_0_B);
-                Ok(StepResult::new(op, 100))
+                Ok(ret)
             }
 
             op::CALLDATALOAD => {
@@ -518,15 +522,17 @@ where
             }
 
             op::BLOCKHASH => {
-                self.stack.pop()?;
+                let mut ret = StepResult::new(op, 20);
+                ret.args[0] = self.stack.pop()?;
                 self.stack.push_data(VAL_1_B);
-                Ok(StepResult::new(op, 20))
+                Ok(ret)
             }
 
             op::BLOBHASH => {
-                self.stack.pop()?;
+                let mut ret = StepResult::new(op, 3);
+                ret.args[0] = self.stack.pop()?;
                 self.stack.push_data(VAL_1_B);
-                Ok(StepResult::new(op, 3))
+                Ok(ret)
             }
 
             op::SELFBALANCE => {
