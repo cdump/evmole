@@ -507,8 +507,9 @@ where
                 let mem_off: U256 = (&raws0).into();
                 let mem_off32: u32 = mem_off.try_into()?;
 
-                self.stack.pop()?;
-                let size: usize = self.stack.pop_uint()?.try_into()?;
+                let src_off_el = self.stack.pop()?;
+                let size_el = self.stack.pop()?;
+                let size: usize = U256::from_be_bytes(size_el.data).try_into()?;
                 if size > 2048 {
                     Err(UnsupportedOpError { op }.into())
                 } else {
@@ -517,6 +518,8 @@ where
 
                     let mut ret = StepResult::new(op, 3);
                     ret.args[0] = raws0;
+                    ret.args[1] = src_off_el;
+                    ret.exargs.push(size_el);
                     Ok(ret)
                 }
             }
@@ -697,8 +700,14 @@ where
                 Ok(ret)
             }
 
-            op::STOP | op::SELFDESTRUCT | op::INVALID => {
-                // skip stack pop()s
+            op::SELFDESTRUCT => {
+                let mut ret = StepResult::new(op, 5);
+                ret.args[0] = self.stack.pop()?;
+                self.stopped = true;
+                Ok(ret)
+            }
+
+            op::STOP | op::INVALID => {
                 self.stopped = true;
                 Ok(StepResult::new(op, 5))
             }
