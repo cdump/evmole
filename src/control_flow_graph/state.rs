@@ -37,6 +37,12 @@ impl State {
         self.stack.len()
     }
 
+    pub(crate) fn symbols_top_first(&self) -> Vec<StackSym> {
+        (0..self.explicit_len())
+            .map(|pos| self.get_stack(pos))
+            .collect()
+    }
+
     pub(crate) fn max_before(&self) -> Option<usize> {
         self.stack
             .iter()
