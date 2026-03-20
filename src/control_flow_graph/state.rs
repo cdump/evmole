@@ -37,6 +37,7 @@ impl State {
         self.stack.len()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn symbols_top_first(&self) -> Vec<StackSym> {
         (0..self.explicit_len())
             .map(|pos| self.get_stack(pos))
