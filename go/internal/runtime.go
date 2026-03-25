@@ -125,3 +125,4 @@ func (r *Runtime) ContractInfo(ctx context.Context, code []byte, opts uint32) ([
 	}()
 	
 	return resultCopy, nil
+}	
