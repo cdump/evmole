@@ -7,6 +7,9 @@ import subprocess
 from collections import defaultdict
 
 
+def format_contract_name(v: str) -> str:
+    return v.removesuffix('.json')
+
 def get_mode_defaults() -> dict:
     """Read MODE_DEFAULTS from Makefile using single subprocess call."""
     script_dir = pathlib.Path(__file__).parent
@@ -90,7 +93,7 @@ def process_selectors(dname: str, providers: list[str], results_dir: str):
             provider_comparisons.append([false_positives, false_negatives])
 
         results.append({
-            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'addr': format_contract_name(fname),
             'ground_truth': ground_truth,
             'data': provider_comparisons,
         })
@@ -286,7 +289,7 @@ def process_functions(tname: str, dname: str, providers: list[str], results_dir:
             func.append({'s': sel, 'gt': gt_val, 'data': data})
 
         ret.append({
-            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'addr': format_contract_name(fname),
             'func': func,
         })
     return {'dataset': dname, 'results': ret, 'timings': ptimes[1:]}
@@ -332,7 +335,7 @@ def process_storage(dname: str, providers: list[str], results_dir: str):
             func.append({'s': slot, 'gt': None, 'data': data})
 
         ret.append({
-            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'addr': format_contract_name(fname),
             'func': func,
         })
 
@@ -391,7 +394,7 @@ def process_flow(dname: str, providers: list[str], results_dir: str) -> dict:
             provider_stats.append((total_blocks, extra_blocks, missing_blocks))
 
         results.append({
-            'addr': fname[2:-5], # '0xFF.json' => 'FF'
+            'addr': format_contract_name(fname),
             'results': provider_stats,
         })
 
