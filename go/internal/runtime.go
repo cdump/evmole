@@ -120,7 +120,8 @@ func (r *Runtime) ContractInfo(ctx context.Context, code []byte, opts uint32) ([
 	copy(resultCopy, result)
 
 	// 5. Deallocate result (length prefix + data)
-	r.dealloc.Call(ctx, uint64(resultPtr), uint64(resultLen)+4)
-
+	defer func() {
+		_, _ = r.dealloc.Call(ctx, uint64(resultPtr), uint64(resultLen)+4)
+	}()
+	
 	return resultCopy, nil
-}
