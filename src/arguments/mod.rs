@@ -190,11 +190,10 @@ impl ArgsResult {
 
         if let InfoVal::Dynamic(n) = tinfo {
             match el.tinfo {
-                Some(InfoVal::Dynamic(x)) => {
-                    if x > n {
-                        return;
-                    }
+                Some(InfoVal::Dynamic(x)) if x > n => {
+                    return;
                 }
+                Some(InfoVal::Dynamic(_)) => {}
                 Some(InfoVal::Array(_)) => return,
                 None => (),
             };

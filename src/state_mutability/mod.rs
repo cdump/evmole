@@ -121,10 +121,8 @@ fn analyze_payable(
                 op: op::REVERT,
                 args: [_, sa, ..],
                 ..
-            } => {
-                if last_jumpi_callvalue && sa.data == VAL_0_B {
-                    return (false, gas_used);
-                }
+            } if last_jumpi_callvalue && sa.data == VAL_0_B => {
+                return (false, gas_used);
             }
 
             _ => (),

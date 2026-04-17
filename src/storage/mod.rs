@@ -13,14 +13,12 @@ use crate::{
     },
     utils::{and_mask_to_type, elabel, execute_until_function_start, match_first_two},
 };
+use alloy_primitives::keccak256;
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
 };
-
-mod keccak_precalc;
-use keccak_precalc::KEC_PRECALC;
 
 /// Represents a storage variable record in a smart contract's storage layout.
 #[derive(Debug)]
@@ -58,7 +56,77 @@ enum Label {
     Typed(DynSolType),
     Sloaded(Rc<RefCell<StorageElement>>),
     IsZero(Rc<RefCell<StorageElement>>),
-    Keccak(u32, Vec<Element<Label>>),
+    Keccak(u32, SlotExpr),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum SlotExpr {
+    Plain(Slot),
+    Mapping {
+        key_type: DynSolType,
+        base: Box<SlotExpr>,
+    },
+    DynamicArray {
+        base: Box<SlotExpr>,
+    },
+    HashedConst {
+        hash: Slot,
+        preimage: Vec<u8>,
+    },
+    UnknownHash {
+        size: u32,
+        preimage: Vec<u8>,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum SlotKey {
+    Known(Slot),
+    UnknownHash { size: u32, preimage: Vec<u8> },
+}
+
+fn should_surface_hashed_slot(preimage: &[u8]) -> bool {
+    if matches!(preimage.len(), 32 | 64) {
+        return false;
+    }
+
+    if preimage.len() > 32 {
+        let tail = &preimage[preimage.len() - 32..];
+        if tail[..31].iter().all(|b| *b == 0) {
+            return false;
+        }
+    }
+
+    true
+}
+
+impl SlotExpr {
+    fn canonical_slot(&self) -> Option<Slot> {
+        match self {
+            SlotExpr::Plain(slot) => Some(*slot),
+            SlotExpr::HashedConst {
+                hash: slot,
+                preimage,
+            } => should_surface_hashed_slot(preimage).then_some(*slot),
+            SlotExpr::Mapping { base, .. } | SlotExpr::DynamicArray { base } => {
+                base.canonical_slot()
+            }
+            SlotExpr::UnknownHash { .. } => None,
+        }
+    }
+
+    fn slot_key(&self) -> SlotKey {
+        match self {
+            SlotExpr::Plain(slot) | SlotExpr::HashedConst { hash: slot, .. } => {
+                SlotKey::Known(*slot)
+            }
+            SlotExpr::Mapping { base, .. } | SlotExpr::DynamicArray { base } => base.slot_key(),
+            SlotExpr::UnknownHash { size, preimage } => SlotKey::UnknownHash {
+                size: *size,
+                preimage: preimage.clone(),
+            },
+        }
+    }
 }
 
 impl CallDataLabel for Label {
@@ -130,6 +198,29 @@ impl StorageType {
             StorageType::Map(k, v) => 1000 * get_base_score(k) + v.get_score(),
         }
     }
+
+    fn is_string_like(&self) -> bool {
+        matches!(
+            self,
+            StorageType::Base(DynSolType::String | DynSolType::Bytes)
+        )
+    }
+
+    fn requires_zero_offset(&self) -> bool {
+        match self {
+            StorageType::Map(_, _) => true,
+            StorageType::Base(t) => matches!(
+                t,
+                DynSolType::Array(_)
+                    | DynSolType::FixedArray(_, _)
+                    | DynSolType::String
+                    | DynSolType::Bytes
+                    | DynSolType::Uint(256)
+                    | DynSolType::Int(256)
+                    | DynSolType::FixedBytes(32)
+            ),
+        }
+    }
 }
 
 impl std::fmt::Debug for StorageType {
@@ -143,7 +234,9 @@ impl std::fmt::Debug for StorageType {
 
 #[derive(Clone, PartialEq, Eq)]
 struct StorageElement {
-    slot: Slot,
+    slot_key: SlotKey,
+    slot: Option<Slot>,
+    slot_expr: SlotExpr,
     stype: StorageType,
     rshift: u8, // in bytes
     is_write: bool,
@@ -152,18 +245,178 @@ struct StorageElement {
 }
 impl std::fmt::Debug for StorageElement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let slot_repr = self
+            .slot
+            .map(alloy_primitives::hex::encode)
+            .unwrap_or_else(|| format!("{:?}", self.slot_expr));
         write!(
             f,
             "{}:{:?}:{}:{:?}",
-            alloy_primitives::hex::encode(self.slot),
-            self.stype,
-            self.rshift,
-            self.last_and
+            slot_repr, self.stype, self.rshift, self.last_and
         )
     }
 }
 
-type SlotHashMap = HashMap<Slot, Vec<Rc<RefCell<StorageElement>>>>;
+type SlotHashMap = HashMap<SlotKey, Vec<Rc<RefCell<StorageElement>>>>;
+
+fn known_constant_hash(
+    data: &[u8],
+    chunks: &[crate::evm::memory::MemoryChunk<Label>],
+) -> Option<Slot> {
+    let covered: usize = chunks
+        .iter()
+        .map(|chunk| chunk.dst_range.end - chunk.dst_range.start)
+        .sum();
+    if covered == data.len()
+        && chunks
+            .iter()
+            .all(|chunk| matches!(chunk.src_label, Label::Constant))
+    {
+        Some(keccak256(data).0)
+    } else {
+        None
+    }
+}
+
+fn full_word_label(
+    chunks: &[crate::evm::memory::MemoryChunk<Label>],
+    size: usize,
+) -> Option<&Label> {
+    match chunks {
+        [chunk] if chunk.dst_range.start == 0 && chunk.dst_range.end == size => {
+            Some(&chunk.src_label)
+        }
+        _ => None,
+    }
+}
+
+fn word_slot_expr(
+    data: Slot,
+    chunks: &[crate::evm::memory::MemoryChunk<Label>],
+) -> (SlotExpr, u32) {
+    match full_word_label(chunks, 32) {
+        Some(Label::Keccak(depth, expr)) => (expr.clone(), depth + 1),
+        _ => (SlotExpr::Plain(data), 0),
+    }
+}
+
+fn typed_dynamic_key_type(
+    chunks: &[crate::evm::memory::MemoryChunk<Label>],
+    key_size: usize,
+) -> Option<DynSolType> {
+    let mut saw_bytes = false;
+
+    for chunk in chunks {
+        if chunk.dst_range.start >= key_size {
+            continue;
+        }
+
+        match &chunk.src_label {
+            Label::Typed(DynSolType::String) => return Some(DynSolType::String),
+            Label::Typed(DynSolType::Bytes) => saw_bytes = true,
+            _ => {}
+        }
+    }
+
+    if saw_bytes {
+        Some(DynSolType::Bytes)
+    } else {
+        None
+    }
+}
+
+fn normalize_slot_expr(slot_expr: &SlotExpr) -> (SlotKey, Option<Slot>, StorageType) {
+    let mut current = slot_expr;
+    let mut stype = StorageType::Base(DynSolType::Uint(256));
+
+    loop {
+        match current {
+            SlotExpr::Mapping { key_type, base } => {
+                stype = StorageType::Map(key_type.clone(), Box::new(stype));
+                current = base;
+            }
+            SlotExpr::DynamicArray { base } => {
+                stype = match stype {
+                    StorageType::Base(inner) => {
+                        StorageType::Base(DynSolType::Array(Box::new(inner)))
+                    }
+                    StorageType::Map(_, _) => {
+                        StorageType::Base(DynSolType::Array(Box::new(DynSolType::Uint(256))))
+                    }
+                };
+                current = base;
+            }
+            _ => return (current.slot_key(), current.canonical_slot(), stype),
+        }
+    }
+}
+
+fn storage_slot_element(storage: &StorageElement) -> Element<Label> {
+    Element {
+        data: storage.slot.unwrap_or_default(),
+        label: match &storage.slot_expr {
+            SlotExpr::Plain(_) => None,
+            expr => Some(Label::Keccak(0, expr.clone())),
+        },
+    }
+}
+
+fn is_scalar_storage_type(stype: &StorageType) -> bool {
+    matches!(
+        stype,
+        StorageType::Base(
+            DynSolType::Bool
+                | DynSolType::Address
+                | DynSolType::String
+                | DynSolType::Bytes
+                | DynSolType::Uint(_)
+                | DynSolType::Int(_)
+                | DynSolType::FixedBytes(_)
+        )
+    )
+}
+
+fn is_suspicious_opaque_root(stype: &StorageType) -> bool {
+    matches!(
+        stype,
+        StorageType::Base(DynSolType::String | DynSolType::Bytes)
+    ) || matches!(
+        stype,
+        StorageType::Base(DynSolType::Uint(bits) | DynSolType::Int(bits)) if *bits >= 128
+    ) || matches!(stype, StorageType::Base(DynSolType::FixedBytes(size)) if *size >= 16)
+}
+
+fn is_legitimate_packed_root(stype: &StorageType) -> bool {
+    matches!(stype, StorageType::Base(DynSolType::Address))
+}
+
+fn looks_like_opaque_bitfield_slot(entries: &[(Selector, StorageElement)]) -> bool {
+    let mut nonzero_offsets: BTreeSet<u8> = BTreeSet::new();
+    let mut min_nonzero_offset: Option<u8> = None;
+    let mut has_suspicious_root = false;
+    let mut has_legitimate_root = false;
+
+    for (_, entry) in entries {
+        if !is_scalar_storage_type(&entry.stype) {
+            return false;
+        }
+
+        if entry.rshift == 0 {
+            has_suspicious_root |= is_suspicious_opaque_root(&entry.stype);
+            has_legitimate_root |= is_legitimate_packed_root(&entry.stype);
+        } else {
+            nonzero_offsets.insert(entry.rshift);
+            min_nonzero_offset =
+                Some(min_nonzero_offset.map_or(entry.rshift, |current| current.min(entry.rshift)));
+        }
+    }
+
+    if nonzero_offsets.len() < 4 || min_nonzero_offset.unwrap_or_default() < 16 {
+        return false;
+    }
+
+    has_suspicious_root && !has_legitimate_root
+}
 
 #[derive(Default)]
 struct Storage {
@@ -171,10 +424,8 @@ struct Storage {
 }
 impl Storage {
     fn remove(&mut self, val: &Rc<RefCell<StorageElement>>) {
-        self.loaded
-            .get_mut(&val.borrow().slot)
-            .unwrap()
-            .retain(|x| x != val);
+        let key = val.borrow().slot_key.clone();
+        self.loaded.get_mut(&key).unwrap().retain(|x| x != val);
     }
 
     fn sstore(&mut self, slot: Element<Label>, rshift: u8, vtype: DynSolType) {
@@ -188,48 +439,23 @@ impl Storage {
     }
 
     fn get(&mut self, slot: Element<Label>, is_write: bool) -> Rc<RefCell<StorageElement>> {
-        let mut sl = slot.data;
-
-        let mut rt = StorageType::Base(DynSolType::Uint(256));
-        let mut x = slot.label;
-
-        loop {
-            match x {
-                Some(Label::Keccak(_, vals)) if vals.len() == 2 => {
-                    let key = if let Some(Label::Typed(ref v)) = vals[0].label {
-                        v.clone()
-                    } else {
-                        DynSolType::Uint(256)
-                    };
-                    rt = StorageType::Map(key, Box::new(rt));
-                    x = vals[1].label.clone();
-                    sl = vals[1].data;
-                }
-                Some(Label::Keccak(_, vals)) if vals.len() == 1 => {
-                    sl = vals[0].data;
-
-                    x = vals[0].label.clone();
-
-                    //FIXME: it's always u256??
-                    if let StorageType::Base(b) = rt {
-                        rt = StorageType::Base(DynSolType::Array(Box::new(b)));
-                    } else {
-                        rt = StorageType::Base(DynSolType::Array(Box::new(DynSolType::Uint(256))));
-                    }
-                }
-                _ => break,
-            }
-        }
+        let slot_expr = match slot.label {
+            Some(Label::Keccak(_, expr)) => expr,
+            _ => SlotExpr::Plain(slot.data),
+        };
+        let (slot_key, canonical_slot, stype) = normalize_slot_expr(&slot_expr);
 
         let v = Rc::new(RefCell::new(StorageElement {
-            slot: sl,
-            stype: rt,
+            slot_key: slot_key.clone(),
+            slot: canonical_slot,
+            slot_expr,
+            stype,
             rshift: 0,
             is_write,
             last_and: None,
             last_or2: None,
         }));
-        self.loaded.entry(sl).or_default().push(v.clone());
+        self.loaded.entry(slot_key).or_default().push(v.clone());
         v
     }
 }
@@ -245,6 +471,17 @@ fn analyze(
             ..
         } => {
             vm.stack.peek_mut()?.label = Some(Label::Constant);
+        }
+
+        StepResult {
+            op: op::CODECOPY,
+            args: [mem_off, ..],
+            ..
+        } => {
+            let off: u32 = mem_off.try_into()?;
+            if let Some(entry) = vm.memory.get_mut(off) {
+                entry.label = Some(Label::Constant);
+            }
         }
 
         StepResult {
@@ -277,7 +514,7 @@ fn analyze(
         }
 
         StepResult {
-            op: op::ADD | op::MUL | op::SUB | op::XOR,
+            op: op::ADD | op::MUL | op::SUB | op::XOR | op::SHL,
             args:
                 match_first_two!(
                     elabel!(lb @ (Label::Sloaded(_) | Label::Typed(_))),
@@ -311,17 +548,16 @@ fn analyze(
             vm.stack.peek_mut()?.label = Some(label);
         }
 
-        // NOT WORKING on tests - dig in
         StepResult {
             op: op::SIGNEXTEND,
-            args: [elabel!(label @ Label::Typed(_)), ..],
+            args: [_, elabel!(label @ Label::Typed(_)), ..],
             ..
         } => {
             vm.stack.peek_mut()?.label = Some(label);
         }
 
         StepResult {
-            op: op::ADD,
+            op: op::ADD | op::SUB,
             args: match_first_two!(elabel!(label @ Label::Keccak(_,_)), _),
             ..
         } => {
@@ -404,17 +640,7 @@ fn analyze(
         StepResult {
             op: op::OR,
             args:
-                match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Typed(_)), ..} ),
-            ..
-        } => {
-            sl.borrow_mut().last_or2 = Some(tt);
-            vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
-        }
-
-        StepResult {
-            op: op::OR,
-            args:
-                match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Constant), ..} ),
+                match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Typed(_) | Label::Constant), ..} ),
             ..
         } => {
             sl.borrow_mut().last_or2 = Some(tt);
@@ -440,8 +666,8 @@ fn analyze(
 
             if let Some(t) = and_mask_to_type(mask) {
                 sl.borrow_mut().stype.set_type(t);
-            } else if mask == VAL_1 {
-                // string, check for SSO
+            } else if mask == VAL_1 && sl.borrow().rshift == 0 {
+                // string, check for SSO (only at rshift 0, not within packed fields)
                 sl.borrow_mut().stype.set_type(DynSolType::String);
             }
             vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
@@ -464,8 +690,8 @@ fn analyze(
                         if let Some(land) = sbr.last_and {
                             let tv = land.trailing_ones();
 
-                            let qwe = land >> tv;
-                            let sz = qwe.trailing_zeros();
+                            let shifted_mask = land >> tv;
+                            let sz = shifted_mask.trailing_zeros();
 
                             let dt = match &lor.label {
                                 Some(Label::Typed(tp)) => tp.clone(),
@@ -502,10 +728,11 @@ fn analyze(
                 && (mask & (mask - VAL_1)).is_zero()
                 && (mask.bit_len() - 1).is_multiple_of(8)
             {
-                let nl = st.sload(Element {
-                    data: sl.borrow().slot,
-                    label: None,
-                });
+                let slot = {
+                    let storage = sl.borrow();
+                    storage_slot_element(&storage)
+                };
+                let nl = st.sload(slot);
                 let bl = mask.bit_len() - 1;
                 nl.borrow_mut().rshift = (bl / 8) as u8;
                 vm.stack.peek_mut()?.label = Some(Label::Sloaded(nl));
@@ -518,70 +745,110 @@ fn analyze(
         }
 
         StepResult {
+            op: op::SHR,
+            args: [shift_amount, elabel!(Label::Sloaded(sl)), ..],
+            ..
+        } => {
+            let shift: U256 = (&shift_amount).into();
+            if !shift.is_zero() && shift.bit_len() <= 9 {
+                let bits: usize = shift.to();
+                if bits.is_multiple_of(8) {
+                    let slot = {
+                        let storage = sl.borrow();
+                        storage_slot_element(&storage)
+                    };
+                    let nl = st.sload(slot);
+                    nl.borrow_mut().rshift = (bits / 8) as u8;
+                    vm.stack.peek_mut()?.label = Some(Label::Sloaded(nl));
+                } else {
+                    vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
+                }
+            } else {
+                vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
+            }
+        }
+
+        StepResult {
             op: op::KECCAK256,
             args: [fa, sa, ..],
             ..
         } => {
             let off = u32::try_from(fa)?;
             let sz = u32::try_from(sa)?;
+            let (data, used) = vm.memory.load(off, sz);
+            let constant_hash = known_constant_hash(&data, &used.chunks);
 
-            vm.stack.peek_mut()?.label = Some(Label::Keccak(0, vec![]));
+            if let Some(hash) = constant_hash {
+                vm.stack.peek_mut()?.data = hash;
+            }
+
+            let mut depth = 0;
+            let mut slot_expr = constant_hash.map_or_else(
+                || SlotExpr::UnknownHash {
+                    size: sz,
+                    preimage: data.clone(),
+                },
+                |hash| SlotExpr::HashedConst {
+                    hash,
+                    preimage: data.clone(),
+                },
+            );
+
             if sz == 64 {
-                let (val, used) = vm.memory.load_element(off); // value
+                let (_val, used) = vm.memory.load_element(off); // value
                 let (sval, sused) = vm.memory.load_element(off + 32); // slot
-                let used = used.chunks;
-                let sused = sused.chunks;
-
-                let mut depth = 0;
-                let mut first = Element {
-                    data: val.data,
-                    label: None,
+                let key_type = match full_word_label(&used.chunks, 32) {
+                    Some(Label::Typed(tp)) => tp.clone(),
+                    _ => DynSolType::Uint(256),
                 };
-                let mut second = Element {
-                    data: sval.data,
-                    label: None,
+                let key_depth = match full_word_label(&used.chunks, 32) {
+                    Some(Label::Keccak(d, _)) => d + 1,
+                    _ => 0,
                 };
-                if used.len() == 1 {
-                    let lb = used[0].src_label.clone();
-                    if let Label::Keccak(d, _) = lb {
-                        depth = d + 1;
-                    }
-                    first.label = Some(lb);
-                }
-                if sused.len() == 1 {
-                    let lb = sused[0].src_label.clone();
-                    if let Label::Keccak(d, _) = lb
-                        && d + 1 > depth
-                    {
-                        depth = d + 1;
-                    }
-                    second.label = Some(lb);
-                }
+                let (base_expr, base_depth) = word_slot_expr(sval.data, &sused.chunks);
+                depth = key_depth.max(base_depth);
                 if depth < 6 {
-                    vm.stack.peek_mut()?.label = Some(Label::Keccak(depth, vec![first, second]));
+                    slot_expr = SlotExpr::Mapping {
+                        key_type,
+                        base: Box::new(base_expr),
+                    };
+                }
+            } else if sz > 32 {
+                let key_size = sz - 32;
+                let (sval, sused) = vm.memory.load_element(off + key_size);
+                let (base_expr, base_depth) = word_slot_expr(sval.data, &sused.chunks);
+                let key_depth = used
+                    .chunks
+                    .iter()
+                    .filter(|chunk| chunk.dst_range.start < key_size as usize)
+                    .filter_map(|chunk| match chunk.src_label {
+                        Label::Keccak(d, _) => Some(d + 1),
+                        _ => None,
+                    })
+                    .max()
+                    .unwrap_or(0);
+                let key_type = typed_dynamic_key_type(&used.chunks, key_size as usize)
+                    .unwrap_or(DynSolType::String);
+                let tail_looks_like_slot = full_word_label(&sused.chunks, 32).is_some()
+                    || sval.data[..31].iter().all(|b| *b == 0);
+                depth = key_depth.max(base_depth);
+                if tail_looks_like_slot && depth < 6 {
+                    slot_expr = SlotExpr::Mapping {
+                        key_type,
+                        base: Box::new(base_expr),
+                    };
                 }
             } else if sz == 32 {
-                let mut depth = 0;
-                let (mut val, used) = vm.memory.load_element(off); // value
-                let used = used.chunks;
-                if used.len() == 1 {
-                    let lb = used[0].src_label.clone();
-                    if let Label::Keccak(d, _) = lb {
-                        depth = d + 1;
-                    }
-                    if depth < 6 {
-                        val.label = Some(lb);
-                    }
-                }
-
-                let ustry = usize::try_from(&val);
-                vm.stack.peek_mut()?.label = Some(Label::Keccak(depth, vec![val]));
-                if let Ok(v) = ustry
-                    && v < KEC_PRECALC.len()
-                {
-                    vm.stack.peek_mut()?.data = KEC_PRECALC[v];
+                let (val, used) = vm.memory.load_element(off); // value
+                let (base_expr, base_depth) = word_slot_expr(val.data, &used.chunks);
+                depth = base_depth;
+                if depth < 6 {
+                    slot_expr = SlotExpr::DynamicArray {
+                        base: Box::new(base_expr),
+                    };
                 }
             }
+            vm.stack.peek_mut()?.label = Some(Label::Keccak(depth, slot_expr));
         }
         _ => (),
     };
@@ -668,33 +935,41 @@ fn analyze_one_function(
     st.loaded
         .into_iter()
         .map(|(k, v)| {
-            (k, {
-                let x = v
-                    .iter()
-                    .find(|e| e.borrow().stype == StorageType::Base(DynSolType::String));
-                if let Some(val) = x {
-                    vec![val.clone()]
-                } else {
-                    let qwe: Vec<_> = v
-                        .clone()
-                        .into_iter()
-                        .filter(|e| {
-                            let br = e.borrow();
-                            if let StorageType::Map(_, _) = br.stype {
-                                br.rshift == 0
-                            } else {
-                                false
-                            }
-                        })
-                        .collect();
-                    if !qwe.is_empty() {
-                        //TODO: return other rshift as struct elems
-                        qwe
+            // Filter out impossible packed entries: full-slot/container types cannot start mid-slot.
+            let v: Vec<_> = v
+                .into_iter()
+                .filter(|e| {
+                    let br = e.borrow();
+                    !(br.rshift > 0 && br.stype.requires_zero_offset())
+                })
+                .collect();
+            let string_like_elements: Vec<_> = v
+                .iter()
+                .filter(|e| e.borrow().stype.is_string_like())
+                .cloned()
+                .collect();
+            let map_elements: Vec<_> = v
+                .clone()
+                .into_iter()
+                .filter(|e| {
+                    let br = e.borrow();
+                    if let StorageType::Map(_, _) = br.stype {
+                        br.rshift == 0
                     } else {
-                        v
+                        false
                     }
-                }
-            })
+                })
+                .collect();
+            (
+                k,
+                if !string_like_elements.is_empty() {
+                    string_like_elements
+                } else if !map_elements.is_empty() {
+                    map_elements
+                } else {
+                    v
+                },
+            )
         })
         .collect()
 }
@@ -710,20 +985,26 @@ where
         gas_limit
     };
 
-    let mut xr: BTreeMap<(Slot, u8), Vec<(Selector, StorageElement)>> = BTreeMap::new();
+    let mut slot_records: BTreeMap<(Slot, u8), Vec<(Selector, StorageElement)>> = BTreeMap::new();
 
-    for (sel, _pc, arguments) in functions.into_iter() {
+    let functions: Vec<_> = functions.into_iter().collect();
+    let selectors: BTreeSet<Selector> = functions.iter().map(|(sel, _, _)| *sel).collect();
+    let mut fallback_selector: Selector = [0xff, 0xff, 0xff, 0xff];
+    while selectors.contains(&fallback_selector) {
+        let val = u32::from_be_bytes(fallback_selector) - 1;
+        fallback_selector = val.to_be_bytes();
+    }
+
+    for &(sel, _, ref arguments) in &functions {
         let st = analyze_one_function(code, sel, arguments.as_ref(), false, real_gas_limit);
-        for (slot, loaded) in st.into_iter() {
+        for (_slot_key, loaded) in st.into_iter() {
             for ld in loaded.into_iter() {
-                // println!(
-                //     "{} | {} | {:?}",
-                //     alloy_primitives::hex::encode(slot),
-                //     alloy_primitives::hex::encode(sel),
-                //     ld
-                // );
                 let v = (*ld).borrow();
-                xr.entry((slot, v.rshift))
+                let Some(slot) = v.slot else {
+                    continue;
+                };
+                slot_records
+                    .entry((slot, v.rshift))
                     .or_default()
                     .push((sel, v.clone()));
             }
@@ -731,29 +1012,64 @@ where
     }
 
     // fallback()
-    const FALLBACK_SELECTOR: Selector = [0xff, 0xff, 0xff, 0xff];
-    let st = analyze_one_function(code, FALLBACK_SELECTOR, &[], true, real_gas_limit);
-    for (slot, loaded) in st.into_iter() {
+    let st = analyze_one_function(code, fallback_selector, &[], true, real_gas_limit);
+    for (_slot_key, loaded) in st.into_iter() {
         for ld in loaded.into_iter() {
             let v = (*ld).borrow();
-            let qq = v.clone();
-            xr.entry((slot, v.rshift))
+            let Some(slot) = v.slot else {
+                continue;
+            };
+            slot_records
+                .entry((slot, v.rshift))
                 .or_default()
-                .push((FALLBACK_SELECTOR, qq));
+                .push((fallback_selector, v.clone()));
         }
     }
 
-    let mut ret: Vec<StorageRecord> = Vec::with_capacity(xr.len());
+    let mut normalized_slot_records = BTreeMap::new();
+    let mut grouped_by_slot: BTreeMap<Slot, Vec<_>> = BTreeMap::new();
 
-    for ((slot, offset), hmap) in xr.into_iter() {
+    for ((slot, offset), entries) in slot_records {
+        grouped_by_slot
+            .entry(slot)
+            .or_default()
+            .push((offset, entries));
+    }
+
+    for (slot, groups) in grouped_by_slot {
+        let flattened: Vec<_> = groups
+            .iter()
+            .flat_map(|(_, entries)| entries.iter().cloned())
+            .collect();
+
+        if looks_like_opaque_bitfield_slot(&flattened) {
+            let collapsed_entries: Vec<_> = flattened
+                .into_iter()
+                .map(|(selector, mut entry)| {
+                    entry.rshift = 0;
+                    entry.stype = StorageType::Base(DynSolType::FixedBytes(32));
+                    (selector, entry)
+                })
+                .collect();
+            normalized_slot_records.insert((slot, 0), collapsed_entries);
+        } else {
+            for (offset, entries) in groups {
+                normalized_slot_records.insert((slot, offset), entries);
+            }
+        }
+    }
+
+    let mut ret: Vec<StorageRecord> = Vec::with_capacity(normalized_slot_records.len());
+
+    for ((slot, offset), entries) in normalized_slot_records.into_iter() {
         let mut reads: BTreeSet<Selector> = BTreeSet::new();
         let mut writes: BTreeSet<Selector> = BTreeSet::new();
 
         let mut best_type: StorageType = StorageType::Base(DynSolType::Uint(256));
         let mut best_score = best_type.get_score();
 
-        for (selector, selem) in hmap.into_iter() {
-            if selector != FALLBACK_SELECTOR {
+        for (selector, selem) in entries.into_iter() {
+            if selector != fallback_selector {
                 if selem.is_write {
                     writes.insert(selector);
                 } else {
