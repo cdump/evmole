@@ -46,8 +46,8 @@
   },
   "devDependencies": {
     "jsdoc-to-markdown": "^9.1",
-    "rollup": "^4.59",
-    "typescript": "^5.9.3",
-    "wasm-pack": "^0.14"
+    "rollup": "^4.61",
+    "typescript": "^6.0",
+    "wasm-pack": "^0.15"
   }
 }
