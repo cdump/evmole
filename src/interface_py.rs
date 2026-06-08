@@ -29,7 +29,7 @@ mod evmole {
     use super::*;
 
     // {{{ Function
-    #[pyclass(name = "Function", get_all)]
+    #[pyclass(name = "Function", get_all, skip_from_py_object)]
     #[derive(Clone)]
     struct PyFunction {
         selector: String,
@@ -57,7 +57,7 @@ mod evmole {
     // }}}
 
     // {{{ StorageRecord
-    #[pyclass(name = "StorageRecord", get_all)]
+    #[pyclass(name = "StorageRecord", get_all, skip_from_py_object)]
     #[derive(Clone)]
     struct PyStorageRecord {
         slot: String,
@@ -79,7 +79,7 @@ mod evmole {
     // }}}
 
     // {{{ DynamicJump
-    #[pyclass(name = "DynamicJump", get_all)]
+    #[pyclass(name = "DynamicJump", get_all, from_py_object)]
     #[derive(Clone)]
     struct PyDynamicJump {
         path: Vec<usize>,
@@ -100,7 +100,7 @@ mod evmole {
     // }}}
 
     // {{{ BlockType
-    #[pyclass(name = "BlockType")]
+    #[pyclass(name = "BlockType", skip_from_py_object)]
     #[derive(Clone)]
     enum PyBlockType {
         Terminate {
@@ -159,7 +159,7 @@ mod evmole {
     // }}}
 
     // {{{ Block
-    #[pyclass(name = "Block", get_all)]
+    #[pyclass(name = "Block", get_all, skip_from_py_object)]
     #[derive(Clone)]
     struct PyBlock {
         id: usize,
@@ -182,7 +182,7 @@ mod evmole {
     // }}}
 
     // {{{ ControlFlowGraph
-    #[pyclass(name = "ControlFlowGraph", get_all)]
+    #[pyclass(name = "ControlFlowGraph", get_all, skip_from_py_object)]
     #[derive(Clone)]
     struct PyControlFlowGraph {
         blocks: Vec<PyBlock>,
