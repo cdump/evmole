@@ -1,4 +1,4 @@
-use crate::{DynSolType, Selector, StateMutability, StorageRecord};
+use crate::{CborMetadata, DynSolType, Selector, StateMutability, StorageRecord};
 use crate::{
     arguments::function_arguments,
     control_flow_graph::basic_blocks,
@@ -62,6 +62,10 @@ pub struct Contract {
     /// Control flow graph representing the program's execution paths
     #[cfg_attr(feature = "serde", serde(rename = "controlFlowGraph"))]
     pub control_flow_graph: Option<ControlFlowGraph>,
+
+    /// Terminal CBOR metadata, when requested and valid.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub metadata: Option<CborMetadata>,
 }
 
 /// Builder for configuring contract analysis parameters
@@ -78,6 +82,7 @@ pub struct ContractInfoArgs<'a> {
     need_disassemble: bool,
     need_basic_blocks: bool,
     need_control_flow_graph: bool,
+    need_metadata: bool,
 }
 
 impl<'a> ContractInfoArgs<'a> {
@@ -139,6 +144,12 @@ impl<'a> ContractInfoArgs<'a> {
         self.need_control_flow_graph = true;
         self
     }
+
+    /// Enables extraction of terminal CBOR metadata.
+    pub fn with_metadata(mut self) -> Self {
+        self.need_metadata = true;
+        self
+    }
 }
 
 /// Extracts information about a smart contract from its EVM bytecode.
@@ -188,48 +199,43 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         (None, None)
     };
 
-    let functions = if args.need_selectors {
+    let functions = args.need_selectors.then(|| {
         let (selectors, _selectors_gas_used) = function_selectors(args.code, GAS_LIMIT);
-        Some(
-            selectors
-                .into_iter()
-                .map(|(selector, bytecode_offset)| Function {
-                    selector,
-                    arguments: if args.need_arguments {
-                        Some(function_arguments(args.code, &selector, GAS_LIMIT))
-                    } else {
-                        None
-                    },
-                    state_mutability: if args.need_state_mutability {
-                        Some(function_state_mutability(args.code, &selector, GAS_LIMIT))
-                    } else {
-                        None
-                    },
-                    bytecode_offset,
-                })
-                .collect::<Vec<_>>(),
-        )
-    } else {
-        None
-    };
+        selectors
+            .into_iter()
+            .map(|(selector, bytecode_offset)| Function {
+                selector,
+                arguments: if args.need_arguments {
+                    Some(function_arguments(args.code, &selector, GAS_LIMIT))
+                } else {
+                    None
+                },
+                state_mutability: if args.need_state_mutability {
+                    Some(function_state_mutability(args.code, &selector, GAS_LIMIT))
+                } else {
+                    None
+                },
+                bytecode_offset,
+            })
+            .collect::<Vec<_>>()
+    });
 
     //TODO: filter fns by state_mutability if available
-    let storage = if args.need_storage {
+    let storage = args.need_storage.then(|| {
         let fns = functions
             .as_ref()
             .expect("enabled on with_storage()")
             .iter()
             .map(|f| (f.selector, f.bytecode_offset, f.arguments.as_ref().unwrap()));
-        Some(contract_storage(args.code, fns, GAS_LIMIT))
-    } else {
-        None
-    };
+        contract_storage(args.code, fns, GAS_LIMIT)
+    });
 
-    let disassembled = if args.need_disassemble {
-        Some(disassemble(args.code))
-    } else {
-        None
-    };
+    let disassembled = args.need_disassemble.then(|| disassemble(args.code));
+
+    let metadata = args
+        .need_metadata
+        .then(|| crate::metadata::extract(args.code))
+        .flatten();
 
     Contract {
         functions,
@@ -237,5 +243,6 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         disassembled,
         basic_blocks,
         control_flow_graph,
+        metadata,
     }
 }

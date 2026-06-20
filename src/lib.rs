@@ -7,6 +7,7 @@
 
 pub use contract_info::contract_info;
 pub use contract_info::{Contract, ContractInfoArgs, Function};
+pub use metadata::{CborEntry, CborMetadata, CborValue};
 pub use storage::StorageRecord;
 
 mod arguments;
@@ -14,6 +15,7 @@ mod collections;
 mod contract_info;
 pub mod control_flow_graph;
 mod evm;
+mod metadata;
 mod selectors;
 mod state_mutability;
 mod storage;

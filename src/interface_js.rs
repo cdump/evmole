@@ -22,6 +22,7 @@ const DOC_CONTRACT: &'static str = r#"
  * @property disassembled - Array of bytecode instructions, where each element is a tuple of [offset: number, instruction: string]
  * @property basicBlocks - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
  * @property controlFlowGraph - Control flow graph representation. Not present if CFG was not generated.
+ * @property metadata - Terminal CBOR metadata. Not present unless requested and valid.
  * @see ContractFunction
  * @see StorageRecord
  */
@@ -31,6 +32,7 @@ export type Contract = {
     disassembled?: [number, string][],
     basicBlocks?: [number, number][],
     controlFlowGraph?: ControlFlowGraph,
+    metadata?: CborMetadata,
 };
 "#;
 /// @typedef {Object} Contract
@@ -40,9 +42,38 @@ export type Contract = {
 /// @property {Array<Array<number|string>>} [disassembled] - Array of bytecode instructions, where each element is [offset, instruction]
 /// @property {Array<Array<number>>} [basicBlocks] - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
 /// @property {ControlFlowGraph} [controlFlowGraph] - Control flow graph representation. Not present if CFG was not generated.
+/// @property {CborMetadata} [metadata] - Terminal CBOR metadata. Not present unless requested and valid.
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_contract() {}
 // }}}
+
+#[wasm_bindgen(typescript_custom_section)]
+const DOC_METADATA: &'static str = r#"
+export type CborMetadata = {
+    bytecodeOffset: number,
+    cborLength: number,
+    entries: CborEntry[],
+};
+export type CborEntry = { key: string, value: CborValue };
+export type CborValue =
+    | { type: 'string', value: string }
+    | { type: 'integer', value: number }
+    | { type: 'bytes', value: string }
+    | { type: 'bool', value: boolean }
+    | { type: 'undecoded', value: string };
+"#;
+/// @typedef {Object} CborMetadata
+/// @property {number} bytecodeOffset - Absolute byte offset of the CBOR payload
+/// @property {number} cborLength - CBOR payload length, excluding the two-byte suffix
+/// @property {Array<CborEntry>} entries - Entries having text-string keys; other keys are skipped
+/// @typedef {Object} CborEntry
+/// @property {string} key
+/// @property {CborValue} value
+/// @typedef {Object} CborValue
+/// @property {('string'|'integer'|'bytes'|'bool'|'undecoded')} type
+/// @property {(string|number|boolean)} value - Decoded scalar or lowercase hex-encoded CBOR bytes
+#[wasm_bindgen(skip_jsdoc)]
+pub fn dummy_metadata() {}
 
 // {{{ Function
 #[wasm_bindgen(typescript_custom_section)]
@@ -233,6 +264,9 @@ pub fn dummy_dynamic_jump() {}
 #[derive(Deserialize)]
 struct ContractInfoArgs {
     #[serde(default)]
+    metadata: bool,
+
+    #[serde(default)]
     selectors: bool,
 
     #[serde(default)]
@@ -268,6 +302,7 @@ const DOC_CONTRACT_INFO: &'static str = r#"
  * @param args.disassemble - When true, includes disassembled bytecode
  * @param args.basicBlocks - When true, includes basic block analysis
  * @param args.controlFlowGraph - When true, includes control flow graph analysis
+ * @param args.metadata - When true, extracts terminal CBOR metadata
  * @returns Analyzed contract information
  */
 export function contractInfo(code: string, args: {
@@ -277,7 +312,8 @@ export function contractInfo(code: string, args: {
     storage?: boolean,
     disassemble?: boolean,
     basicBlocks?: boolean,
-    controlFlowGraph?: boolean
+    controlFlowGraph?: boolean,
+    metadata?: boolean
 }): Contract;
 "#;
 /// Analyzes contract bytecode and returns contract information based on specified options.
@@ -291,6 +327,7 @@ export function contractInfo(code: string, args: {
 /// @param {boolean} [args.disassemble] - When true, includes disassembled bytecode
 /// @param {boolean} [args.basicBlocks] - When true, includes basic block analysis
 /// @param {boolean} [args.controlFlowGraph] - When true, includes control flow graph analysis
+/// @param {boolean} [args.metadata] - When true, extracts terminal CBOR metadata
 /// @returns {Contract} Analyzed contract information
 #[wasm_bindgen(js_name = contractInfo, skip_typescript, skip_jsdoc)]
 pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
@@ -298,6 +335,10 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     let args: ContractInfoArgs = serde_wasm_bindgen::from_value(args)?;
 
     let mut cargs = crate::ContractInfoArgs::new(&c);
+
+    if args.metadata {
+        cargs = cargs.with_metadata();
+    }
 
     if args.selectors {
         cargs = cargs.with_selectors();

@@ -6,7 +6,7 @@
 [![PyPI](https://img.shields.io/pypi/v/evmole?color=006dad)](https://pypi.org/project/evmole)
 [![Go](https://img.shields.io/badge/go-pkg-00ADD8)](https://pkg.go.dev/github.com/cdump/evmole/go)
 
-EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), and storage layout, even for unverified contracts.
+EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), storage layout, and CBOR metadata, even for unverified contracts.
 
 
 ## Key Features
@@ -16,6 +16,7 @@ EVMole is a powerful library that extracts information from Ethereum Virtual Mac
 - Broad compatibility: Tested with both Solidity and Vyper compiled contracts.
 - Lightweight: Clean codebase with minimal external dependencies.
 - Unverified contract analysis: Extracts information even from unverified bytecode.
+- CBOR metadata: Extracts string-keyed values from a terminal, length-suffixed CBOR map without assuming a particular compiler.
 
 
 ## Usage

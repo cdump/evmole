@@ -1,6 +1,7 @@
 package evmole
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -44,6 +45,25 @@ func TestContractInfoBasic(t *testing.T) {
 			sm = *fn.StateMutability
 		}
 		t.Errorf("expected state mutability 'pure', got '%s'", sm)
+	}
+}
+
+func TestContractInfoMetadata(t *testing.T) {
+	ctx := context.Background()
+	code := []byte{0x60, 0x00, 0xa1, 0x64, 's', 'o', 'l', 'c', 0x43, 0x00, 0x08, 0x1a, 0x00, 0x0a}
+	info, err := ContractInfo(ctx, code, Options{Metadata: true})
+	if err != nil {
+		t.Fatalf("ContractInfo failed: %v", err)
+	}
+	if info.Metadata == nil || info.Metadata.BytecodeOffset != 2 || info.Metadata.CborLength != 10 {
+		t.Fatalf("unexpected metadata: %#v", info.Metadata)
+	}
+	if len(info.Metadata.Entries) != 1 || info.Metadata.Entries[0].Key != "solc" {
+		t.Fatalf("unexpected metadata entries: %#v", info.Metadata.Entries)
+	}
+	data, err := info.Metadata.Entries[0].Value.AsBytes()
+	if err != nil || !bytes.Equal(data, []byte{0, 8, 26}) {
+		t.Fatalf("unexpected CBOR value: %#v, %v", data, err)
 	}
 }
 

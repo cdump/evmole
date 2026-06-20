@@ -151,6 +151,7 @@ for _, instr := range info.Disassembled {
 | `Disassemble` | Disassemble bytecode into opcodes |
 | `BasicBlocks` | Extract basic blocks |
 | `ControlFlowGraph` | Generate control flow graph (enables BasicBlocks) |
+| `Metadata` | Extract string-keyed values from terminal length-suffixed CBOR metadata |
 
 ### Types
 

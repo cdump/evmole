@@ -22,7 +22,8 @@ def contract_info(code: Union[bytes, str],
                   storage: bool = False,
                   disassemble: bool = False,
                   basic_blocks: bool = False,
-                  control_flow_graph: bool = False) -> Contract
+                  control_flow_graph: bool = False,
+                  metadata: bool = False) -> Contract
 ```
 
 Extracts information about a smart contract from its EVM bytecode.
@@ -38,6 +39,7 @@ Extracts information about a smart contract from its EVM bytecode.
 - `disassemble` - When True, includes disassembled bytecode.
 - `basic_blocks` - When True, extracts basic block ranges.
 - `control_flow_graph` - When True, builds control flow graph.
+- `metadata` - When True, extracts string-keyed values from terminal length-suffixed CBOR metadata.
 
 **Returns**:
 
@@ -204,4 +206,3 @@ Represents a dynamic jump destination in the control flow.
 
 - `path` - Path of block IDs leading to this jump
 - `to` - Destination block ID if known, None otherwise; use `Block.start` to get the bytecode offset
-

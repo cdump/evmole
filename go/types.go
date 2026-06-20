@@ -7,6 +7,8 @@ import (
 
 // Contract contains analyzed information about a smart contract.
 type Contract struct {
+	// Metadata is terminal CBOR metadata, when requested and valid.
+	Metadata *CborMetadata `json:"metadata,omitempty"`
 	// Functions is the list of contract functions with their metadata.
 	Functions []Function `json:"functions,omitempty"`
 	// Storage is the contract storage layout.
@@ -17,6 +19,62 @@ type Contract struct {
 	BasicBlocks []BasicBlock `json:"basic_blocks,omitempty"`
 	// ControlFlowGraph represents the program's execution paths.
 	ControlFlowGraph *ControlFlowGraph `json:"control_flow_graph,omitempty"`
+}
+
+// CborMetadata locates the terminal CBOR payload and exposes its text-keyed entries.
+type CborMetadata struct {
+	BytecodeOffset int         `json:"bytecodeOffset"`
+	CborLength     int         `json:"cborLength"`
+	Entries        []CborEntry `json:"entries"`
+}
+
+// CborEntry is a CBOR map entry having a text-string key.
+type CborEntry struct {
+	Key   string    `json:"key"`
+	Value CborValue `json:"value"`
+}
+
+// CborValue is a decoded CBOR scalar or an exact encoded value.
+type CborValue struct {
+	Type  string          `json:"type"`
+	Value json.RawMessage `json:"value"`
+}
+
+func (v CborValue) decode(expected string, target any) error {
+	if v.Type != expected {
+		return fmt.Errorf("CBOR value type is %q, not %s", v.Type, expected)
+	}
+	return json.Unmarshal(v.Value, target)
+}
+
+// AsString returns Value when Type is "string".
+func (v CborValue) AsString() (string, error) {
+	var value string
+	return value, v.decode("string", &value)
+}
+
+// AsInteger returns Value when Type is "integer".
+func (v CborValue) AsInteger() (int64, error) {
+	var value int64
+	return value, v.decode("integer", &value)
+}
+
+// AsBytes returns Value when Type is "bytes".
+func (v CborValue) AsBytes() ([]byte, error) {
+	var value []byte
+	return value, v.decode("bytes", &value)
+}
+
+// AsBool returns Value when Type is "bool".
+func (v CborValue) AsBool() (bool, error) {
+	var value bool
+	return value, v.decode("bool", &value)
+}
+
+// AsUndecoded returns the exact CBOR encoding when Type is "undecoded".
+func (v CborValue) AsUndecoded() ([]byte, error) {
+	var value []byte
+	return value, v.decode("undecoded", &value)
 }
 
 // Instruction represents a disassembled EVM opcode.
@@ -173,8 +231,8 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements custom marshaling for Block with type and data fields.
 func (b Block) MarshalJSON() ([]byte, error) {
 	type blockJSON struct {
-		Start int `json:"start"`
-		End   int `json:"end"`
+		Start int    `json:"start"`
+		End   int    `json:"end"`
 		Type  string `json:"type"`
 		Data  any    `json:"data"`
 	}

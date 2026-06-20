@@ -204,8 +204,87 @@ mod evmole {
     // }}}
 
     // {{{ Contract
+    #[pyclass(name = "CborValue", skip_from_py_object)]
+    #[derive(Clone, Debug)]
+    struct PyCborValue {
+        value: crate::CborValue,
+    }
+
+    #[pymethods]
+    impl PyCborValue {
+        #[getter]
+        fn r#type(&self) -> &'static str {
+            match self.value {
+                crate::CborValue::String(_) => "string",
+                crate::CborValue::Integer(_) => "integer",
+                crate::CborValue::Bytes(_) => "bytes",
+                crate::CborValue::Bool(_) => "bool",
+                crate::CborValue::Undecoded(_) => "undecoded",
+            }
+        }
+
+        #[getter]
+        fn value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+            match &self.value {
+                crate::CborValue::String(v) => Ok(v.clone().into_pyobject(py)?.unbind().into_any()),
+                crate::CborValue::Integer(v) => Ok(v.into_pyobject(py)?.unbind().into_any()),
+                crate::CborValue::Bytes(v) | crate::CborValue::Undecoded(v) => {
+                    Ok(PyBytes::new(py, v).unbind().into_any())
+                }
+                crate::CborValue::Bool(v) => {
+                    Ok(v.into_pyobject(py)?.to_owned().unbind().into_any())
+                }
+            }
+        }
+
+        fn __repr__(&self) -> String {
+            format!(
+                "CborValue(type={:?}, value={:?})",
+                self.r#type(),
+                self.value
+            )
+        }
+    }
+
+    #[pyclass(name = "CborEntry", get_all, skip_from_py_object)]
+    #[derive(Clone, Debug)]
+    struct PyCborEntry {
+        key: String,
+        value: PyCborValue,
+    }
+
+    #[pymethods]
+    impl PyCborEntry {
+        fn __repr__(&self) -> String {
+            format!(
+                "CborEntry(key={:?}, value={})",
+                self.key,
+                self.value.__repr__()
+            )
+        }
+    }
+
+    #[pyclass(name = "CborMetadata", get_all, skip_from_py_object)]
+    #[derive(Clone)]
+    struct PyCborMetadata {
+        bytecode_offset: usize,
+        cbor_length: usize,
+        entries: Vec<PyCborEntry>,
+    }
+
+    #[pymethods]
+    impl PyCborMetadata {
+        fn __repr__(&self) -> String {
+            format!(
+                "CborMetadata(bytecode_offset={}, cbor_length={}, entries={:?})",
+                self.bytecode_offset, self.cbor_length, self.entries
+            )
+        }
+    }
+
     #[pyclass(name = "Contract", get_all)]
     struct PyContract {
+        metadata: Option<PyCborMetadata>,
         functions: Option<Vec<PyFunction>>,
         storage: Option<Vec<PyStorageRecord>>,
         disassembled: Option<Vec<(usize, String)>>,
@@ -217,7 +296,7 @@ mod evmole {
     impl PyContract {
         fn __repr__(&self) -> String {
             format!(
-                "Contract(functions={}, storage={}, disassembled={}, basic_blocks={}, control_flow_graph={})",
+                "Contract(functions={}, storage={}, disassembled={}, basic_blocks={}, control_flow_graph={}, metadata={})",
                 self.functions.as_ref().map_or_else(
                     || "None".to_string(),
                     |v| format!(
@@ -247,6 +326,9 @@ mod evmole {
                 self.control_flow_graph
                     .as_ref()
                     .map_or_else(|| "None".to_string(), |v| v.__repr__()),
+                self.metadata
+                    .as_ref()
+                    .map_or_else(|| "None".to_string(), PyCborMetadata::__repr__),
             )
         }
     }
@@ -254,7 +336,7 @@ mod evmole {
 
     // {{{ contract_info
     #[pyfunction]
-    #[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, storage=false, disassemble=false, basic_blocks=false, control_flow_graph=false))]
+    #[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, storage=false, disassemble=false, basic_blocks=false, control_flow_graph=false, metadata=false))]
     #[allow(clippy::too_many_arguments)]
     fn contract_info(
         code: &Bound<'_, PyAny>,
@@ -265,6 +347,7 @@ mod evmole {
         disassemble: bool,
         basic_blocks: bool,
         control_flow_graph: bool,
+        metadata: bool,
     ) -> PyResult<PyContract> {
         let code_bytes = input_to_bytes(code)?;
         let mut args = crate::ContractInfoArgs::new(&code_bytes);
@@ -289,6 +372,9 @@ mod evmole {
         }
         if control_flow_graph {
             args = args.with_control_flow_graph();
+        }
+        if metadata {
+            args = args.with_metadata();
         }
 
         let info = crate::contract_info(args);
@@ -363,6 +449,18 @@ mod evmole {
         });
 
         Ok(PyContract {
+            metadata: info.metadata.map(|v| PyCborMetadata {
+                bytecode_offset: v.bytecode_offset,
+                cbor_length: v.cbor_length,
+                entries: v
+                    .entries
+                    .into_iter()
+                    .map(|entry| PyCborEntry {
+                        key: entry.key,
+                        value: PyCborValue { value: entry.value },
+                    })
+                    .collect(),
+            }),
             functions,
             storage,
             disassembled: info.disassembled,

@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import List, Literal, Optional, Tuple, Union
 
 class Function:
     """
@@ -113,6 +113,8 @@ class Contract:
             None if basic blocks were not requested
         control_flow_graph (Optional[ControlFlowGraph]): Control flow graph of the contract.
             None if control flow analysis was not requested
+        metadata (Optional[CborMetadata]): Terminal CBOR metadata.
+            None if extraction was not requested or no valid trailer exists
     """
 
     functions: Optional[List[Function]]
@@ -120,6 +122,20 @@ class Contract:
     disassembled: Optional[List[Tuple[int, str]]]
     basic_blocks: Optional[List[Tuple[int, int]]]
     control_flow_graph: Optional[ControlFlowGraph]
+    metadata: Optional[CborMetadata]
+
+class CborValue:
+    type: Literal["string", "integer", "bytes", "bool", "undecoded"]
+    value: Union[str, int, bytes, bool]
+
+class CborEntry:
+    key: str
+    value: CborValue
+
+class CborMetadata:
+    bytecode_offset: int
+    cbor_length: int
+    entries: List[CborEntry]
 
 def contract_info(
     code: Union[bytes, str],
@@ -131,6 +147,7 @@ def contract_info(
     disassemble: bool = False,
     basic_blocks: bool = False,
     control_flow_graph: bool = False,
+    metadata: bool = False,
 ) -> Contract:
     """
     Extracts information about a smart contract from its EVM bytecode.
@@ -149,6 +166,8 @@ def contract_info(
         basic_blocks (bool, optional): When True, extracts basic block ranges.
             Defaults to False.
         control_flow_graph (bool, optional): When True, builds control flow graph.
+            Defaults to False.
+        metadata (bool, optional): When True, extracts terminal CBOR metadata.
             Defaults to False.
 
     Returns:

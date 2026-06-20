@@ -38,6 +38,7 @@ const OPT_STORAGE: u32 = 8;
 const OPT_DISASSEMBLE: u32 = 16;
 const OPT_BASIC_BLOCKS: u32 = 32;
 const OPT_CONTROL_FLOW_GRAPH: u32 = 64;
+const OPT_METADATA: u32 = 128;
 
 /// Analyze EVM bytecode and return contract information as JSON.
 ///
@@ -84,6 +85,9 @@ pub extern "C" fn contract_info(code_ptr: *const u8, code_len: usize, opts: u32)
     if opts & OPT_CONTROL_FLOW_GRAPH != 0 {
         args = args.with_control_flow_graph();
     }
+    if opts & OPT_METADATA != 0 {
+        args = args.with_metadata();
+    }
 
     let info = crate::contract_info(args);
 
@@ -117,6 +121,8 @@ pub extern "C" fn contract_info(code_ptr: *const u8, code_len: usize, opts: u32)
 
 #[derive(serde::Serialize)]
 struct ContractResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    metadata: Option<crate::CborMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     functions: Option<Vec<FunctionResult>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -262,6 +268,7 @@ impl ContractResult {
         });
 
         ContractResult {
+            metadata: info.metadata,
             functions,
             storage,
             disassembled: info.disassembled,

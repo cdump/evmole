@@ -119,6 +119,7 @@ Analyzes contract bytecode and returns contract information based on specified o
 | [args.disassemble] | <code>boolean</code> | When true, includes disassembled bytecode |
 | [args.basicBlocks] | <code>boolean</code> | When true, includes basic block analysis |
 | [args.controlFlowGraph] | <code>boolean</code> | When true, includes control flow graph analysis |
+| [args.metadata] | <code>boolean</code> | When true, extracts string-keyed values from terminal length-suffixed CBOR metadata |
 
 <a name="Contract"></a>
 

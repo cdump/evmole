@@ -32,3 +32,16 @@ assert isinstance(b.btype, BlockType.Jumpi)
 assert isinstance(b.btype.true_to, int)
 
 print(f'Success #2, {info}')
+
+from evmole import CborMetadata, CborEntry, CborValue
+metadata_code = bytes.fromhex('6000a164736f6c634300081a000a')
+info = contract_info(metadata_code, metadata=True)
+assert isinstance(info.metadata, CborMetadata)
+assert info.metadata.bytecode_offset == 2
+assert info.metadata.cbor_length == 10
+assert len(info.metadata.entries) == 1
+assert isinstance(info.metadata.entries[0], CborEntry)
+assert info.metadata.entries[0].key == 'solc'
+assert isinstance(info.metadata.entries[0].value, CborValue)
+assert info.metadata.entries[0].value.type == 'bytes'
+assert info.metadata.entries[0].value.value == bytes.fromhex('00081a')

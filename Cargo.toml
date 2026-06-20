@@ -16,6 +16,7 @@ alloy-primitives = { version = "1", default-features = false, features = [
 ] }
 alloy-dyn-abi = { version = "1", default-features = false }
 indexmap = "2.12"
+minicbor = { version = "2.2", default-features = false, features = ["alloc"] }
 
 pyo3 = { version = "0.28", features = ["extension-module"], optional = true }
 wasm-bindgen = { version = "0.2", optional = true }

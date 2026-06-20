@@ -57,6 +57,8 @@ func getWasmBinary() ([]byte, error) {
 
 // Options configures which analyses to perform.
 type Options struct {
+	// Metadata enables extraction of terminal CBOR metadata.
+	Metadata bool
 	// Selectors enables extraction of function selectors.
 	Selectors bool
 	// Arguments enables extraction of function parameter types.
@@ -82,6 +84,7 @@ const (
 	optDisassemble      uint32 = 16
 	optBasicBlocks      uint32 = 32
 	optControlFlowGraph uint32 = 64
+	optMetadata         uint32 = 128
 )
 
 func (o Options) toBitmask() uint32 {
@@ -106,6 +109,9 @@ func (o Options) toBitmask() uint32 {
 	}
 	if o.ControlFlowGraph {
 		mask |= optControlFlowGraph
+	}
+	if o.Metadata {
+		mask |= optMetadata
 	}
 	return mask
 }
