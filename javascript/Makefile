@@ -34,7 +34,7 @@ else
 	npm install
 	$(DOCKER) run --network=none --rm \
 		-v $(shell pwd)/:/mnt \
-		-it mcr.microsoft.com/playwright:v1.50.1-noble \
+		-it mcr.microsoft.com/playwright:v1.61.0-noble \
 		/bin/bash -c \
 		'cd /mnt/tests && npx playwright test'
 endif
