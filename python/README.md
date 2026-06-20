@@ -39,7 +39,7 @@ Extracts information about a smart contract from its EVM bytecode.
 - `disassemble` - When True, includes disassembled bytecode.
 - `basic_blocks` - When True, extracts basic block ranges.
 - `control_flow_graph` - When True, builds control flow graph.
-- `metadata` - When True, extracts string-keyed values from terminal length-suffixed CBOR metadata.
+- `metadata` - When True, extracts terminal CBOR metadata.
 
 **Returns**:
 
@@ -55,6 +55,7 @@ class Contract():
     disassembled: Optional[List[Tuple[int, str]]]
     basic_blocks: Optional[List[Tuple[int, int]]]
     control_flow_graph: Optional[ControlFlowGraph]
+    metadata: Optional[CborMetadata]
 ```
 
 Contains analyzed information about a smart contract.
@@ -66,6 +67,7 @@ Contains analyzed information about a smart contract.
 - `disassembled` - List of bytecode instructions, where each element is [offset, instruction]. None if disassembly was not requested
 - `basic_blocks` - List of basic block ranges as (first_op, last_op) offsets. None if basic blocks were not requested
 - `control_flow_graph` - Control flow graph of the contract. None if control flow analysis was not requested
+- `metadata` - Terminal CBOR metadata. None if extraction was not requested or no valid trailer exists
 
 ### Function
 
@@ -206,3 +208,51 @@ Represents a dynamic jump destination in the control flow.
 
 - `path` - Path of block IDs leading to this jump
 - `to` - Destination block ID if known, None otherwise; use `Block.start` to get the bytecode offset
+
+
+### CborValue
+
+```python
+class CborValue():
+    type: Literal["string", "integer", "bytes", "bool", "undecoded"]
+    value: Union[str, int, bytes, bool]
+```
+
+Represents a decoded CBOR scalar or an unsupported value kept in encoded form.
+
+**Attributes**:
+
+- `type` - Value kind: string, integer, bytes, bool, or undecoded.
+- `value` - Decoded scalar. Bytes and undecoded values are returned as bytes.
+
+### CborEntry
+
+```python
+class CborEntry():
+    key: str
+    value: CborValue
+```
+
+Represents a CBOR map entry having a text-string key.
+
+**Attributes**:
+
+- `key` - Text-string map key.
+- `value` - Decoded or preserved CBOR value.
+
+### CborMetadata
+
+```python
+class CborMetadata():
+    bytecode_offset: int
+    cbor_length: int
+    entries: List[CborEntry]
+```
+
+Represents terminal length-suffixed CBOR metadata.
+
+**Attributes**:
+
+- `bytecode_offset` - Absolute byte offset of the CBOR payload.
+- `cbor_length` - CBOR payload length, excluding the two-byte suffix.
+- `entries` - Entries having text-string keys; other keys are skipped.

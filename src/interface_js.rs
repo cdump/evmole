@@ -66,14 +66,20 @@ export type CborValue =
 /// @property {number} bytecodeOffset - Absolute byte offset of the CBOR payload
 /// @property {number} cborLength - CBOR payload length, excluding the two-byte suffix
 /// @property {Array<CborEntry>} entries - Entries having text-string keys; other keys are skipped
+#[wasm_bindgen(skip_jsdoc)]
+pub fn dummy_cbor_metadata() {}
+
 /// @typedef {Object} CborEntry
 /// @property {string} key
 /// @property {CborValue} value
+#[wasm_bindgen(skip_jsdoc)]
+pub fn dummy_cbor_entry() {}
+
 /// @typedef {Object} CborValue
 /// @property {('string'|'integer'|'bytes'|'bool'|'undecoded')} type
 /// @property {(string|number|boolean)} value - Decoded scalar or lowercase hex-encoded CBOR bytes
 #[wasm_bindgen(skip_jsdoc)]
-pub fn dummy_metadata() {}
+pub fn dummy_cbor_value() {}
 
 // {{{ Function
 #[wasm_bindgen(typescript_custom_section)]

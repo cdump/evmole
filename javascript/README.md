@@ -17,7 +17,7 @@ import { functionSelectors } from 'https://cdn.jsdelivr.net/npm/evmole/+esm';
 <div id="info"></div>
 
 <script type="module">
-import { contractInfo } from 'https://cdn.jsdelivr.net/npm/evmole@0.7.0/dist/evmole.mjs';
+import { contractInfo } from 'https://cdn.jsdelivr.net/npm/evmole@0.8.5/dist/evmole.mjs';
 
 const bytecode = '0x6080...'; // Replace with actual bytecode
 document.getElementById('info').textContent = contractInfo(bytecode, {selectors: true, arguments: true, stateMutability: true});
@@ -105,8 +105,8 @@ See full example without Top Level Await in [Parcel example](./examples/parcel/s
 ### contractInfo(code, args) ⇒ [<code>Contract</code>](#Contract)
 Analyzes contract bytecode and returns contract information based on specified options.
 
-**Kind**: global function  
-**Returns**: [<code>Contract</code>](#Contract) - Analyzed contract information  
+**Kind**: global function
+**Returns**: [<code>Contract</code>](#Contract) - Analyzed contract information
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -119,14 +119,14 @@ Analyzes contract bytecode and returns contract information based on specified o
 | [args.disassemble] | <code>boolean</code> | When true, includes disassembled bytecode |
 | [args.basicBlocks] | <code>boolean</code> | When true, includes basic block analysis |
 | [args.controlFlowGraph] | <code>boolean</code> | When true, includes control flow graph analysis |
-| [args.metadata] | <code>boolean</code> | When true, extracts string-keyed values from terminal length-suffixed CBOR metadata |
+| [args.metadata] | <code>boolean</code> | When true, extracts terminal CBOR metadata |
 
 <a name="Contract"></a>
 
 ### Contract : <code>Object</code>
 Contains the analysis results of a contract
 
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
@@ -136,13 +136,15 @@ Contains the analysis results of a contract
 | [disassembled] | <code>Array.&lt;Array.&lt;(number\|string)&gt;&gt;</code> | Array of bytecode instructions, where each element is [offset, instruction] |
 | [basicBlocks] | <code>Array.&lt;Array.&lt;number&gt;&gt;</code> | Array of basic blocks found in the contract. Not present if basic blocks were not analyzed. |
 | [controlFlowGraph] | [<code>ControlFlowGraph</code>](#ControlFlowGraph) | Control flow graph representation. Not present if CFG was not generated. |
+| [metadata] | [<code>CborMetadata</code>](#CborMetadata) | Terminal CBOR metadata. Not present unless requested and valid. |
+
 
 <a name="ContractFunction"></a>
 
 ### ContractFunction : <code>Object</code>
 Represents a function found in the contract bytecode
 
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
@@ -157,7 +159,7 @@ Represents a function found in the contract bytecode
 ### StorageRecord : <code>Object</code>
 Represents a storage record found in the contract
 
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
@@ -173,7 +175,7 @@ Represents a storage record found in the contract
 ### ControlFlowGraph : <code>Object</code>
 Represents the control flow graph of the contract bytecode
 
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
@@ -199,7 +201,7 @@ Represents a basic block in the control flow graph
 <a name="DataTerminate"></a>
 
 ### DataTerminate : <code>Object</code>
-**Kind**: global typedef  
+**Kind**: global typedef
 **Properties**
 
 | Name | Type | Description |
@@ -260,3 +262,38 @@ Represents a dynamic jump destination in the control flow
 | --- | --- | --- |
 | path | <code>Array.&lt;number&gt;</code> | Path of block IDs leading to this jump |
 | [to] | <code>number</code> | Destination block ID if known; use `Block.start` to get the bytecode offset. Optional |
+
+
+<a name="CborMetadata"></a>
+
+### CborMetadata : <code>Object</code>
+**Kind**: global typedef
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| bytecodeOffset | <code>number</code> | Absolute byte offset of the CBOR payload |
+| cborLength | <code>number</code> | CBOR payload length, excluding the two-byte suffix |
+| entries | [<code>Array.&lt;CborEntry&gt;</code>](#CborEntry) | Entries having text-string keys; other keys are skipped |
+
+<a name="CborEntry"></a>
+
+### CborEntry : <code>Object</code>
+**Kind**: global typedef
+**Properties**
+
+| Name | Type |
+| --- | --- |
+| key | <code>string</code> |
+| value | [<code>CborValue</code>](#CborValue) |
+
+<a name="CborValue"></a>
+
+### CborValue : <code>Object</code>
+**Kind**: global typedef
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| type | <code>&#x27;string&#x27;</code> \| <code>&#x27;integer&#x27;</code> \| <code>&#x27;bytes&#x27;</code> \| <code>&#x27;bool&#x27;</code> \| <code>&#x27;undecoded&#x27;</code> |  |
+| value | <code>string</code> \| <code>number</code> \| <code>boolean</code> | Decoded scalar or lowercase hex-encoded CBOR bytes |

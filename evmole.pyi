@@ -125,14 +125,39 @@ class Contract:
     metadata: Optional[CborMetadata]
 
 class CborValue:
+    """
+    Represents a decoded CBOR scalar or an unsupported value kept in encoded form.
+
+    Attributes:
+        type: Value kind: string, integer, bytes, bool, or undecoded.
+        value: Decoded scalar. Bytes and undecoded values are returned as bytes.
+    """
+
     type: Literal["string", "integer", "bytes", "bool", "undecoded"]
     value: Union[str, int, bytes, bool]
 
 class CborEntry:
+    """
+    Represents a CBOR map entry having a text-string key.
+
+    Attributes:
+        key: Text-string map key.
+        value: Decoded or preserved CBOR value.
+    """
+
     key: str
     value: CborValue
 
 class CborMetadata:
+    """
+    Represents terminal length-suffixed CBOR metadata.
+
+    Attributes:
+        bytecode_offset: Absolute byte offset of the CBOR payload.
+        cbor_length: CBOR payload length, excluding the two-byte suffix.
+        entries: Entries having text-string keys; other keys are skipped.
+    """
+
     bytecode_offset: int
     cbor_length: int
     entries: List[CborEntry]
