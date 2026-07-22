@@ -128,6 +128,8 @@ struct ContractResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     storage: Option<Vec<StorageRecordResult>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    transient_storage: Option<Vec<StorageRecordResult>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     disassembled: Option<Vec<(usize, String)>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     basic_blocks: Option<Vec<(usize, usize)>>,
@@ -227,6 +229,18 @@ impl ContractResult {
                 .collect()
         });
 
+        let transient_storage = info.transient_storage.map(|st| {
+            st.into_iter()
+                .map(|v| StorageRecordResult {
+                    slot: hex::encode(v.slot),
+                    offset: v.offset,
+                    r#type: v.r#type,
+                    reads: v.reads.into_iter().map(hex::encode).collect(),
+                    writes: v.writes.into_iter().map(hex::encode).collect(),
+                })
+                .collect()
+        });
+
         let control_flow_graph = info.control_flow_graph.map(|cfg| ControlFlowGraphResult {
             blocks: cfg
                 .blocks
@@ -271,6 +285,7 @@ impl ContractResult {
             metadata: info.metadata,
             functions,
             storage,
+            transient_storage,
             disassembled: info.disassembled,
             basic_blocks: info.basic_blocks,
             control_flow_graph,

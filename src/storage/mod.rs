@@ -20,7 +20,9 @@ use std::{
     rc::Rc,
 };
 
-/// Represents a storage variable record in a smart contract's storage layout.
+/// Represents an inferred persistent or transient storage record.
+///
+/// The containing [`crate::Contract`] field identifies the storage domain.
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StorageRecord {
@@ -54,7 +56,7 @@ enum Label {
     Constant,
 
     Typed(DynSolType),
-    Sloaded(Rc<RefCell<StorageElement>>),
+    Loaded(Rc<RefCell<StorageElement>>),
     IsZero(Rc<RefCell<StorageElement>>),
     Keccak(u32, SlotExpr),
 }
@@ -77,6 +79,12 @@ enum SlotExpr {
         size: u32,
         preimage: Vec<u8>,
     },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum StorageDomain {
+    Persistent,
+    Transient,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -234,6 +242,7 @@ impl std::fmt::Debug for StorageType {
 
 #[derive(Clone, PartialEq, Eq)]
 struct StorageElement {
+    domain: StorageDomain,
     slot_key: SlotKey,
     slot: Option<Slot>,
     slot_expr: SlotExpr,
@@ -257,7 +266,7 @@ impl std::fmt::Debug for StorageElement {
     }
 }
 
-type SlotHashMap = HashMap<SlotKey, Vec<Rc<RefCell<StorageElement>>>>;
+type SlotHashMap = HashMap<(StorageDomain, SlotKey), Vec<Rc<RefCell<StorageElement>>>>;
 
 fn known_constant_hash(
     data: &[u8],
@@ -424,21 +433,35 @@ struct Storage {
 }
 impl Storage {
     fn remove(&mut self, val: &Rc<RefCell<StorageElement>>) {
-        let key = val.borrow().slot_key.clone();
+        let key = {
+            let val = val.borrow();
+            (val.domain, val.slot_key.clone())
+        };
         self.loaded.get_mut(&key).unwrap().retain(|x| x != val);
     }
 
-    fn sstore(&mut self, slot: Element<Label>, rshift: u8, vtype: DynSolType) {
-        let x = self.get(slot, true);
+    fn store(
+        &mut self,
+        domain: StorageDomain,
+        slot: Element<Label>,
+        rshift: u8,
+        vtype: DynSolType,
+    ) {
+        let x = self.get(domain, slot, true);
         x.borrow_mut().stype.set_type(vtype);
         x.borrow_mut().rshift = rshift;
     }
 
-    fn sload(&mut self, slot: Element<Label>) -> Rc<RefCell<StorageElement>> {
-        self.get(slot, false)
+    fn load(&mut self, domain: StorageDomain, slot: Element<Label>) -> Rc<RefCell<StorageElement>> {
+        self.get(domain, slot, false)
     }
 
-    fn get(&mut self, slot: Element<Label>, is_write: bool) -> Rc<RefCell<StorageElement>> {
+    fn get(
+        &mut self,
+        domain: StorageDomain,
+        slot: Element<Label>,
+        is_write: bool,
+    ) -> Rc<RefCell<StorageElement>> {
         let slot_expr = match slot.label {
             Some(Label::Keccak(_, expr)) => expr,
             _ => SlotExpr::Plain(slot.data),
@@ -446,6 +469,7 @@ impl Storage {
         let (slot_key, canonical_slot, stype) = normalize_slot_expr(&slot_expr);
 
         let v = Rc::new(RefCell::new(StorageElement {
+            domain,
             slot_key: slot_key.clone(),
             slot: canonical_slot,
             slot_expr,
@@ -455,7 +479,10 @@ impl Storage {
             last_and: None,
             last_or2: None,
         }));
-        self.loaded.entry(slot_key).or_default().push(v.clone());
+        self.loaded
+            .entry((domain, slot_key))
+            .or_default()
+            .push(v.clone());
         v
     }
 }
@@ -517,7 +544,7 @@ fn analyze(
             op: op::ADD | op::MUL | op::SUB | op::XOR | op::SHL,
             args:
                 match_first_two!(
-                    elabel!(lb @ (Label::Sloaded(_) | Label::Typed(_))),
+                    elabel!(lb @ (Label::Loaded(_) | Label::Typed(_))),
                     elabel!(Label::Constant)
                 ),
             ..
@@ -565,12 +592,17 @@ fn analyze(
         }
 
         StepResult {
-            op: op::SLOAD,
+            op: opcode @ (op::SLOAD | op::TLOAD),
             args: [slot, ..],
             ..
         } => {
+            let domain = if opcode == op::SLOAD {
+                StorageDomain::Persistent
+            } else {
+                StorageDomain::Transient
+            };
             *vm.stack.peek_mut()? = Element {
-                label: Some(Label::Sloaded(st.sload(slot))),
+                label: Some(Label::Loaded(st.load(domain, slot))),
                 data: VAL_1_B,
             };
         }
@@ -596,7 +628,7 @@ fn analyze(
 
         StepResult {
             op: op::ISZERO,
-            args: [elabel!(Label::Sloaded(sl)), ..],
+            args: [elabel!(Label::Loaded(sl)), ..],
             ..
         } => {
             vm.stack.peek_mut()?.label = Some(Label::IsZero(sl));
@@ -612,7 +644,7 @@ fn analyze(
 
         StepResult {
             op: op::SIGNEXTEND,
-            args: [s0, elabel!(Label::Sloaded(sl)), ..],
+            args: [s0, elabel!(Label::Loaded(sl)), ..],
             ..
         } => {
             if s0.data < VAL_32_B {
@@ -625,13 +657,13 @@ fn analyze(
 
         StepResult {
             op: op::BYTE,
-            args: [_, elabel!(Label::Sloaded(sl)), ..],
+            args: [_, elabel!(Label::Loaded(sl)), ..],
             ..
         } => sl.borrow_mut().stype.set_type(DynSolType::FixedBytes(32)),
 
         StepResult {
             op: op::EQ,
-            args: match_first_two!(elabel!(Label::Typed(tp)), elabel!(Label::Sloaded(sl))),
+            args: match_first_two!(elabel!(Label::Typed(tp)), elabel!(Label::Loaded(sl))),
             ..
         } => {
             sl.borrow_mut().stype.set_type(tp);
@@ -640,11 +672,11 @@ fn analyze(
         StepResult {
             op: op::OR,
             args:
-                match_first_two!(elabel!(Label::Sloaded(sl)), tt @ Element{label: Some(Label::Typed(_) | Label::Constant), ..} ),
+                match_first_two!(elabel!(Label::Loaded(sl)), tt @ Element{label: Some(Label::Typed(_) | Label::Constant), ..} ),
             ..
         } => {
             sl.borrow_mut().last_or2 = Some(tt);
-            vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
+            vm.stack.peek_mut()?.label = Some(Label::Loaded(sl));
         }
 
         StepResult {
@@ -658,7 +690,7 @@ fn analyze(
         StepResult {
             op: op::AND,
             args:
-                match_first_two!(elabel!(Label::Sloaded(sl)), ot @ Element{label: Some(Label::Constant), ..} ),
+                match_first_two!(elabel!(Label::Loaded(sl)), ot @ Element{label: Some(Label::Constant), ..} ),
             ..
         } => {
             let mask: U256 = ot.into();
@@ -670,21 +702,29 @@ fn analyze(
                 // string, check for SSO (only at rshift 0, not within packed fields)
                 sl.borrow_mut().stype.set_type(DynSolType::String);
             }
-            vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
+            vm.stack.peek_mut()?.label = Some(Label::Loaded(sl));
         }
 
         StepResult {
-            op: op::SSTORE,
+            op: opcode @ (op::SSTORE | op::TSTORE),
             args: [slot, value, ..],
             ..
         } => {
-            if let Some(Label::Sloaded(ref sl)) = value.label {
+            let domain = if opcode == op::SSTORE {
+                StorageDomain::Persistent
+            } else {
+                StorageDomain::Transient
+            };
+
+            if let Some(Label::Loaded(ref sl)) = value.label
+                && sl.borrow().domain == domain
+            {
                 st.remove(sl);
             }
 
             match value.label {
-                Some(Label::Typed(t)) => st.sstore(slot, 0, t),
-                Some(Label::Sloaded(sl)) => {
+                Some(Label::Typed(t)) => st.store(domain, slot, 0, t),
+                Some(Label::Loaded(sl)) => {
                     let sbr = sl.borrow();
                     if let Some(lor) = &sbr.last_or2 {
                         if let Some(land) = sbr.last_and {
@@ -695,7 +735,7 @@ fn analyze(
 
                             let dt = match &lor.label {
                                 Some(Label::Typed(tp)) => tp.clone(),
-                                Some(Label::Sloaded(sl2)) => sl2.borrow().stype.get_internal_type(),
+                                Some(Label::Loaded(sl2)) => sl2.borrow().stype.get_internal_type(),
                                 _ => {
                                     if sz == 160 {
                                         DynSolType::Address
@@ -704,22 +744,21 @@ fn analyze(
                                     }
                                 }
                             };
-                            st.sstore(slot, (tv / 8) as u8, dt);
+                            st.store(domain, slot, (tv / 8) as u8, dt);
                         } else {
-                            st.sstore(slot, 0, sbr.stype.get_internal_type());
+                            st.store(domain, slot, 0, sbr.stype.get_internal_type());
                         }
                     } else {
-                        // println!("SET {:?} TO {:?} | {:?}", slot, sbr.stype.get_internal_type(), sbr);
-                        st.sstore(slot, 0, sbr.stype.get_internal_type());
+                        st.store(domain, slot, 0, sbr.stype.get_internal_type());
                     }
                 }
-                _ => st.sstore(slot, 0, DynSolType::Uint(256)),
+                _ => st.store(domain, slot, 0, DynSolType::Uint(256)),
             }
         }
 
         StepResult {
             op: op::DIV,
-            args: [elabel!(Label::Sloaded(sl)), ot, ..],
+            args: [elabel!(Label::Loaded(sl)), ot, ..],
             ..
         } => {
             let mask: U256 = ot.into();
@@ -732,21 +771,22 @@ fn analyze(
                     let storage = sl.borrow();
                     storage_slot_element(&storage)
                 };
-                let nl = st.sload(slot);
+                let domain = sl.borrow().domain;
+                let nl = st.load(domain, slot);
                 let bl = mask.bit_len() - 1;
                 nl.borrow_mut().rshift = (bl / 8) as u8;
-                vm.stack.peek_mut()?.label = Some(Label::Sloaded(nl));
+                vm.stack.peek_mut()?.label = Some(Label::Loaded(nl));
 
                 // TODO: postprocess this
                 // sl.borrow_mut().stype.set_type(if bl == 160 { DynSolType::Address } else { DynSolType::Uint(bl) });
             } else {
-                vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
+                vm.stack.peek_mut()?.label = Some(Label::Loaded(sl));
             }
         }
 
         StepResult {
             op: op::SHR,
-            args: [shift_amount, elabel!(Label::Sloaded(sl)), ..],
+            args: [shift_amount, elabel!(Label::Loaded(sl)), ..],
             ..
         } => {
             let shift: U256 = (&shift_amount).into();
@@ -757,14 +797,15 @@ fn analyze(
                         let storage = sl.borrow();
                         storage_slot_element(&storage)
                     };
-                    let nl = st.sload(slot);
+                    let domain = sl.borrow().domain;
+                    let nl = st.load(domain, slot);
                     nl.borrow_mut().rshift = (bits / 8) as u8;
-                    vm.stack.peek_mut()?.label = Some(Label::Sloaded(nl));
+                    vm.stack.peek_mut()?.label = Some(Label::Loaded(nl));
                 } else {
-                    vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
+                    vm.stack.peek_mut()?.label = Some(Label::Loaded(sl));
                 }
             } else {
-                vm.stack.peek_mut()?.label = Some(Label::Sloaded(sl));
+                vm.stack.peek_mut()?.label = Some(Label::Loaded(sl));
             }
         }
 
@@ -974,58 +1015,43 @@ fn analyze_one_function(
         .collect()
 }
 
-pub fn contract_storage<I, D>(code: &[u8], functions: I, gas_limit: u32) -> Vec<StorageRecord>
-where
-    I: IntoIterator<Item = (Selector, usize, D)>,
-    D: AsRef<[DynSolType]>,
-{
-    let real_gas_limit = if gas_limit == 0 {
-        1e6 as u32
-    } else {
-        gas_limit
-    };
+type SlotRecords = BTreeMap<(Slot, u8), Vec<(Selector, StorageElement)>>;
 
-    let mut slot_records: BTreeMap<(Slot, u8), Vec<(Selector, StorageElement)>> = BTreeMap::new();
+#[derive(Default)]
+struct DomainSlotRecords {
+    persistent: SlotRecords,
+    transient: SlotRecords,
+}
 
-    let functions: Vec<_> = functions.into_iter().collect();
-    let selectors: BTreeSet<Selector> = functions.iter().map(|(sel, _, _)| *sel).collect();
-    let mut fallback_selector: Selector = [0xff, 0xff, 0xff, 0xff];
-    while selectors.contains(&fallback_selector) {
-        let val = u32::from_be_bytes(fallback_selector) - 1;
-        fallback_selector = val.to_be_bytes();
-    }
+pub(crate) struct StorageLayouts {
+    pub storage: Vec<StorageRecord>,
+    pub transient_storage: Vec<StorageRecord>,
+}
 
-    for &(sel, _, ref arguments) in &functions {
-        let st = analyze_one_function(code, sel, arguments.as_ref(), false, real_gas_limit);
-        for (_slot_key, loaded) in st.into_iter() {
-            for ld in loaded.into_iter() {
-                let v = (*ld).borrow();
-                let Some(slot) = v.slot else {
-                    continue;
-                };
-                slot_records
-                    .entry((slot, v.rshift))
-                    .or_default()
-                    .push((sel, v.clone()));
-            }
-        }
-    }
-
-    // fallback()
-    let st = analyze_one_function(code, fallback_selector, &[], true, real_gas_limit);
-    for (_slot_key, loaded) in st.into_iter() {
-        for ld in loaded.into_iter() {
-            let v = (*ld).borrow();
-            let Some(slot) = v.slot else {
+fn collect_slot_records(records: &mut DomainSlotRecords, selector: Selector, loaded: SlotHashMap) {
+    for elements in loaded.into_values() {
+        for element in elements {
+            let value = element.borrow();
+            let Some(slot) = value.slot else {
                 continue;
             };
-            slot_records
-                .entry((slot, v.rshift))
+            let domain_records = match value.domain {
+                StorageDomain::Persistent => &mut records.persistent,
+                StorageDomain::Transient => &mut records.transient,
+            };
+            domain_records
+                .entry((slot, value.rshift))
                 .or_default()
-                .push((fallback_selector, v.clone()));
+                .push((selector, value.clone()));
         }
     }
+}
 
+fn finalize_slot_records(
+    slot_records: SlotRecords,
+    fallback_selector: Selector,
+    domain_name: &str,
+) -> Vec<StorageRecord> {
     let mut normalized_slot_records = BTreeMap::new();
     let mut grouped_by_slot: BTreeMap<Slot, Vec<_>> = BTreeMap::new();
 
@@ -1043,7 +1069,7 @@ where
             .collect();
 
         if looks_like_opaque_bitfield_slot(&flattened) {
-            let collapsed_entries: Vec<_> = flattened
+            let collapsed_entries = flattened
                 .into_iter()
                 .map(|(selector, mut entry)| {
                     entry.rshift = 0;
@@ -1059,73 +1085,105 @@ where
         }
     }
 
-    let mut ret: Vec<StorageRecord> = Vec::with_capacity(normalized_slot_records.len());
-
-    for ((slot, offset), entries) in normalized_slot_records.into_iter() {
-        let mut reads: BTreeSet<Selector> = BTreeSet::new();
-        let mut writes: BTreeSet<Selector> = BTreeSet::new();
-
-        let mut best_type: StorageType = StorageType::Base(DynSolType::Uint(256));
+    let mut records = Vec::with_capacity(normalized_slot_records.len());
+    for ((slot, offset), entries) in normalized_slot_records {
+        let mut reads = BTreeSet::new();
+        let mut writes = BTreeSet::new();
+        let mut best_type = StorageType::Base(DynSolType::Uint(256));
         let mut best_score = best_type.get_score();
 
-        for (selector, selem) in entries.into_iter() {
+        for (selector, element) in entries {
             if selector != fallback_selector {
-                if selem.is_write {
+                if element.is_write {
                     writes.insert(selector);
                 } else {
                     reads.insert(selector);
                 }
             }
 
-            let tt = selem.stype;
-
-            let score = tt.get_score();
+            let score = element.stype.get_score();
             if score > best_score {
-                // println!(
-                //     "{:?} => {:?} ({} => {})",
-                //     best_type,
-                //     tt,
-                //     best_score,
-                //     score
-                // );
-                // best_type = selem.stype;
-                best_type = tt;
+                best_type = element.stype;
                 best_score = score;
             }
         }
 
-        ret.push(StorageRecord {
+        records.push(StorageRecord {
             slot,
             offset,
             r#type: format!("{best_type:?}"),
             reads: reads.into_iter().collect(),
             writes: writes.into_iter().collect(),
-        })
+        });
     }
 
     if cfg!(feature = "trace_storage") {
-        for r in ret.iter() {
+        println!("{domain_name} storage:");
+        for record in &records {
             println!(
                 "slot {} off {}",
-                alloy_primitives::hex::encode(r.slot),
-                r.offset
+                alloy_primitives::hex::encode(record.slot),
+                record.offset
             );
-            println!(" type: {}", r.r#type);
+            println!(" type: {}", record.r#type);
             println!(
                 " reads: {:?}",
-                r.reads
+                record
+                    .reads
                     .iter()
                     .map(alloy_primitives::hex::encode)
                     .collect::<Vec<_>>()
             );
             println!(
                 " writes: {:?}",
-                r.writes
+                record
+                    .writes
                     .iter()
                     .map(alloy_primitives::hex::encode)
                     .collect::<Vec<_>>()
             );
         }
     }
-    ret
+
+    records
+}
+
+pub(crate) fn contract_storage<I, D>(code: &[u8], functions: I, gas_limit: u32) -> StorageLayouts
+where
+    I: IntoIterator<Item = (Selector, usize, D)>,
+    D: AsRef<[DynSolType]>,
+{
+    let real_gas_limit = if gas_limit == 0 {
+        1e6 as u32
+    } else {
+        gas_limit
+    };
+
+    let mut slot_records = DomainSlotRecords::default();
+
+    let functions: Vec<_> = functions.into_iter().collect();
+    let selectors: BTreeSet<Selector> = functions.iter().map(|(sel, _, _)| *sel).collect();
+    let mut fallback_selector: Selector = [0xff, 0xff, 0xff, 0xff];
+    while selectors.contains(&fallback_selector) {
+        let val = u32::from_be_bytes(fallback_selector) - 1;
+        fallback_selector = val.to_be_bytes();
+    }
+
+    for &(selector, _, ref arguments) in &functions {
+        let loaded =
+            analyze_one_function(code, selector, arguments.as_ref(), false, real_gas_limit);
+        collect_slot_records(&mut slot_records, selector, loaded);
+    }
+
+    let fallback = analyze_one_function(code, fallback_selector, &[], true, real_gas_limit);
+    collect_slot_records(&mut slot_records, fallback_selector, fallback);
+
+    StorageLayouts {
+        storage: finalize_slot_records(slot_records.persistent, fallback_selector, "persistent"),
+        transient_storage: finalize_slot_records(
+            slot_records.transient,
+            fallback_selector,
+            "transient",
+        ),
+    }
 }

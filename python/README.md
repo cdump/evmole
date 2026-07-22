@@ -35,7 +35,7 @@ Extracts information about a smart contract from its EVM bytecode.
 - `selectors` - When True, extracts function selectors.
 - `arguments` - When True, extracts function arguments.
 - `state_mutability` - When True, extracts function state mutability.
-- `storage` - When True, extracts the contract's storage layout.
+- `storage` - When True, extracts persistent and transient storage layouts.
 - `disassemble` - When True, includes disassembled bytecode.
 - `basic_blocks` - When True, extracts basic block ranges.
 - `control_flow_graph` - When True, builds control flow graph.
@@ -52,6 +52,7 @@ Extracts information about a smart contract from its EVM bytecode.
 class Contract():
     functions: Optional[List[Function]]
     storage: Optional[List[StorageRecord]]
+    transient_storage: Optional[List[StorageRecord]]
     disassembled: Optional[List[Tuple[int, str]]]
     basic_blocks: Optional[List[Tuple[int, int]]]
     control_flow_graph: Optional[ControlFlowGraph]
@@ -63,7 +64,8 @@ Contains analyzed information about a smart contract.
 **Attributes**:
 
 - `functions` - List of detected contract functions. None if no functions were extracted
-- `storage` - List of contract storage records. None if storage layout was not extracted
+- `storage` - List of persistent contract storage records. None if storage layout was not extracted
+- `transient_storage` - List of transient contract storage records. None if storage layout was not extracted
 - `disassembled` - List of bytecode instructions, where each element is [offset, instruction]. None if disassembly was not requested
 - `basic_blocks` - List of basic block ranges as (first_op, last_op) offsets. None if basic blocks were not requested
 - `control_flow_graph` - Control flow graph of the contract. None if control flow analysis was not requested
@@ -101,7 +103,7 @@ class StorageRecord():
     writes: List[str]
 ```
 
-Represents a storage variable record in a smart contract's storage layout.
+Represents an inferred persistent or transient storage record. The containing `Contract` field identifies the storage domain.
 
 **Attributes**:
 

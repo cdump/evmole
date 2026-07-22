@@ -36,6 +36,7 @@ const OP_NOT_VIEW: [bool; 256] = create_opcode_lookup_table([
     op::DELEGATECALL,
     op::SELFDESTRUCT,
     op::SSTORE,
+    op::TSTORE,
 ]);
 
 const OP_NOT_PURE: [bool; 256] = create_opcode_lookup_table([
@@ -57,6 +58,7 @@ const OP_NOT_PURE: [bool; 256] = create_opcode_lookup_table([
     op::PREVRANDAO,
     op::SELFBALANCE,
     op::SLOAD,
+    op::TLOAD,
     op::STATICCALL,
     op::TIMESTAMP,
 ]);

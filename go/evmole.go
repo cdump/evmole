@@ -65,7 +65,7 @@ type Options struct {
 	Arguments bool
 	// StateMutability enables detection of function state mutability.
 	StateMutability bool
-	// Storage enables extraction of storage layout.
+	// Storage enables extraction of persistent and transient storage layouts.
 	Storage bool
 	// Disassemble enables bytecode disassembly.
 	Disassemble bool

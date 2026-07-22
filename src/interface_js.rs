@@ -18,7 +18,8 @@ const DOC_CONTRACT: &'static str = r#"
 /**
  * Contains the analysis results of a contract
  * @property functions - Array of functions found in the contract. Not present if no functions were extracted.
- * @property storage - Array of storage records found in the contract. Not present if storage layout was not extracted.
+ * @property storage - Array of persistent storage records found in the contract. Not present if storage layout was not extracted.
+ * @property transientStorage - Array of transient storage records found in the contract. Not present if storage layout was not extracted.
  * @property disassembled - Array of bytecode instructions, where each element is a tuple of [offset: number, instruction: string]
  * @property basicBlocks - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
  * @property controlFlowGraph - Control flow graph representation. Not present if CFG was not generated.
@@ -29,6 +30,7 @@ const DOC_CONTRACT: &'static str = r#"
 export type Contract = {
     functions?: ContractFunction[],
     storage?: StorageRecord[],
+    transientStorage?: StorageRecord[],
     disassembled?: [number, string][],
     basicBlocks?: [number, number][],
     controlFlowGraph?: ControlFlowGraph,
@@ -38,7 +40,8 @@ export type Contract = {
 /// @typedef {Object} Contract
 /// @description Contains the analysis results of a contract
 /// @property {ContractFunction[]} [functions] - Array of functions found in the contract. Not present if no functions were extracted
-/// @property {StorageRecord[]} [storage] - Array of storage records found in the contract. Not present if storage layout was not extracted
+/// @property {StorageRecord[]} [storage] - Array of persistent storage records found in the contract. Not present if storage layout was not extracted
+/// @property {StorageRecord[]} [transientStorage] - Array of transient storage records found in the contract. Not present if storage layout was not extracted
 /// @property {Array<Array<number|string>>} [disassembled] - Array of bytecode instructions, where each element is [offset, instruction]
 /// @property {Array<Array<number>>} [basicBlocks] - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
 /// @property {ControlFlowGraph} [controlFlowGraph] - Control flow graph representation. Not present if CFG was not generated.
@@ -304,7 +307,7 @@ const DOC_CONTRACT_INFO: &'static str = r#"
  * @param args.selectors - When true, includes function selectors in the output
  * @param args.arguments - When true, includes function arguments information
  * @param args.stateMutability - When true, includes state mutability information for functions
- * @param args.storage - When true, includes contract storage layout information
+ * @param args.storage - When true, includes persistent and transient storage layout information
  * @param args.disassemble - When true, includes disassembled bytecode
  * @param args.basicBlocks - When true, includes basic block analysis
  * @param args.controlFlowGraph - When true, includes control flow graph analysis
@@ -329,7 +332,7 @@ export function contractInfo(code: string, args: {
 /// @param {boolean} [args.selectors] - When true, includes function selectors in the output
 /// @param {boolean} [args.arguments] - When true, includes function arguments information
 /// @param {boolean} [args.stateMutability] - When true, includes state mutability information for functions
-/// @param {boolean} [args.storage] - When true, includes contract storage layout information
+/// @param {boolean} [args.storage] - When true, includes persistent and transient storage layout information
 /// @param {boolean} [args.disassemble] - When true, includes disassembled bytecode
 /// @param {boolean} [args.basicBlocks] - When true, includes basic block analysis
 /// @param {boolean} [args.controlFlowGraph] - When true, includes control flow graph analysis

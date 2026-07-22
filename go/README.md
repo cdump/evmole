@@ -97,6 +97,14 @@ for _, record := range info.Storage {
     fmt.Printf("  Reads: %v\n", record.Reads)
     fmt.Printf("  Writes: %v\n", record.Writes)
 }
+
+for _, record := range info.TransientStorage {
+    fmt.Printf("Transient slot: %s\n", record.Slot)
+    fmt.Printf("  Type: %s\n", record.Type)
+    fmt.Printf("  Offset: %d\n", record.Offset)
+    fmt.Printf("  Reads: %v\n", record.Reads)
+    fmt.Printf("  Writes: %v\n", record.Writes)
+}
 ```
 
 ### Control Flow Graph
@@ -147,7 +155,7 @@ for _, instr := range info.Disassembled {
 | `Selectors` | Extract function selectors (4-byte signatures) |
 | `Arguments` | Extract function parameter types |
 | `StateMutability` | Detect function state mutability (pure/view/payable/nonpayable) |
-| `Storage` | Extract storage layout (enables Selectors and Arguments) |
+| `Storage` | Extract persistent and transient storage layouts (enables Selectors and Arguments) |
 | `Disassemble` | Disassemble bytecode into opcodes |
 | `BasicBlocks` | Extract basic blocks |
 | `ControlFlowGraph` | Generate control flow graph (enables BasicBlocks) |
@@ -160,6 +168,7 @@ for _, instr := range info.Disassembled {
 type Contract struct {
     Functions        []Function
     Storage          []StorageRecord
+    TransientStorage []StorageRecord
     Disassembled     []Instruction
     BasicBlocks      []BasicBlock
     ControlFlowGraph *ControlFlowGraph

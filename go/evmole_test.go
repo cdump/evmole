@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -156,11 +157,7 @@ func TestBlockUnmarshalUnknownType(t *testing.T) {
 
 func TestStorageDetection(t *testing.T) {
 	ctx := context.Background()
-	// Minimal bytecode: PUSH1 0x01, PUSH1 0x00, SSTORE (Store 1 at slot 0)
-	// Hex: 6001600055
-	// Note: evmole usually expects a dispatcher or at least valid CFG.
-	// This is valid CFG (one block).
-	code, _ := hex.DecodeString("6001600055")
+	code, _ := hex.DecodeString("5f3560e01c631234567814600f57005b5f54505f5c5000")
 
 	info, err := ContractInfo(ctx, code, Options{
 		Storage: true,
@@ -169,17 +166,27 @@ func TestStorageDetection(t *testing.T) {
 		t.Fatalf("ContractInfo failed: %v", err)
 	}
 
-	// This specific bytecode might not trigger 'Storage' detection if evmole expects
-	// the storage access to be part of a function reachable via selector.
-	// But let's see. If it fails to find it, we know we need a better test case.
-	// For now, we just want to ensure it doesn't crash and returns a result.
-	if info.Storage == nil {
-		t.Log("Storage is nil for simple bytecode")
-	} else {
-		t.Logf("Storage found: %d entries", len(info.Storage))
-		for _, s := range info.Storage {
-			t.Logf("  Slot: %s, Type: %s", s.Slot, s.Type)
-		}
+	if len(info.Storage) != 1 {
+		t.Fatalf("expected one persistent storage record, got %d", len(info.Storage))
+	}
+	if len(info.TransientStorage) != 1 {
+		t.Fatalf(
+			"expected one transient storage record, got %d",
+			len(info.TransientStorage),
+		)
+	}
+	if info.Storage[0].Slot != info.TransientStorage[0].Slot {
+		t.Fatalf(
+			"expected matching slot numbers in separate namespaces, got %s and %s",
+			info.Storage[0].Slot,
+			info.TransientStorage[0].Slot,
+		)
+	}
+	if !reflect.DeepEqual(info.Storage[0].Reads, []string{"12345678"}) {
+		t.Fatalf("unexpected persistent reads: %v", info.Storage[0].Reads)
+	}
+	if !reflect.DeepEqual(info.TransientStorage[0].Reads, []string{"12345678"}) {
+		t.Fatalf("unexpected transient reads: %v", info.TransientStorage[0].Reads)
 	}
 }
 

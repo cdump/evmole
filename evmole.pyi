@@ -20,7 +20,8 @@ class Function:
 
 class StorageRecord:
     """
-    Represents a storage variable record in a smart contract's storage layout.
+    Represents an inferred persistent or transient storage record.
+    The containing Contract field identifies the storage domain.
 
     Attributes:
         slot (str): Storage slot number as a hex string (e.g., '0', '1b').
@@ -105,7 +106,9 @@ class Contract:
     Attributes:
         functions (Optional[List[Function]]): List of detected contract functions.
             None if no functions were extracted
-        storage (Optional[List[StorageRecord]]): List of contract storage records.
+        storage (Optional[List[StorageRecord]]): List of persistent contract storage records.
+            None if storage layout was not extracted
+        transient_storage (Optional[List[StorageRecord]]): List of transient contract storage records.
             None if storage layout was not extracted
         disassembled (Optional[List[Tuple[int, str]]]): List of bytecode instructions, where each element is [offset, instruction].
             None if disassembly was not requested
@@ -119,6 +122,7 @@ class Contract:
 
     functions: Optional[List[Function]]
     storage: Optional[List[StorageRecord]]
+    transient_storage: Optional[List[StorageRecord]]
     disassembled: Optional[List[Tuple[int, str]]]
     basic_blocks: Optional[List[Tuple[int, int]]]
     control_flow_graph: Optional[ControlFlowGraph]
@@ -184,7 +188,7 @@ def contract_info(
         arguments (bool, optional): When True, extracts function arguments. Defaults to False.
         state_mutability (bool, optional): When True, extracts function state mutability.
             Defaults to False.
-        storage (bool, optional): When True, extracts the contract's storage layout.
+        storage (bool, optional): When True, extracts persistent and transient storage layouts.
             Defaults to False.
         disassemble (bool, optional): When True, includes disassembled bytecode.
             Defaults to False.

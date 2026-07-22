@@ -287,6 +287,7 @@ mod evmole {
         metadata: Option<PyCborMetadata>,
         functions: Option<Vec<PyFunction>>,
         storage: Option<Vec<PyStorageRecord>>,
+        transient_storage: Option<Vec<PyStorageRecord>>,
         disassembled: Option<Vec<(usize, String)>>,
         basic_blocks: Option<Vec<(usize, usize)>>,
         control_flow_graph: Option<PyControlFlowGraph>,
@@ -296,7 +297,7 @@ mod evmole {
     impl PyContract {
         fn __repr__(&self) -> String {
             format!(
-                "Contract(functions={}, storage={}, disassembled={}, basic_blocks={}, control_flow_graph={}, metadata={})",
+                "Contract(functions={}, storage={}, transient_storage={}, disassembled={}, basic_blocks={}, control_flow_graph={}, metadata={})",
                 self.functions.as_ref().map_or_else(
                     || "None".to_string(),
                     |v| format!(
@@ -308,6 +309,16 @@ mod evmole {
                     )
                 ),
                 self.storage.as_ref().map_or_else(
+                    || "None".to_string(),
+                    |v| format!(
+                        "[{}]",
+                        v.iter()
+                            .map(|v| v.__repr__())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                ),
+                self.transient_storage.as_ref().map_or_else(
                     || "None".to_string(),
                     |v| format!(
                         "[{}]",
@@ -408,6 +419,18 @@ mod evmole {
                 .collect()
         });
 
+        let transient_storage = info.transient_storage.map(|st| {
+            st.into_iter()
+                .map(|v| PyStorageRecord {
+                    slot: hex::encode(v.slot),
+                    offset: v.offset,
+                    r#type: v.r#type,
+                    reads: v.reads.into_iter().map(hex::encode).collect(),
+                    writes: v.writes.into_iter().map(hex::encode).collect(),
+                })
+                .collect()
+        });
+
         let control_flow_graph = info.control_flow_graph.map(|cfg| PyControlFlowGraph {
             blocks: cfg
                 .blocks
@@ -463,6 +486,7 @@ mod evmole {
             }),
             functions,
             storage,
+            transient_storage,
             disassembled: info.disassembled,
             basic_blocks: info.basic_blocks,
             control_flow_graph,

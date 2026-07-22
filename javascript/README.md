@@ -132,7 +132,8 @@ Contains the analysis results of a contract
 | Name | Type | Description |
 | --- | --- | --- |
 | [functions] | [<code>Array.&lt;ContractFunction&gt;</code>](#ContractFunction) | Array of functions found in the contract. Not present if no functions were extracted |
-| [storage] | [<code>Array.&lt;StorageRecord&gt;</code>](#StorageRecord) | Array of storage records found in the contract. Not present if storage layout was not extracted |
+| [storage] | [<code>Array.&lt;StorageRecord&gt;</code>](#StorageRecord) | Array of persistent storage records found in the contract. Not present if storage layout was not extracted |
+| [transientStorage] | [<code>Array.&lt;StorageRecord&gt;</code>](#StorageRecord) | Array of transient storage records found in the contract. Not present if storage layout was not extracted |
 | [disassembled] | <code>Array.&lt;Array.&lt;(number\|string)&gt;&gt;</code> | Array of bytecode instructions, where each element is [offset, instruction] |
 | [basicBlocks] | <code>Array.&lt;Array.&lt;number&gt;&gt;</code> | Array of basic blocks found in the contract. Not present if basic blocks were not analyzed. |
 | [controlFlowGraph] | [<code>ControlFlowGraph</code>](#ControlFlowGraph) | Control flow graph representation. Not present if CFG was not generated. |

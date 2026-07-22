@@ -49,8 +49,12 @@ pub struct Contract {
     /// List of contract functions with their metadata
     pub functions: Option<Vec<Function>>,
 
-    /// Contract storage layout
+    /// Persistent contract storage layout
     pub storage: Option<Vec<StorageRecord>>,
+
+    /// Transient contract storage accesses and inferred layout
+    #[cfg_attr(feature = "serde", serde(rename = "transientStorage"))]
+    pub transient_storage: Option<Vec<StorageRecord>>,
 
     /// Disassembled code
     pub disassembled: Option<Vec<(usize, String)>>,
@@ -118,7 +122,7 @@ impl<'a> ContractInfoArgs<'a> {
         self
     }
 
-    /// Enables the extraction of the contract's storage layout
+    /// Enables extraction of persistent and transient storage layouts
     pub fn with_storage(mut self) -> Self {
         self.need_selectors = true;
         self.need_arguments = true;
@@ -221,13 +225,16 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
     });
 
     //TODO: filter fns by state_mutability if available
-    let storage = args.need_storage.then(|| {
+    let storage_analysis = args.need_storage.then(|| {
         let fns = functions
             .as_ref()
             .expect("enabled on with_storage()")
             .iter()
             .map(|f| (f.selector, f.bytecode_offset, f.arguments.as_ref().unwrap()));
         contract_storage(args.code, fns, GAS_LIMIT)
+    });
+    let (storage, transient_storage) = storage_analysis.map_or((None, None), |layouts| {
+        (Some(layouts.storage), Some(layouts.transient_storage))
     });
 
     let disassembled = args.need_disassemble.then(|| disassemble(args.code));
@@ -240,6 +247,7 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
     Contract {
         functions,
         storage,
+        transient_storage,
         disassembled,
         basic_blocks,
         control_flow_graph,

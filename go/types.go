@@ -11,8 +11,10 @@ type Contract struct {
 	Metadata *CborMetadata `json:"metadata,omitempty"`
 	// Functions is the list of contract functions with their metadata.
 	Functions []Function `json:"functions,omitempty"`
-	// Storage is the contract storage layout.
+	// Storage is the persistent contract storage layout.
 	Storage []StorageRecord `json:"storage,omitempty"`
+	// TransientStorage contains transient storage accesses and inferred layout.
+	TransientStorage []StorageRecord `json:"transient_storage,omitempty"`
 	// Disassembled is the list of disassembled opcodes (offset, instruction).
 	Disassembled []Instruction `json:"disassembled,omitempty"`
 	// BasicBlocks are sequences of instructions that execute sequentially.
