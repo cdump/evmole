@@ -20,7 +20,7 @@ PROVIDERS_SELECTORS := $(PROVIDER_BASE) $(PROVIDERS_SELECTORS)
 PROVIDERS_ARGUMENTS := $(PROVIDER_BASE) $(PROVIDERS_ARGUMENTS)
 PROVIDERS_MUTABILITY := $(PROVIDER_BASE) $(PROVIDERS_MUTABILITY)
 PROVIDERS_STORAGE := $(PROVIDER_BASE) $(PROVIDERS_STORAGE)
-PROVIDERS_UNIQ := $(sort $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_BLOCKS) $(PROVIDERS_FLOW))
+PROVIDERS_UNIQ := $(sort $(PROVIDER_BASE) $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_BLOCKS) $(PROVIDERS_FLOW))
 
 DATASET := $(shell pwd)/datasets
 RES := $(shell pwd)/results
@@ -35,6 +35,8 @@ RUN_BLOCKS_TARGETS := $(foreach p,$(PROVIDERS_BLOCKS),$(addprefix $(p).blocks/, 
 RUN_FLOW_TARGETS := $(foreach p,$(PROVIDERS_FLOW),$(addprefix $(p).flow/, $(DATASETS_FLOW)))
 
 RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS) $(RUN_BLOCKS_TARGETS) $(RUN_FLOW_TARGETS)
+BASE_SELECTOR_TARGETS := $(addprefix $(PROVIDER_BASE).selectors/,$(DATASETS))
+ALL_RUN_TARGETS := $(sort $(RUN_TARGETS) $(BASE_SELECTOR_TARGETS))
 
 benchmark-selectors: $(addsuffix .build, $(PROVIDERS_SELECTORS)) run-selectors
 benchmark-arguments: $(addsuffix .build, $(PROVIDERS_ARGUMENTS)) run-arguments
@@ -72,7 +74,12 @@ $(UNPACK_TARGETS):
 	tar -C datasets/ -zxf $@.tar.gz
 
 .SECONDEXPANSION:
-$(RUN_TARGETS): datasets/$$(notdir $$@)
+$(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS): $$(RES)/$(PROVIDER_BASE).selectors_$$(notdir $$@).json
+
+$(RES)/$(PROVIDER_BASE).selectors_%.json: datasets/% $(PROVIDER_BASE).build
+	$(MAKE) $(PROVIDER_BASE).selectors/$*
+
+$(ALL_RUN_TARGETS): datasets/$$(notdir $$@)
 	$(info [*] Running $@...)
 		$(DOCKER) run --init --network=none --cpus=$(DOCKER_CPUS) --rm \
 		-v $(DATASET)/$(notdir $@):/dataset \
@@ -83,4 +90,6 @@ $(RUN_TARGETS): datasets/$$(notdir $$@)
 		/mnt/$(subst /,_,$@).json \
 		/mnt/$(PROVIDER_BASE).selectors_$(notdir $@).json
 
-.PHONY: benchmark-selectors benchmark-arguments benchmark-mutability build run-selectors run-arguments run-mutability $(BUILD_TARGETS) $(RUN_TARGETS)
+.PHONY: benchmark-selectors benchmark-arguments benchmark-mutability benchmark-storage benchmark-flow \
+	build run-selectors run-arguments run-mutability run-storage run-blocks run-flow \
+	$(BUILD_TARGETS) $(ALL_RUN_TARGETS)
