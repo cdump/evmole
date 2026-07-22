@@ -631,16 +631,16 @@ fn analyze(
             // Detect check for 0 in DIV, it's not bool in that case: ISZERO, ISZERO, PUSH off, JUMPI, JUMPDEST, DIV
             // for solidity < 0.6.0
             let mut is_bool = true;
-            let op = vm.code[vm.pc];
-            if let op::PUSH1..=op::PUSH4 = op {
-                let n = (op - op::PUSH0) as usize;
-                if vm.code[vm.pc + n + 1] == op::JUMPI {
+            if let Some((&next_op, rest)) = vm.code.get(vm.pc..).and_then(|code| code.split_first())
+                && let op::PUSH1..=op::PUSH4 = next_op
+            {
+                let n = (next_op - op::PUSH0) as usize;
+                if rest.get(n) == Some(&op::JUMPI) {
                     let mut arg: [u8; 4] = [0; 4];
-                    arg[(4 - n)..].copy_from_slice(&vm.code[vm.pc + 1..vm.pc + 1 + n]);
+                    arg[(4 - n)..].copy_from_slice(&rest[..n]);
                     let jumpdest = u32::from_be_bytes(arg) as usize;
-                    if jumpdest + 1 < vm.code.len()
-                        && vm.code[jumpdest] == op::JUMPDEST
-                        && vm.code[jumpdest + 1] == op::DIV
+                    if vm.code.get(jumpdest) == Some(&op::JUMPDEST)
+                        && jumpdest.checked_add(1).and_then(|pc| vm.code.get(pc)) == Some(&op::DIV)
                     {
                         is_bool = false;
                     }
@@ -759,7 +759,20 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
 mod tests {
     use super::function_arguments;
     use crate::selectors::function_selectors;
+    use crate::{ContractInfoArgs, contract_info};
     use alloy_primitives::hex;
+
+    #[test]
+    fn test_double_iszero_at_end_of_code() {
+        let code = hex::decode("60003560e01c631122334414600f575b6004351515").unwrap();
+
+        let info = contract_info(ContractInfoArgs::new(&code).with_arguments());
+
+        let functions = info.functions.unwrap();
+        assert_eq!(functions.len(), 1);
+        assert_eq!(functions[0].selector, [0x11, 0x22, 0x33, 0x44]);
+        assert_eq!(functions[0].arguments, Some(vec![crate::DynSolType::Bool]));
+    }
 
     #[test]
     fn test_code_offset_buffer() {
