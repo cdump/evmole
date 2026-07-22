@@ -32,6 +32,9 @@ fn new_block(start: usize) -> Block {
 
 pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
     let mut blocks = BTreeMap::new();
+    if code.is_empty() {
+        return blocks;
+    }
     let mut prev_pc = 0;
     let mut block = new_block(0);
 
@@ -166,4 +169,14 @@ pub fn initial_blocks(code: &[u8]) -> BTreeMap<usize, Block> {
         }
     }
     blocks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::initial_blocks;
+
+    #[test]
+    fn empty_code_has_no_blocks() {
+        assert!(initial_blocks(&[]).is_empty());
+    }
 }
