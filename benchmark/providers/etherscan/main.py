@@ -51,7 +51,7 @@ def process_storage_dynarray(types, base) -> str:
         return f'{base}[]'
     if isinstance(base, tuple):
         if len(base) == 1:
-            return process_storage_dynarray(types, base[0]) + '[]'
+            return process_storage_dynarray(types, types[base[0]['type']]) + '[]'
         else:
             return f'struct_{len(base)}_fields[]'
 
