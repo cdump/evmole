@@ -1,15 +1,29 @@
 use super::Label;
-use crate::evm::{U256, VAL_4, calldata::CallData, element::Element};
+use crate::evm::{U256, calldata::CallData, element::Element};
 use std::error;
 
-pub(super) struct CallDataImpl {}
+const SYNTHETIC_SELECTOR: [u8; 4] = [0xaa, 0xbb, 0xcc, 0xdd];
+
+pub(super) struct CallDataImpl {
+    len: usize,
+    selector: [u8; 4],
+}
+
+impl CallDataImpl {
+    pub(super) fn new(len: usize) -> Self {
+        assert!(len <= 4);
+        let mut selector = [0; 4];
+        selector[..len].copy_from_slice(&SYNTHETIC_SELECTOR[..len]);
+        Self { len, selector }
+    }
+}
 
 impl CallData<Label> for CallDataImpl {
     fn load32(&self, offset: U256) -> Element<Label> {
         let mut data = [0; 32];
-        if offset < VAL_4 {
+        if offset < U256::from(self.len) {
             let off = usize::try_from(offset).expect("len checked");
-            data[..4 - off].copy_from_slice(&self.selector()[off..]);
+            data[..self.len - off].copy_from_slice(&self.selector[off..self.len]);
         }
         Element {
             data,
@@ -23,20 +37,20 @@ impl CallData<Label> for CallDataImpl {
         size: U256,
     ) -> Result<(Vec<u8>, Option<Label>), Box<dyn error::Error>> {
         let mut data = vec![0; u8::try_from(size)? as usize]; // max len limited to max_u8
-        if offset < VAL_4 {
+        if offset < U256::from(self.len) {
             let off = usize::try_from(offset).expect("len checked");
-            let nlen = std::cmp::min(data.len(), 4 - off);
-            data[..nlen].copy_from_slice(&self.selector()[off..off + nlen]);
+            let nlen = std::cmp::min(data.len(), self.len - off);
+            data[..nlen].copy_from_slice(&self.selector[off..off + nlen]);
         }
         Ok((data, Some(Label::CallData)))
     }
 
     fn selector(&self) -> [u8; 4] {
-        [0xaa, 0xbb, 0xcc, 0xdd]
+        self.selector
     }
 
     fn len(&self) -> U256 {
-        VAL_4
+        U256::from(self.len)
     }
 }
 
@@ -46,7 +60,7 @@ mod tests {
 
     #[test]
     fn test_calldata_load32() {
-        let cd = CallDataImpl {};
+        let cd = CallDataImpl::new(4);
 
         let mut x = cd.load32(U256::ZERO);
         assert_eq!(x.label, Some(Label::CallData));
@@ -75,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_calldata_load() {
-        let cd = CallDataImpl {};
+        let cd = CallDataImpl::new(4);
 
         let (mut data, mut label) = cd.load(U256::ZERO, U256::from(5)).unwrap();
         assert_eq!(label, Some(Label::CallData));
@@ -100,5 +114,21 @@ mod tests {
         (data, label) = cd.load(U256::from(4), U256::from(0)).unwrap();
         assert_eq!(label, Some(Label::CallData));
         assert!(data.is_empty());
+    }
+
+    #[test]
+    fn test_short_calldata() {
+        let cd = CallDataImpl::new(2);
+        assert_eq!(cd.len(), U256::from(2));
+        assert_eq!(cd.selector(), [0xaa, 0xbb, 0, 0]);
+
+        let data = cd.load32(U256::ZERO);
+        assert!(data.data.starts_with(&[0xaa, 0xbb, 0, 0]));
+
+        let data = cd.load32(U256::from(1));
+        assert!(data.data.starts_with(&[0xbb, 0, 0]));
+
+        let data = cd.load32(U256::from(2));
+        assert!(data.data.starts_with(&[0, 0]));
     }
 }
