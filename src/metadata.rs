@@ -70,6 +70,19 @@ pub(crate) fn extract(code: &[u8]) -> Option<CborMetadata> {
     })
 }
 
+/// Returns the compiler version from a standard three-byte `solc` CBOR entry.
+pub(crate) fn solc_version(metadata: Option<&CborMetadata>) -> Option<[u8; 3]> {
+    metadata?.entries.iter().find_map(|entry| {
+        if entry.key != "solc" {
+            return None;
+        }
+        let CborValue::Bytes(version) = &entry.value else {
+            return None;
+        };
+        version.as_slice().try_into().ok()
+    })
+}
+
 fn decode_entries(candidate: &[u8]) -> Option<Vec<CborEntry>> {
     let mut d = Decoder::new(candidate);
     let len = d.map().ok()?;
@@ -260,6 +273,29 @@ mod tests {
         assert!(extract(&[0xa0, 0, 2]).is_none());
         assert!(extract(&trailer(&[0x81, 0x01])).is_none());
         assert!(extract(&trailer(&[0xa0, 0x00])).is_none());
+    }
+
+    #[test]
+    fn extracts_solc_version() {
+        let metadata = extract(&trailer(&[
+            0xa1, 0x64, b's', b'o', b'l', b'c', 0x43, 0x00, 0x08, 0x1a,
+        ]))
+        .unwrap();
+        assert_eq!(solc_version(Some(&metadata)), Some([0, 8, 26]));
+    }
+
+    #[test]
+    fn rejects_nonstandard_solc_version() {
+        let metadata = CborMetadata {
+            bytecode_offset: 0,
+            cbor_length: 0,
+            entries: vec![CborEntry {
+                key: "solc".into(),
+                value: CborValue::Bytes(vec![0, 8]),
+            }],
+        };
+        assert_eq!(solc_version(Some(&metadata)), None);
+        assert_eq!(solc_version(None), None);
     }
 
     #[cfg(feature = "javascript")]
