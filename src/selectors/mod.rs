@@ -18,12 +18,38 @@ use calldata::CallDataImpl;
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Label {
     CallData,
+    CallDataSize,
     Signature,
     MulSig,
     SelCmp(Selector),
 }
 
 const VAL_FFFFFFFF_B: [u8; 32] = uint!(0xffffffff_U256).to_be_bytes();
+
+fn vyper_dense_target(code: &[u8], func_info: &[u8; 32], selector: Selector) -> Option<usize> {
+    const METHOD_ID_BYTES: usize = 4;
+    const FUNCTION_LABEL_BYTES: usize = 2;
+
+    // Vyper right-aligns `method_id | function_label | metadata` for MLOAD.
+    // The contract-wide metadata width depends on its largest minimum calldata size.
+    for metadata_bytes in 1..=3 {
+        let selector_start =
+            func_info.len() - metadata_bytes - FUNCTION_LABEL_BYTES - METHOD_ID_BYTES;
+        let label_start = selector_start + METHOD_ID_BYTES;
+
+        if func_info[selector_start..label_start] != selector {
+            continue;
+        }
+
+        let target = u16::from_be_bytes([func_info[label_start], func_info[label_start + 1]]);
+        let target = target as usize;
+        if target < code.len() && code[target] == op::JUMPDEST {
+            return Some(target);
+        }
+    }
+
+    None
+}
 
 fn analyze(
     vm: &mut Vm<Label, CallDataImpl>,
@@ -44,12 +70,10 @@ fn analyze(
                 label: Some(Label::SelCmp(selector)),
             };
 
-            // Vyper _selector_section_dense()/_selector_section_sparse()
+            // Vyper _selector_section_dense()
             if ret.op == op::EQ && vm.stack.data.len() >= 2 {
                 let fh = vm.stack.data[vm.stack.data.len() - 2].data;
-                let target = u16::from_be_bytes([fh[29], fh[30]]) as usize;
-                // assert!(vm.code[target] == op::JUMPDEST);
-                if target < vm.code.len() && vm.code[target] == op::JUMPDEST {
+                if let Some(target) = vyper_dense_target(vm.code, &fh, selector) {
                     selectors.insert(selector, target);
                 }
             }
@@ -71,6 +95,14 @@ fn analyze(
         } => {
             vm.stack.peek_mut()?.data = VAL_0_B;
             return Ok(2);
+        }
+
+        StepResult {
+            op: op::LT | op::GT,
+            args: match_first_two!(elabel!(Label::CallDataSize), _),
+            ..
+        } => {
+            vm.stack.peek_mut()?.label = Some(Label::CallDataSize);
         }
 
         StepResult {
@@ -132,6 +164,27 @@ fn analyze(
         } => {
             let v = vm.stack.peek_mut()?;
             v.label = Some(Label::CallData);
+        }
+
+        // Vyper O(1) selector dispatchers pack the selector check together with
+        // a calldata-size guard, notably for method IDs with trailing zero bytes.
+        StepResult {
+            op: op::AND,
+            args:
+                match_first_two!(
+                    elabel!(Label::SelCmp(selector)),
+                    elabel!(Label::CallDataSize)
+                ),
+            ..
+        } => {
+            vm.stack.peek_mut()?.label = Some(Label::SelCmp(selector));
+        }
+
+        StepResult {
+            op: op::CALLDATASIZE,
+            ..
+        } => {
+            vm.stack.peek_mut()?.label = Some(Label::CallDataSize);
         }
 
         StepResult {
