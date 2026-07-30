@@ -6,9 +6,9 @@ PROVIDERS_STORAGE ?= evmole-rs evmole-js evmole-py evmole-go smlxl
 PROVIDERS_BLOCKS ?= evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_FLOW ?= evmole-rs evmole-js evmole-py evmole-go evm-cfg ethersolve sevm evm-cfg-builder heimdall-rs
 
-DATASETS ?= largest1k random50k vyper
-DATASETS_STORAGE ?= storage3k
-DATASETS_FLOW ?= largest1k
+DATASETS ?= solidity-random10k solidity-coverage2k vyper-coverage1k
+DATASETS_STORAGE ?= storage-coverage1k
+DATASETS_FLOW ?= flow-challenge500
 DOCKER ?= docker
 DOCKER_CPUS ?= 1
 DOCKER_PREFIX ?= evmole-bench
@@ -26,7 +26,7 @@ DATASET := $(shell pwd)/datasets
 RES := $(shell pwd)/results
 
 BUILD_TARGETS := $(addsuffix .build, $(PROVIDERS_UNIQ))
-UNPACK_TARGETS := $(foreach d,$(DATASETS) $(DATASETS_STORAGE),$(addprefix datasets/, $(d)))
+UNPACK_TARGETS := $(foreach d,$(sort $(DATASETS) $(DATASETS_STORAGE) $(DATASETS_FLOW)),$(addprefix datasets/, $(d)))
 RUN_SELECTORS_TARGETS := $(foreach p,$(PROVIDERS_SELECTORS),$(addprefix $(p).selectors/, $(DATASETS)))
 RUN_ARGUMENTS_TARGETS := $(foreach p,$(PROVIDERS_ARGUMENTS),$(addprefix $(p).arguments/, $(DATASETS)))
 RUN_MUTABILITY_TARGETS := $(foreach p,$(PROVIDERS_MUTABILITY),$(addprefix $(p).mutability/, $(DATASETS)))
