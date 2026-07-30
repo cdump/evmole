@@ -130,12 +130,24 @@ func (b BasicBlock) MarshalJSON() ([]byte, error) {
 	return json.Marshal([2]int{b.Start, b.End})
 }
 
-// Function represents a public smart contract function.
+// SelectorDispatch describes where a selector is dispatched in runtime bytecode.
+type SelectorDispatch string
+
+const (
+	// SelectorDispatchABI indicates the normal external-function dispatcher.
+	SelectorDispatchABI SelectorDispatch = "abi"
+	// SelectorDispatchFallback indicates dispatch logic reached through the fallback path.
+	SelectorDispatchFallback SelectorDispatch = "fallback"
+)
+
+// Function represents a selector-bearing smart contract entry point.
 type Function struct {
 	// Selector is the 4-byte function selector as hex string (e.g., "a9059cbb").
 	Selector string `json:"selector"`
 	// BytecodeOffset is the starting byte offset within EVM bytecode for the function body.
 	BytecodeOffset int `json:"bytecode_offset"`
+	// Dispatch identifies the selector's normal ABI or fallback dispatch path.
+	Dispatch SelectorDispatch `json:"dispatch"`
 	// Arguments is the function parameter types (e.g., "uint256,address[]").
 	Arguments *string `json:"arguments,omitempty"`
 	// StateMutability is the function state mutability ("pure", "view", "payable", "nonpayable").

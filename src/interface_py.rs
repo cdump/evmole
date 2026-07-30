@@ -34,6 +34,7 @@ mod evmole {
     struct PyFunction {
         selector: String,
         bytecode_offset: usize,
+        dispatch: String,
         arguments: Option<String>,
         state_mutability: Option<String>,
     }
@@ -42,9 +43,10 @@ mod evmole {
     impl PyFunction {
         fn __repr__(&self) -> String {
             format!(
-                "Function(selector={:?}, bytecode_offset={}, arguments={}, state_mutability={})",
+                "Function(selector={:?}, bytecode_offset={}, dispatch={:?}, arguments={}, state_mutability={})",
                 self.selector,
                 self.bytecode_offset,
+                self.dispatch,
                 self.arguments
                     .as_deref()
                     .map_or_else(|| "None".to_string(), |v| format!("\"{v}\"")),
@@ -395,6 +397,7 @@ mod evmole {
                 .map(|f| PyFunction {
                     selector: hex::encode(f.selector),
                     bytecode_offset: f.bytecode_offset,
+                    dispatch: f.dispatch.as_str().to_string(),
                     arguments: f.arguments.map(|fargs| {
                         fargs
                             .into_iter()

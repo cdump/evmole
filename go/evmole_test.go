@@ -33,6 +33,9 @@ func TestContractInfoBasic(t *testing.T) {
 	if fn.Selector != "fae7ab82" {
 		t.Errorf("expected selector 'fae7ab82', got '%s'", fn.Selector)
 	}
+	if fn.Dispatch != SelectorDispatchABI {
+		t.Errorf("expected ABI dispatch, got '%s'", fn.Dispatch)
+	}
 	if fn.Arguments == nil || *fn.Arguments != "uint32" {
 		args := "<nil>"
 		if fn.Arguments != nil {

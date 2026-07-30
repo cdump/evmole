@@ -141,6 +141,7 @@ struct ContractResult {
 struct FunctionResult {
     selector: String,
     bytecode_offset: usize,
+    dispatch: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
     arguments: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -205,6 +206,7 @@ impl ContractResult {
                 .map(|f| FunctionResult {
                     selector: hex::encode(f.selector),
                     bytecode_offset: f.bytecode_offset,
+                    dispatch: f.dispatch.as_str(),
                     arguments: f.arguments.map(|fargs| {
                         fargs
                             .into_iter()

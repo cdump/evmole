@@ -152,6 +152,7 @@ Represents a function found in the contract bytecode
 | --- | --- | --- |
 | selector | <code>string</code> | Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd') |
 | bytecodeOffset | <code>number</code> | Starting byte offset within the EVM bytecode for the function body |
+| dispatch | <code>(&quot;abi&quot;\|&quot;fallback&quot;)</code> | Whether the selector is handled by the normal ABI dispatcher or fallback dispatch logic |
 | [arguments] | <code>string</code> | Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted |
 | [stateMutability] | <code>string</code> | Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted |
 

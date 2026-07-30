@@ -77,6 +77,7 @@ Contains analyzed information about a smart contract.
 class Function():
     selector: str
     bytecode_offset: int
+    dispatch: str
     arguments: Optional[str]
     state_mutability: Optional[str]
 ```
@@ -87,6 +88,8 @@ Represents a public smart contract function.
 
 - `selector` - Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd').
 - `bytecode_offset` - Starting byte offset within the EVM bytecode for the function body.
+- `dispatch` - `"abi"` when the selector appears in the normal external-function dispatcher,
+  or `"fallback"` when it appears in fallback dispatch logic.
 - `arguments` - Function argument types in canonical format (e.g., 'uint256,address[]').
   None if arguments were not extracted
 - `state_mutability` - Function's state mutability ('pure', 'view', 'payable', or 'nonpayable').

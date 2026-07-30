@@ -106,6 +106,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         info.functions
                             .unwrap()
                             .iter()
+                            .filter(|f| f.dispatch == evmole::SelectorDispatch::Abi)
                             .map(|f| hex::encode(f.selector))
                             .collect(),
                     ),

@@ -6,7 +6,7 @@
 //! are available on [GitHub](https://github.com/cdump/evmole/tree/master#benchmark)
 
 pub use contract_info::contract_info;
-pub use contract_info::{Contract, ContractInfoArgs, Function};
+pub use contract_info::{Contract, ContractInfoArgs, Function, SelectorDispatch};
 pub use metadata::{CborEntry, CborMetadata, CborValue};
 pub use storage::StorageRecord;
 

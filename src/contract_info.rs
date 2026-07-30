@@ -9,7 +9,28 @@ use crate::{
     storage::contract_storage,
 };
 
-/// Represents a public smart contract function
+/// Describes where a selector is dispatched in the runtime bytecode.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+pub enum SelectorDispatch {
+    /// The selector appears in the normal external-function dispatcher.
+    Abi,
+    /// The selector appears in dispatch logic reached through the fallback path.
+    Fallback,
+}
+
+impl SelectorDispatch {
+    /// Returns the stable lowercase representation used by language bindings.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Abi => "abi",
+            Self::Fallback => "fallback",
+        }
+    }
+}
+
+/// Represents a selector-bearing smart contract entry point.
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Function {
@@ -23,6 +44,9 @@ pub struct Function {
     /// The starting byte offset within the EVM bytecode for the function body
     #[cfg_attr(feature = "serde", serde(rename = "bytecodeOffset"))]
     pub bytecode_offset: usize,
+
+    /// Where the selector is dispatched in the runtime bytecode.
+    pub dispatch: SelectorDispatch,
 
     /// Function arguments
     #[cfg_attr(
@@ -171,7 +195,7 @@ impl<'a> ContractInfoArgs<'a> {
 /// # Examples
 ///
 /// ```
-/// use evmole::{ContractInfoArgs, StateMutability, contract_info};
+/// use evmole::{ContractInfoArgs, SelectorDispatch, StateMutability, contract_info};
 /// use alloy_primitives::hex;
 ///
 /// let code = hex::decode("6080604052348015600e575f80fd5b50600436106030575f3560e01c80632125b65b146034578063b69ef8a8146044575b5f80fd5b6044603f3660046046565b505050565b005b5f805f606084860312156057575f80fd5b833563ffffffff811681146069575f80fd5b925060208401356001600160a01b03811681146083575f80fd5b915060408401356001600160e01b0381168114609d575f80fd5b80915050925092509256").unwrap();
@@ -185,10 +209,15 @@ impl<'a> ContractInfoArgs<'a> {
 /// let fns = info.functions.unwrap();
 /// assert_eq!(fns.len(), 2);
 /// assert_eq!(fns[0].selector, [0x21, 0x25, 0xb6, 0x5b]);
+/// assert_eq!(fns[0].dispatch, SelectorDispatch::Abi);
 /// assert_eq!(fns[0].state_mutability, Some(StateMutability::Pure));
 /// ```
 pub fn contract_info(args: ContractInfoArgs) -> Contract {
     const GAS_LIMIT: u32 = 0;
+
+    let metadata = (args.need_metadata || args.need_selectors)
+        .then(|| crate::metadata::extract(args.code))
+        .flatten();
 
     let (basic_blocks, control_flow_graph): (Option<Vec<_>>, _) = if args.need_basic_blocks {
         let bb = basic_blocks(args.code);
@@ -204,11 +233,13 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
     };
 
     let functions = args.need_selectors.then(|| {
-        let (selectors, _selectors_gas_used) = function_selectors(args.code, GAS_LIMIT);
+        let (selectors, _selectors_gas_used) =
+            function_selectors(args.code, GAS_LIMIT, metadata.as_ref());
         selectors
             .into_iter()
-            .map(|(selector, bytecode_offset)| Function {
+            .map(|(selector, (bytecode_offset, dispatch))| Function {
                 selector,
+                dispatch,
                 arguments: if args.need_arguments {
                     Some(function_arguments(args.code, &selector, GAS_LIMIT))
                 } else {
@@ -238,11 +269,6 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
     });
 
     let disassembled = args.need_disassemble.then(|| disassemble(args.code));
-
-    let metadata = args
-        .need_metadata
-        .then(|| crate::metadata::extract(args.code))
-        .flatten();
 
     Contract {
         functions,

@@ -16,6 +16,7 @@ EVMole is a powerful library that extracts information from Ethereum Virtual Mac
 - Broad compatibility: Tested with both Solidity and Vyper compiled contracts.
 - Lightweight: Clean codebase with minimal external dependencies.
 - Unverified contract analysis: Extracts information even from unverified bytecode.
+- Selector dispatch classification: Distinguishes normal ABI dispatch from selectors handled by fallback logic.
 - CBOR metadata: Extracts string-keyed values from a terminal, length-suffixed CBOR map without assuming a particular compiler.
 
 
@@ -36,6 +37,7 @@ console.log( contractInfo(code, {selectors:true, arguments:true, stateMutability
 //     {
 //       selector: '2125b65b',
 //       bytecodeOffset: 52,
+//       dispatch: 'abi',
 //       arguments: 'uint32,address,uint224',
 //       stateMutability: 'pure'
 //     },
@@ -59,6 +61,7 @@ println!("{:?}", evmole::contract_info(
 //         Function {
 //             selector: [33, 37, 182, 91],
 //             bytecode_offset: 52,
+//             dispatch: Abi,
 //             arguments: Some([Uint(32), Address, Uint(224)]),
 //             state_mutability: Some(Pure)
 //         },
@@ -81,6 +84,7 @@ print( contract_info(code, selectors=True, arguments=True, state_mutability=True
 #     Function(
 #             selector=2125b65b,
 #             bytecode_offset=52,
+#             dispatch="abi",
 #             arguments=uint32,address,uint224,
 #             state_mutability=pure),
 #     ...

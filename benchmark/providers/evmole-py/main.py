@@ -40,7 +40,7 @@ for fname in os.listdir(cfg.input_dir):
         duration_us = int((time.perf_counter_ns() - t0) / 1000)
 
         if cfg.mode == 'selectors':
-            r = [f.selector for f in info.functions]
+            r = [f.selector for f in info.functions if f.dispatch == 'abi']
         elif cfg.mode == 'arguments':
             by_sel = {f.selector: f.arguments for f in info.functions}
             r = {s: by_sel.get(s, 'notfound') for s in selectors[fname][1]}

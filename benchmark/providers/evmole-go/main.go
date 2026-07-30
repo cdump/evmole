@@ -87,9 +87,11 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			sels := make([]string, len(info.Functions))
-			for i, f := range info.Functions {
-				sels[i] = f.Selector
+			sels := make([]string, 0, len(info.Functions))
+			for _, f := range info.Functions {
+				if f.Dispatch == evmole.SelectorDispatchABI {
+					sels = append(sels, f.Selector)
+				}
 			}
 			retSelectors[fname] = []any{durationUS, sels}
 

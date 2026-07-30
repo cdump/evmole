@@ -91,12 +91,14 @@ const DOC_FUNCTION: &'static str = r#"
  * Represents a function found in the contract bytecode
  * @property selector - Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd').
  * @property bytecodeOffset - Starting byte offset within the EVM bytecode for the function body.
+ * @property dispatch - Whether the selector is handled by the normal ABI dispatcher or fallback dispatch logic.
  * @property arguments - Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted
  * @property stateMutability - Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted
  */
 export type ContractFunction = {
     selector: string,
     bytecodeOffset: number,
+    dispatch: 'abi' | 'fallback',
     arguments?: string,
     stateMutability?: string,
 };
@@ -105,6 +107,7 @@ export type ContractFunction = {
 /// @description Represents a function found in the contract bytecode
 /// @property {string} selector - Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd')
 /// @property {number} bytecodeOffset - Starting byte offset within the EVM bytecode for the function body
+/// @property {('abi'|'fallback')} dispatch - Whether the selector is handled by the normal ABI dispatcher or fallback dispatch logic
 /// @property {string} [arguments] - Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted
 /// @property {string} [stateMutability] - Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted
 #[wasm_bindgen(skip_jsdoc)]

@@ -1,4 +1,4 @@
-use crate::Selector;
+use crate::{CborMetadata, Selector, SelectorDispatch};
 use crate::{
     evm::{
         U256, VAL_0_B, VAL_1_B,
@@ -234,15 +234,13 @@ fn process(
     gas_used
 }
 
-/// Extracts function selectors
-///
-/// # Arguments
-///
-/// * `code` - A slice of deployed contract bytecode
-/// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
-/// ```
-pub fn function_selectors(code: &[u8], gas_limit: u32) -> (BTreeMap<Selector, usize>, u32) {
-    let vm = Vm::new(code, &CallDataImpl {});
+fn function_selectors_with_calldata_len(
+    code: &[u8],
+    gas_limit: u32,
+    calldata_len: usize,
+) -> (BTreeMap<Selector, usize>, u32) {
+    let calldata = CallDataImpl::new(calldata_len);
+    let vm = Vm::new(code, &calldata);
     let mut selectors = BTreeMap::new();
     let gas_used = process(
         vm,
@@ -256,13 +254,45 @@ pub fn function_selectors(code: &[u8], gas_limit: u32) -> (BTreeMap<Selector, us
     (selectors, gas_used)
 }
 
+pub(crate) fn function_selectors(
+    code: &[u8],
+    gas_limit: u32,
+    metadata: Option<&CborMetadata>,
+) -> (BTreeMap<Selector, (usize, SelectorDispatch)>, u32) {
+    let (all, mut gas_used) = function_selectors_with_calldata_len(code, gas_limit, 4);
+    if all.is_empty() {
+        return (BTreeMap::new(), gas_used);
+    }
+
+    let (mut short, short_gas_used) = function_selectors_with_calldata_len(code, gas_limit, 3);
+    gas_used = gas_used.saturating_add(short_gas_used);
+    short.retain(|selector, _| all.contains_key(selector));
+
+    let has_four_byte_only = all.keys().any(|selector| !short.contains_key(selector));
+    let modern_solc = crate::metadata::solc_version(metadata)
+        .is_some_and(|version| version[0] > 0 || version[1] >= 5);
+
+    let classified = all
+        .into_iter()
+        .map(|(selector, bytecode_offset)| {
+            let dispatch = if short.contains_key(&selector) && (has_four_byte_only || modern_solc) {
+                SelectorDispatch::Fallback
+            } else {
+                SelectorDispatch::Abi
+            };
+            (selector, (bytecode_offset, dispatch))
+        })
+        .collect();
+    (classified, gas_used)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_empty_code() {
-        let (s, _) = function_selectors(&[], 0);
+        let (s, _) = function_selectors(&[], 0, None);
         assert_eq!(s.len(), 0);
     }
 }

@@ -26,7 +26,9 @@ function extract(fileData, mode, fname) {
   let code = fileData.code ?? fileData.runtimeBytecode;
   if (mode === 'selectors') {
     let [duration_us, r] = timeit(() => contractInfo(code, {selectors: true}));
-    return [duration_us, r.functions.map((f) => f.selector)];
+    return [duration_us, r.functions
+      .filter((f) => f.dispatch === 'abi')
+      .map((f) => f.selector)];
   } else if (mode === 'arguments') {
     let [duration_us, r] = timeit(() => contractInfo(code, {arguments: true}));
     const by_sel = new Map(r.functions.map((f) => [f.selector, f.arguments]));

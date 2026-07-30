@@ -180,9 +180,17 @@ type Contract struct {
 type Function struct {
     Selector        string   // e.g., "a9059cbb"
     BytecodeOffset  int      // Entry point in bytecode
+    Dispatch        SelectorDispatch // "abi" or "fallback"
     Arguments       *string  // e.g., "uint256,address[]"
     StateMutability *string  // "pure", "view", "payable", "nonpayable"
 }
+
+type SelectorDispatch string
+
+const (
+    SelectorDispatchABI      SelectorDispatch = "abi"
+    SelectorDispatchFallback SelectorDispatch = "fallback"
+)
 ```
 
 #### StorageRecord
