@@ -3,6 +3,10 @@ import { hrtime } from 'process'
 
 import { Contract } from 'sevm';
 
+const sevmVersion = JSON.parse(
+  readFileSync(new URL('./node_modules/sevm/package.json', import.meta.url))
+).version;
+
 const argv = process.argv;
 if (argv.length < 5) {
   console.log('Usage: node main.js MODE INPUT_DIR OUTPUT_FILE [SELECTORS_FILE]')
@@ -23,13 +27,20 @@ function timeit(fn) {
 }
 
 function extract(code, mode, fname) {
-  const [duration_us, contract] = timeit(() => {
-    try {
-      return new Contract(code);
-    } catch (e) {
-      // console.log(e);
-    }
-  });
+  // Work around https://github.com/acuarica/evm/issues/154.
+  const hasKnownBug =
+    sevmVersion === '0.7.4'
+    && fname === '0xaaaaaaaaa24eeeb8d57d431224f73832bc34f688.json';
+
+  const [duration_us, contract] = hasKnownBug
+    ? [0, null]
+    : timeit(() => {
+      try {
+        return new Contract(code);
+      } catch (e) {
+        // console.log(e);
+      }
+    });
   if (mode === 'selectors') {
     return [duration_us, Object.keys(contract ? contract.functions : {})]
   } else if (mode === 'mutability') {
