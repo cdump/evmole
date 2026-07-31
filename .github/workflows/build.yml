@@ -118,7 +118,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Install Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go-version }}
       - name: Build WASM
@@ -163,7 +163,7 @@ jobs:
 
           (cd agent/mcp && npm pack)
       - name: Upload JavaScript artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: javascript
           path: |
@@ -192,7 +192,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
       - name: Build
@@ -207,7 +207,7 @@ jobs:
       - name: Test
         run: python3 python/test_python.py
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: python-${{ matrix.platform.os}}-${{ matrix.python-version }}
           path: dist/*.whl
@@ -222,7 +222,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.x
       - name: Build sdist
@@ -232,7 +232,7 @@ jobs:
           command: sdist
           args: --out dist
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: python-sdist
           path: dist
@@ -249,11 +249,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: 3.13
           allow-prereleases: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: python-sdist
       - name: Build and install wheel
@@ -295,23 +295,23 @@ jobs:
           cat changelog.md
 
       - name: Download Python Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: python-*
           path: dist-py
           merge-multiple: true
 
       - name: Download JavaScript artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: javascript
           path: .
 
       - name: Publish and verify npm packages
         run: |
-          npm publish --provenance javascript/evmole-*.tgz
+          npm publish --provenance ./javascript/evmole-*.tgz
           npx -y "evmole@${{ inputs.version }}" analyze --bytecode 0x00
-          npm publish --provenance agent/mcp/evmole-mcp-*.tgz
+          npm publish --provenance ./agent/mcp/evmole-mcp-*.tgz
           npm --prefix agent/mcp install --ignore-scripts --package-lock=false --no-save --no-audit --no-fund
           node agent/mcp/tests/public-smoke.mjs "${{ inputs.version }}"
 
@@ -324,7 +324,7 @@ jobs:
           ./mcp-publisher publish
 
       - name: Github Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.version }}
           name: Release ${{ inputs.version }}
