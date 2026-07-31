@@ -18,7 +18,7 @@ cargo run \
     ${MODE} \
     ${BDIR}/datasets/${2} \
     out.json \
-    ${BDIR}/results/etherscan.selectors_${2}.json \
+    ${BDIR}/results/reference.selectors_${2}.json \
     --filter-filename ${3} \
     --filter-selector ${4}
 

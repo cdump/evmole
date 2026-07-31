@@ -5,10 +5,16 @@ Test accuracy and speed of different EVM bytecode analysis tools
 For results, refer to the [main README.md](../README.md#Benchmark).
 
 ## Methodology
-1. Get N Etherscan-verified contracts, save the bytecode and ABI to `datasets/NAME/ADDR.json`.
-2. Extract information from the bytecode using different tools. Each tool runs inside a Docker container and is limited to 1 CPU (see `providers/NAME` and `Makefile`).
-3. Assume Etherscan's ABI as ground truth.
-4. Compare the results:
+
+1. Select verified contracts and save their deployed bytecode and compiler
+   metadata to `datasets/NAME/ADDR.json`. The current datasets come from
+   Sourcify; see [datasets/README.md](datasets/README.md).
+2. Derive reference selectors, arguments, mutability, and storage information
+   from the verified ABI and compiler metadata using `providers/reference`.
+3. Infer the same information from deployed bytecode using different tools.
+   Each tool runs inside a Docker container and is limited to 1 CPU (see
+   `providers/NAME` and `Makefile`).
+4. Compare the inferred results with the reference results:
    - For selectors: Count [False Positives and False Negatives](https://en.wikipedia.org/wiki/False_positives_and_false_negatives)
    - For arguments/mutability: Count exact matches
 
@@ -34,12 +40,12 @@ $ make build
 # Only run tests for selectors (assume docker-images are built)
 $ make run-selectors
 
-# Build specific provider
-$ make etherscan.build
+# Build the reference provider
+$ make reference.build
 
-# Run specific provider/mode/dataset
-$ make etherscan.selectors/largest1k
-$ make etherscan.arguments/largest1k
+# Generate reference results for a specific mode/dataset
+$ make reference.selectors/solidity-random10k
+$ make reference.arguments/solidity-random10k
 ```
 
 ## Process Results
@@ -55,7 +61,7 @@ $ python3 compare.py --mode=mutability
 $ python3 compare.py --mode=flow
 
 # Filter by dataset/provider and show errors
-python3 compare.py --mode=arguments --datasets largest1k --providers etherscan evmole-py --show-errors
+python3 compare.py --mode=arguments --datasets solidity-random10k --providers reference evmole-py --show-errors
 
 # Normalize argument comparisons
 python3 compare.py --mode=arguments --normalize-args fixed-size-array tuples string-bytes

@@ -1,4 +1,4 @@
-PROVIDER_BASE = etherscan
+REFERENCE_PROVIDER = reference
 PROVIDERS_SELECTORS ?= whatsabi evm-hound-rs sevm heimdall-rs evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_ARGUMENTS ?= heimdall-rs evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_MUTABILITY ?= whatsabi sevm heimdall-rs evmole-rs evmole-js evmole-py evmole-go
@@ -16,11 +16,11 @@ RSYNC_EXCLUDES := --exclude benchmark --exclude target --exclude dist \
     --exclude javascript/examples --exclude javascript/tests \
     --exclude javascript/node_modules --exclude .git
 
-PROVIDERS_SELECTORS := $(PROVIDER_BASE) $(PROVIDERS_SELECTORS)
-PROVIDERS_ARGUMENTS := $(PROVIDER_BASE) $(PROVIDERS_ARGUMENTS)
-PROVIDERS_MUTABILITY := $(PROVIDER_BASE) $(PROVIDERS_MUTABILITY)
-PROVIDERS_STORAGE := $(PROVIDER_BASE) $(PROVIDERS_STORAGE)
-PROVIDERS_UNIQ := $(sort $(PROVIDER_BASE) $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_BLOCKS) $(PROVIDERS_FLOW))
+PROVIDERS_SELECTORS := $(REFERENCE_PROVIDER) $(PROVIDERS_SELECTORS)
+PROVIDERS_ARGUMENTS := $(REFERENCE_PROVIDER) $(PROVIDERS_ARGUMENTS)
+PROVIDERS_MUTABILITY := $(REFERENCE_PROVIDER) $(PROVIDERS_MUTABILITY)
+PROVIDERS_STORAGE := $(REFERENCE_PROVIDER) $(PROVIDERS_STORAGE)
+PROVIDERS_UNIQ := $(sort $(REFERENCE_PROVIDER) $(PROVIDERS_SELECTORS) $(PROVIDERS_ARGUMENTS) $(PROVIDERS_MUTABILITY) $(PROVIDERS_STORAGE) $(PROVIDERS_BLOCKS) $(PROVIDERS_FLOW))
 
 DATASET := $(shell pwd)/datasets
 RES := $(shell pwd)/results
@@ -35,8 +35,8 @@ RUN_BLOCKS_TARGETS := $(foreach p,$(PROVIDERS_BLOCKS),$(addprefix $(p).blocks/, 
 RUN_FLOW_TARGETS := $(foreach p,$(PROVIDERS_FLOW),$(addprefix $(p).flow/, $(DATASETS_FLOW)))
 
 RUN_TARGETS := $(RUN_SELECTORS_TARGETS) $(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS) $(RUN_STORAGE_TARGETS) $(RUN_BLOCKS_TARGETS) $(RUN_FLOW_TARGETS)
-BASE_SELECTOR_TARGETS := $(addprefix $(PROVIDER_BASE).selectors/,$(DATASETS))
-ALL_RUN_TARGETS := $(sort $(RUN_TARGETS) $(BASE_SELECTOR_TARGETS))
+REFERENCE_SELECTOR_TARGETS := $(addprefix $(REFERENCE_PROVIDER).selectors/,$(DATASETS))
+ALL_RUN_TARGETS := $(sort $(RUN_TARGETS) $(REFERENCE_SELECTOR_TARGETS))
 
 benchmark-selectors: $(addsuffix .build, $(PROVIDERS_SELECTORS)) run-selectors
 benchmark-arguments: $(addsuffix .build, $(PROVIDERS_ARGUMENTS)) run-arguments
@@ -74,10 +74,10 @@ $(UNPACK_TARGETS):
 	tar -C datasets/ -zxf $@.tar.gz
 
 .SECONDEXPANSION:
-$(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS): $$(RES)/$(PROVIDER_BASE).selectors_$$(notdir $$@).json
+$(RUN_ARGUMENTS_TARGETS) $(RUN_MUTABILITY_TARGETS): $$(RES)/$(REFERENCE_PROVIDER).selectors_$$(notdir $$@).json
 
-$(RES)/$(PROVIDER_BASE).selectors_%.json: datasets/% $(PROVIDER_BASE).build
-	$(MAKE) $(PROVIDER_BASE).selectors/$*
+$(RES)/$(REFERENCE_PROVIDER).selectors_%.json: datasets/% $(REFERENCE_PROVIDER).build
+	$(MAKE) $(REFERENCE_PROVIDER).selectors/$*
 
 $(ALL_RUN_TARGETS): datasets/$$(notdir $$@)
 	$(info [*] Running $@...)
@@ -88,7 +88,7 @@ $(ALL_RUN_TARGETS): datasets/$$(notdir $$@)
 		$(subst .,,$(suffix $(subst /,,$(dir $@)))) \
 		/dataset \
 		/mnt/$(subst /,_,$@).json \
-		/mnt/$(PROVIDER_BASE).selectors_$(notdir $@).json
+		/mnt/$(REFERENCE_PROVIDER).selectors_$(notdir $@).json
 
 .PHONY: benchmark-selectors benchmark-arguments benchmark-mutability benchmark-storage benchmark-flow \
 	build run-selectors run-arguments run-mutability run-storage run-blocks run-flow \

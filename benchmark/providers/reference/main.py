@@ -1,3 +1,5 @@
+"""Build benchmark reference results from verified contract metadata."""
+
 import json
 import os
 import re
