@@ -65,9 +65,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fname = entry.file_name().to_str().unwrap().to_string();
         // eprintln!("{}", fname);
         let hex_code: String = {
-            let file_content = fs::read_to_string(path)?;
-            let v: Input = serde_json::from_str(&file_content)?;
-            v.code
+            if fname == "0x7a2e8c2e5f161d4d9a08b139063688ab12a34bcd.json" || fname == "0x687c19e08c4b3b8eafedd8e4646331b4d03f29aa.json" || fname == "0x477f6ae17897f8a57ff9277dd43e63c88ae79792.json" {
+                // https://github.com/Jon-Becker/heimdall-rs/issues/656
+                "0x6040".to_string()
+            } else {
+                let file_content = fs::read_to_string(path)?;
+                let v: Input = serde_json::from_str(&file_content)?;
+                v.code
+            }
         };
         match cfg.mode {
             Mode::Selectors => {
