@@ -119,6 +119,20 @@ fn analyze_payable(
             }
 
             StepResult {
+                op: op::AND | op::OR | op::XOR | op::MUL,
+                ref args,
+                ..
+            } if args.iter().any(|arg| {
+                arg.label == Some(Label::CallValue) || arg.label == Some(Label::IsZero)
+            }) =>
+            {
+                vm.stack
+                    .peek_mut()
+                    .expect("results is always pushed in vm.rs")
+                    .label = Some(Label::CallValue);
+            }
+
+            StepResult {
                 op: op::JUMPI,
                 args: [_, sa, ..],
                 ..
