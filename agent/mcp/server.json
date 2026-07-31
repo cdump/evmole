@@ -3,7 +3,7 @@
   "name": "io.github.cdump/evmole",
   "title": "EVMole",
   "description": "Local structured analysis of deployed EVM runtime bytecode",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "repository": {
     "url": "https://github.com/cdump/evmole",
     "source": "github",
@@ -14,7 +14,7 @@
     {
       "registryType": "npm",
       "identifier": "evmole-mcp",
-      "version": "0.9.2",
+      "version": "0.9.3",
       "transport": {
         "type": "stdio"
       }
