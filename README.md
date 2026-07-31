@@ -192,134 +192,134 @@ limitations, and privacy details.
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
  </tr>
  <tr>
-  <td rowspan="5"><b>largest1k</b><br><sub>1000<br>addresses<br><br>24427<br>functions</sub></td>
+  <td rowspan="5"><b>coverage2k</b><br><sub>solidity<br><br>2000<br>addresses<br><br>45650<br>functions</sub></td>
   <td><i>FP <sub>addrs</sub></i></td>
   <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>75</td>
-  <td>18</td>
- </tr>
- <tr>
-  <td><i>FN <sub>addrs</sub></i></td>
-  <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>40</td>
-  <td>103</td>
- </tr>
- <tr>
-  <td><i>FP <sub>funcs</sub></i></td>
-  <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>720</td>
-  <td>600</td>
- </tr>
- <tr>
-  <td><i>FN <sub>funcs</sub></i></td>
-  <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>0 🥇</td>
-  <td>191</td>
-  <td>114</td>
- </tr>
- <tr>
-  <td><i>Time</i></td>
-  <td>22ms · 0.2s · 28ms · 88ms</td>
-  <td>2.3s</td>
-  <td>30s<sup>(*)</sup></td>
-  <td>56ms</td>
-  <td>371s<sup>(*)</sup></td>
- </tr>
- <tr><td colspan="7"></td></tr>
- <tr>
-  <td rowspan="5"><b>random50k</b><br><sub>50000<br>addresses<br><br>1171102<br>functions</sub></td>
-  <td><i>FP <sub>addrs</sub></i></td>
-  <td>1 🥇</td>
-  <td>43</td>
+  <td>4</td>
   <td>1</td>
-  <td>693</td>
+  <td>56</td>
   <td>3</td>
  </tr>
  <tr>
   <td><i>FN <sub>addrs</sub></i></td>
-  <td>9 🥇</td>
+  <td>0 🥇</td>
   <td>11</td>
-  <td>10</td>
-  <td>2903</td>
-  <td>4669</td>
+  <td>0 🥇</td>
+  <td>224</td>
+  <td>166</td>
  </tr>
  <tr>
   <td><i>FP <sub>funcs</sub></i></td>
-  <td>3 🥇</td>
-  <td>51</td>
-  <td>3</td>
-  <td>10798</td>
-  <td>29</td>
+  <td>0 🥇</td>
+  <td>10</td>
+  <td>10</td>
+  <td>616</td>
+  <td>27</td>
  </tr>
  <tr>
   <td><i>FN <sub>funcs</sub></i></td>
-  <td>10 🥇</td>
-  <td>12</td>
-  <td>11</td>
-  <td>3538</td>
-  <td>4943</td>
+  <td>0 🥇</td>
+  <td>145</td>
+  <td>0 🥇</td>
+  <td>821</td>
+  <td>342</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.6s · 3.6s · 0.8s · 3.9s</td>
-  <td>30s</td>
-  <td>440s<sup>(*)</sup></td>
-  <td>1.6s</td>
-  <td>8684s<sup>(*)</sup></td>
+  <td>24ms · 0.3s · 31ms · 0.1s</td>
+  <td>2.0s</td>
+  <td>28s<sup>(*)</sup></td>
+  <td>86ms</td>
+  <td>111s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="7"></td></tr>
  <tr>
-  <td rowspan="5"><b>vyper</b><br><sub>780<br>addresses<br><br>21244<br>functions</sub></td>
+  <td rowspan="5"><b>random10k</b><br><sub>solidity<br><br>10000<br>addresses<br><br>223316<br>functions</sub></td>
   <td><i>FP <sub>addrs</sub></i></td>
   <td>0 🥇</td>
-  <td>30</td>
-  <td>0</td>
   <td>19</td>
-  <td>0</td>
+  <td>16</td>
+  <td>224</td>
+  <td>7</td>
  </tr>
  <tr>
   <td><i>FN <sub>addrs</sub></i></td>
   <td>0 🥇</td>
-  <td>780</td>
-  <td>0</td>
-  <td>300</td>
-  <td>780</td>
+  <td>44</td>
+  <td>1</td>
+  <td>838</td>
+  <td>819</td>
  </tr>
  <tr>
   <td><i>FP <sub>funcs</sub></i></td>
   <td>0 🥇</td>
-  <td>30</td>
-  <td>0</td>
-  <td>19</td>
-  <td>0</td>
+  <td>65</td>
+  <td>112</td>
+  <td>3157</td>
+  <td>260</td>
  </tr>
  <tr>
   <td><i>FN <sub>funcs</sub></i></td>
   <td>0 🥇</td>
-  <td>21244</td>
-  <td>0</td>
-  <td>8273</td>
-  <td>21244</td>
+  <td>173</td>
+  <td>7</td>
+  <td>4112</td>
+  <td>1021</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>10ms · 0.2s · 14ms · 57ms</td>
-  <td>2.0s</td>
-  <td>34s<sup>(*)</sup></td>
-  <td>26ms</td>
-  <td>28s<sup>(*)</sup></td>
+  <td>0.1s · 0.8s · 0.2s · 0.8s</td>
+  <td>7.1s</td>
+  <td>80s<sup>(*)</sup></td>
+  <td>0.4s</td>
+  <td>533s<sup>(*)</sup></td>
+ </tr>
+ <tr><td colspan="7"></td></tr>
+ <tr>
+  <td rowspan="5"><b>coverage1k</b><br><sub>vyper<br><br>1000<br>addresses<br><br>38759<br>functions</sub></td>
+  <td><i>FP <sub>addrs</sub></i></td>
+  <td>0 🥇</td>
+  <td>560</td>
+  <td>0 🥇</td>
+  <td>2</td>
+  <td>0 🥇</td>
+ </tr>
+ <tr>
+  <td><i>FN <sub>addrs</sub></i></td>
+  <td>0 🥇</td>
+  <td>998</td>
+  <td>788</td>
+  <td>525</td>
+  <td>998</td>
+ </tr>
+ <tr>
+  <td><i>FP <sub>funcs</sub></i></td>
+  <td>0 🥇</td>
+  <td>560</td>
+  <td>0 🥇</td>
+  <td>5</td>
+  <td>0 🥇</td>
+ </tr>
+ <tr>
+  <td><i>FN <sub>funcs</sub></i></td>
+  <td>0 🥇</td>
+  <td>38759</td>
+  <td>34077</td>
+  <td>16218</td>
+  <td>38759</td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>91ms · 0.4s · 0.1s · 0.3s</td>
+  <td>1.9s</td>
+  <td>5.4s<sup>(*)</sup></td>
+  <td>67ms</td>
+  <td>12s<sup>(*)</sup></td>
  </tr>
 </table>
 
 ### function arguments
-<i>Errors</i> - when at least 1 argument is incorrect: `(uint256,string)` ≠ `(uint256,bytes)`
+<i>Errors</i> - when at least 1 inferred argument is incorrect: `(uint256,string)` ≠ `(uint256,bytes)`
 
 <table>
  <tr>
@@ -329,39 +329,39 @@ limitations, and privacy details.
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
  </tr>
  <tr>
-  <td rowspan="2"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
+  <td rowspan="2"><b>coverage2k</b><br><sub>solidity<br><br>45650<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>14.0% 🥇<br><sub>3410</sub></td>
-  <td>31.1%<br><sub>7603</sub></td>
+  <td>8.5% 🥇<br><sub>3883</sub></td>
+  <td>23.3%<br><sub>10643</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.6s · 1.3s · 0.7s · 1.7s</td>
-  <td>370s<sup>(*)</sup></td>
+  <td>0.8s · 1.7s · 1.1s · 2.1s</td>
+  <td>111s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
-  <td rowspan="2"><b>random50k</b><br><sub>1171102<br>functions</sub></td>
+  <td rowspan="2"><b>random10k</b><br><sub>solidity<br><br>223316<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>4.5% 🥇<br><sub>52664</sub></td>
-  <td>19.4%<br><sub>227077</sub></td>
+  <td>6.8% 🥇<br><sub>15296</sub></td>
+  <td>21.4%<br><sub>47878</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>16s · 32s · 22s · 44s</td>
-  <td>8579s<sup>(*)</sup></td>
+  <td>3.5s · 6.9s · 4.2s · 9.7s</td>
+  <td>511s<sup>(*)</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
-  <td rowspan="2"><b>vyper</b><br><sub>21244<br>functions</sub></td>
+  <td rowspan="2"><b>coverage1k</b><br><sub>vyper<br><br>38759<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>46.7% 🥇<br><sub>9914</sub></td>
-  <td>100.0%<br><sub>21244</sub></td>
+  <td>45.4% 🥇<br><sub>17590</sub></td>
+  <td>100.0%<br><sub>38759</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s · 1.1s · 0.6s · 2.4s</td>
-  <td>29s<sup>(*)</sup></td>
+  <td>0.5s · 1.1s · 0.6s · 1.4s</td>
+  <td>12s<sup>(*)</sup></td>
  </tr>
 </table>
 
@@ -381,72 +381,72 @@ limitations, and privacy details.
   <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
  </tr>
  <tr>
-  <td rowspan="3"><b>largest1k</b><br><sub>24427<br>functions</sub></td>
+  <td rowspan="3"><b>coverage2k</b><br><sub>solidity<br><br>45647<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>0.0% 🥇<br><sub>0</sub></td>
-  <td>68.1%<br><sub>16623</sub></td>
-  <td>2.1%<br><sub>501</sub></td>
-  <td>25.7%<br><sub>6268</sub></td>
+  <td>0.0% 🥇<br><sub>18</sub></td>
+  <td>52.2%<br><sub>23810</sub></td>
+  <td>11.2%<br><sub>5133</sub></td>
+  <td>19.6%<br><sub>8951</sub></td>
  </tr>
  <tr>
   <td><i>Errors strict</i></td>
-  <td>13.3% 🥇<br><sub>3243</sub></td>
-  <td>79.4%<br><sub>19393</sub></td>
-  <td>59.0%<br><sub>14417</sub></td>
-  <td>54.8%<br><sub>13386</sub></td>
+  <td>9.0% 🥇<br><sub>4107</sub></td>
+  <td>70.9%<br><sub>32346</sub></td>
+  <td>62.3%<br><sub>28429</sub></td>
+  <td>41.3%<br><sub>18835</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>11s · 12s · 10s · 23s</td>
-  <td>2.5s</td>
-  <td>27s<sup>(*)</sup></td>
-  <td>371s<sup>(*)</sup></td>
- </tr>
- <tr><td colspan="6"></td></tr>
- <tr>
-  <td rowspan="3"><b>random50k</b><br><sub>1160861<br>functions</sub></td>
-  <td><i>Errors</i></td>
-  <td>0.0% 🥇<br><sub>44</sub></td>
-  <td>30.2%<br><sub>351060</sub></td>
-  <td>0.3%<br><sub>3370</sub></td>
-  <td>11.5%<br><sub>133471</sub></td>
- </tr>
- <tr>
-  <td><i>Errors strict</i></td>
-  <td>5.7% 🥇<br><sub>65599</sub></td>
-  <td>58.2%<br><sub>675111</sub></td>
-  <td>55.7%<br><sub>646831</sub></td>
-  <td>27.6%<br><sub>320264</sub></td>
- </tr>
- <tr>
-  <td><i>Time</i></td>
-  <td>222s · 238s · 217s · 427s</td>
-  <td>51s</td>
-  <td>2261s<sup>(*)</sup></td>
-  <td>8334s<sup>(*)</sup></td>
- </tr>
- <tr><td colspan="6"></td></tr>
- <tr>
-  <td rowspan="3"><b>vyper</b><br><sub>21166<br>functions</sub></td>
-  <td><i>Errors</i></td>
-  <td>0.5% 🥇<br><sub>110</sub></td>
-  <td>100.0%<br><sub>21166</sub></td>
-  <td>76.3%<br><sub>16150</sub></td>
-  <td>100.0%<br><sub>21166</sub></td>
- </tr>
- <tr>
-  <td><i>Errors strict</i></td>
-  <td>3.9% 🥇<br><sub>825</sub></td>
-  <td>100.0%<br><sub>21166</sub></td>
-  <td>90.2%<br><sub>19092</sub></td>
-  <td>100.0%<br><sub>21166</sub></td>
- </tr>
- <tr>
-  <td><i>Time</i></td>
-  <td>10s · 11s · 9.9s · 22s</td>
-  <td>1.8s</td>
-  <td>35s<sup>(*)</sup></td>
+  <td>10s · 11s · 9.7s · 20s</td>
+  <td>3.1s</td>
   <td>29s<sup>(*)</sup></td>
+  <td>112s<sup>(*)</sup></td>
+ </tr>
+ <tr><td colspan="6"></td></tr>
+ <tr>
+  <td rowspan="3"><b>random10k</b><br><sub>solidity<br><br>223273<br>functions</sub></td>
+  <td><i>Errors</i></td>
+  <td>0.0% 🥇<br><sub>39</sub></td>
+  <td>48.8%<br><sub>108928</sub></td>
+  <td>9.3%<br><sub>20713</sub></td>
+  <td>18.6%<br><sub>41507</sub></td>
+ </tr>
+ <tr>
+  <td><i>Errors strict</i></td>
+  <td>8.9% 🥇<br><sub>19940</sub></td>
+  <td>69.9%<br><sub>156081</sub></td>
+  <td>60.9%<br><sub>136069</sub></td>
+  <td>40.1%<br><sub>89519</sub></td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>48s · 50s · 46s · 88s</td>
+  <td>12s</td>
+  <td>81s<sup>(*)</sup></td>
+  <td>512s<sup>(*)</sup></td>
+ </tr>
+ <tr><td colspan="6"></td></tr>
+ <tr>
+  <td rowspan="3"><b>coverage1k</b><br><sub>vyper<br><br>38278<br>functions</sub></td>
+  <td><i>Errors</i></td>
+  <td>0.1% 🥇<br><sub>34</sub></td>
+  <td>100.0%<br><sub>38278</sub></td>
+  <td>96.2%<br><sub>36814</sub></td>
+  <td>100.0%<br><sub>38278</sub></td>
+ </tr>
+ <tr>
+  <td><i>Errors strict</i></td>
+  <td>1.2% 🥇<br><sub>441</sub></td>
+  <td>100.0%<br><sub>38278</sub></td>
+  <td>98.4%<br><sub>37650</sub></td>
+  <td>100.0%<br><sub>38278</sub></td>
+ </tr>
+ <tr>
+  <td><i>Time</i></td>
+  <td>45s · 39s · 44s · 89s</td>
+  <td>2.0s</td>
+  <td>5.5s<sup>(*)</sup></td>
+  <td>12s<sup>(*)</sup></td>
  </tr>
 </table>
 
@@ -466,40 +466,40 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Basic Blocks</i></td>
-  <td>97.2% 🥇<br><sub>663214</sub></td>
-  <td>93.8%<br><sub>640383</sub></td>
-  <td>63.0%<br><sub>430011</sub></td>
-  <td>41.4%<br><sub>282599</sub></td>
-  <td>31.9%<br><sub>217924</sub></td>
-  <td>21.7%<br><sub>148166</sub></td>
+  <td>92.8% 🥇<br><sub>483212</sub></td>
+  <td>52.5%<br><sub>273518</sub></td>
+  <td>58.6%<br><sub>305248</sub></td>
+  <td>37.3%<br><sub>194368</sub></td>
+  <td>32.6%<br><sub>169980</sub></td>
+  <td>14.5%<br><sub>75383</sub></td>
  </tr>
  <tr>
   <td><i>False Negatives</i></td>
-  <td>2.8% 🥇<br><sub>19227</sub></td>
-  <td>6.2%<br><sub>42058</sub></td>
-  <td>37.0%<br><sub>252430</sub></td>
-  <td>58.6%<br><sub>399842</sub></td>
-  <td>68.1%<br><sub>464517</sub></td>
-  <td>78.3%<br><sub>534275</sub></td>
+  <td>7.2% 🥇<br><sub>37496</sub></td>
+  <td>47.5%<br><sub>247190</sub></td>
+  <td>41.4%<br><sub>215460</sub></td>
+  <td>62.7%<br><sub>326340</sub></td>
+  <td>67.4%<br><sub>350728</sub></td>
+  <td>85.5%<br><sub>445325</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>16s · 21s · 13s · 40s</td>
-  <td>643s</td>
-  <td>49s</td>
-  <td>28s</td>
-  <td>206s</td>
-  <td>158s</td>
+  <td>14s · 26s · 12s · 55s</td>
+  <td>888s</td>
+  <td>36s</td>
+  <td>9.8s</td>
+  <td>20s</td>
+  <td>359s</td>
  </tr>
 </table>
 
-dataset largest1k, 1000 contracts, 682,441 blocks
+dataset flow-challenge500, 500 contracts, 520,708 blocks
 
 ### notes
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.9.0; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.8.6</i>
+<i>versions: evmole v0.9.3; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.9.3</i>
 
 <sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
 

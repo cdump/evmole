@@ -6,7 +6,7 @@ PROVIDERS_STORAGE ?= evmole-rs evmole-js evmole-py evmole-go smlxl
 PROVIDERS_BLOCKS ?= evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_FLOW ?= evmole-rs evmole-js evmole-py evmole-go evm-cfg ethersolve sevm evm-cfg-builder heimdall-rs
 
-DATASETS ?= solidity-random10k solidity-coverage2k vyper-coverage1k
+DATASETS ?= solidity-coverage2k solidity-random10k vyper-coverage1k
 DATASETS_STORAGE ?= storage-coverage1k
 DATASETS_FLOW ?= flow-challenge500
 DOCKER ?= docker

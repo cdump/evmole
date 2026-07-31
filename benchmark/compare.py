@@ -10,6 +10,15 @@ from collections import defaultdict
 def format_contract_name(v: str) -> str:
     return v.removesuffix('.json')
 
+
+def parse_dataset_name(v: str) -> tuple[str, str]:
+    """Split <language>-<name> into its display components."""
+    match = re.fullmatch(r'(solidity|vyper)-(.+)', v)
+    if match is None:
+        raise ValueError(f'unexpected benchmark dataset name: {v}')
+    return match.groups()
+
+
 def get_mode_defaults() -> dict:
     """Read MODE_DEFAULTS from Makefile using single subprocess call."""
     script_dir = pathlib.Path(__file__).parent
@@ -127,11 +136,15 @@ def markdown_selectors(providers: list[str], all_results: list):
         print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
     print(' </tr>')
     for dataset_idx, dataset_result in enumerate(all_results):
-        dataset_name = dataset_result['dataset']
+        dataset_language, dataset_name = parse_dataset_name(dataset_result['dataset'])
         cnt_contracts = len(dataset_result['results'])
         cnt_funcs = sum(len(x['ground_truth']) for x in dataset_result['results'])
         print(' <tr>')
-        print(f'  <td rowspan="5"><b>{dataset_name}</b><br><sub>{cnt_contracts}<br>addresses<br><br>{cnt_funcs}<br>functions</sub></td>')
+        dataset_cell = (
+            f'<b>{dataset_name}</b><br><sub>{dataset_language}<br><br>'
+            f'{cnt_contracts}<br>addresses<br><br>{cnt_funcs}<br>functions</sub>'
+        )
+        print(f'  <td rowspan="5">{dataset_cell}</td>')
         print('  <td><i>FP <sub>addrs</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fp_contracts = sum(len(x['data'][idx][0]) > 0 for x in dataset_result['results'])
@@ -173,10 +186,14 @@ def markdown_arguments_or_mutability(providers: list[str], all_results: list, se
         print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
     print(' </tr>')
     for dataset_idx, dataset_result in enumerate(all_results):
-        dataset_name = dataset_result['dataset']
+        dataset_language, dataset_name = parse_dataset_name(dataset_result['dataset'])
         cnt_funcs = sum(len(x['func']) for x in dataset_result['results'])
         print(' <tr>')
-        print(f'  <td rowspan="{2 if second_results is None else 3}"><b>{dataset_name}</b><br><sub>{cnt_funcs}<br>functions</sub></td>')
+        dataset_cell = (
+            f'<b>{dataset_name}</b><br><sub>{dataset_language}<br><br>'
+            f'{cnt_funcs}<br>functions</sub>'
+        )
+        print(f'  <td rowspan="{2 if second_results is None else 3}">{dataset_cell}</td>')
         print('  <td><i>Errors</i></td>')
         for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
             bad_fn = sum(1 - y['data'][provider_idx][0] for x in dataset_result['results'] for y in x['func'])
@@ -551,8 +568,7 @@ if __name__ == '__main__':
             show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
 
     elif cfg.mode == 'storage':
-        # results = [process_storage(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
-        results = [process_storage('storage3k', cfg.providers, cfg.results_dir)]
+        results = [process_storage(d, cfg.providers, cfg.results_dir) for d in cfg.datasets]
         show_arguments_or_mutability(cfg.providers, results, cfg.show_errors)
 
     elif cfg.mode == 'flow':
