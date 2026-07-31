@@ -1,6 +1,6 @@
 {
   "name": "evmole-mcp",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "Local stdio MCP server for structured EVM runtime-bytecode analysis with EVMole",
   "license": "MIT",
   "type": "module",
@@ -42,7 +42,7 @@
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
-    "evmole": "0.9.0",
+    "evmole": "0.9.1",
     "zod": "4.4.3"
   },
   "devDependencies": {
