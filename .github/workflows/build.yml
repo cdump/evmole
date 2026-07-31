@@ -12,6 +12,7 @@ on:
 
 env:
   MATURIN_VERSION: 1.13.3
+  MCP_PUBLISHER_VERSION: 1.7.9
 
 jobs:
   prepare-release:
@@ -47,12 +48,18 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
+      - name: Install Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
       - name: Update version in Cargo.toml
         run: sed -i 's/^version = ".*"/version = "${{ inputs.version }}"/' Cargo.toml
 
       - name: Update version in javascript/package.json
         run: |
           sed -i 's/"version": ".*"/"version": "${{ inputs.version }}"/' javascript/package.json
+          node agent/scripts/sync-version.mjs
 
       - name: Build & Compress WASM
         run: make -C go/ wasm
@@ -64,7 +71,7 @@ jobs:
 
       - name: Commit and Tag Release
         run: |
-          git add Cargo.toml Cargo.lock javascript/package.json
+          git add Cargo.toml Cargo.lock javascript/package.json javascript/package-lock.json agent
           git commit -m "release ${{ inputs.version }}"
           release_commit="$(git rev-parse HEAD)"
           git tag "${{ inputs.version }}"
@@ -136,26 +143,32 @@ jobs:
           registry-url: 'https://registry.npmjs.org/'
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      - name: Build
-        id: build
-        working-directory: javascript
+      - name: Build, test, and package JavaScript integrations
         run: |
-          cp ../README.md ./
-          npm ci
-          npm run build
-          npx tsc ./dist/evmole.d.ts
-          npm pack
-      - name: Install test dependencies
-        working-directory: javascript/tests
-        run: npm ci && npx playwright install --with-deps
-      - name: Run tests
-        working-directory: javascript
-        run: make test
-      - name: Upload artifacts
+          cp README.md javascript/
+          npm --prefix javascript ci
+          npm --prefix javascript run build
+          (cd javascript && npx tsc ./dist/evmole.d.ts)
+          npm --prefix javascript/tests ci
+          (cd javascript/tests && npx playwright install --with-deps)
+          npm --prefix javascript test
+          make -C javascript test
+
+          npm --prefix agent/mcp install --ignore-scripts --package-lock=false --no-save --no-audit --no-fund "${{ github.workspace }}/javascript"
+          npm --prefix agent/mcp test
+          node agent/scripts/sync-version.mjs --check
+          node agent/tests/evaluate-routing.mjs
+          node agent/tests/validate-packaging.mjs
+          npx -y skills@latest add . --list
+
+          (cd agent/mcp && npm pack)
+      - name: Upload JavaScript artifacts
         uses: actions/upload-artifact@v4
         with:
           name: javascript
-          path: javascript/evmole-*.tgz
+          path: |
+            javascript/evmole-*.tgz
+            agent/mcp/evmole-mcp-*.tgz
 
   python-wheel:
     needs: rust-test
@@ -288,11 +301,27 @@ jobs:
           path: dist-py
           merge-multiple: true
 
-      - name: Download Javascript Artifacts
+      - name: Download JavaScript artifacts
         uses: actions/download-artifact@v4
         with:
           name: javascript
-          path: ./javascript/
+          path: .
+
+      - name: Publish and verify npm packages
+        run: |
+          npm publish --provenance javascript/evmole-*.tgz
+          npx -y "evmole@${{ inputs.version }}" analyze --bytecode 0x00
+          npm publish --provenance agent/mcp/evmole-mcp-*.tgz
+          npm --prefix agent/mcp install --ignore-scripts --package-lock=false --no-save --no-audit --no-fund
+          node agent/mcp/tests/public-smoke.mjs "${{ inputs.version }}"
+
+      - name: Publish MCP Registry metadata
+        working-directory: agent/mcp
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher validate
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish
 
       - name: Github Release
         uses: softprops/action-gh-release@v2
@@ -304,11 +333,8 @@ jobs:
           body_path: changelog.md
           files: |
             javascript/evmole-*.tgz
+            agent/mcp/evmole-mcp-*.tgz
             dist-py/*
-
-      - name: Publish javascript
-        working-directory: javascript
-        run: npm publish --provenance *.tgz
 
       - name: Publish python
         uses: pypa/gh-action-pypi-publish@unstable/v1 # unstable tmp for issue #309

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cdump/evmole/blob/master/agent/schemas/error-v1.schema.json",
+  "title": "EVMole agent error v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "error"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "enum": [
+            "INVALID_REQUEST",
+            "INVALID_BYTECODE",
+            "BYTECODE_TOO_LARGE",
+            "UNKNOWN_SECTION",
+            "INVALID_RANGE",
+            "ANALYSIS_FAILED",
+            "INTERNAL_ERROR"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

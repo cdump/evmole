@@ -1,0 +1,54 @@
+{
+  "name": "evmole-mcp",
+  "version": "0.9.0",
+  "description": "Local stdio MCP server for structured EVM runtime-bytecode analysis with EVMole",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "evmole-mcp": "./src/server.mjs"
+  },
+  "files": [
+    "LICENSE",
+    "src/server.mjs",
+    "README.md",
+    "server.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cdump/evmole.git",
+    "directory": "agent/mcp"
+  },
+  "homepage": "https://github.com/cdump/evmole/tree/master/agent/mcp",
+  "bugs": {
+    "url": "https://github.com/cdump/evmole/issues"
+  },
+  "mcpName": "io.github.cdump/evmole",
+  "keywords": [
+    "evm",
+    "ethereum",
+    "bytecode",
+    "abi",
+    "static-analysis",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "codex",
+    "claude",
+    "opencode",
+    "pi"
+  ],
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "evmole": "0.9.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0"
+  },
+  "scripts": {
+    "test": "node --test --test-isolation=none --test-concurrency=1 tests/server.test.mjs tests/protocol.test.mjs tests/package_smoke.test.mjs"
+  }
+}

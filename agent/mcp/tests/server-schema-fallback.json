@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name", "description", "version", "packages"],
+  "properties": {
+    "name": {
+      "const": "io.github.cdump/evmole"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "version": {
+      "type": "string"
+    },
+    "packages": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["registryType", "identifier", "transport"],
+        "properties": {
+          "registryType": {"const": "npm"},
+          "identifier": {"const": "evmole-mcp"},
+          "transport": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {"const": "stdio"}
+            }
+          }
+        }
+      }
+    },
+    "remotes": false
+  }
+}

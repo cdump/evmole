@@ -1,0 +1,4 @@
+interface:
+  display_name: "EVM Bytecode Analysis"
+  short_description: "Extract structured facts from EVM bytecode"
+  default_prompt: "Use $evm-bytecode-analysis to inspect this deployed EVM runtime bytecode."

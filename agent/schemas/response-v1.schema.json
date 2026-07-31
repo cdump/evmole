@@ -1,0 +1,246 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cdump/evmole/blob/master/agent/schemas/response-v1.schema.json",
+  "title": "EVMole agent analysis response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evmoleVersion",
+    "input",
+    "analysis",
+    "pagination",
+    "warnings"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "evmoleVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["byteLength", "normalizedBytecodeHash"],
+      "properties": {
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "normalizedBytecodeHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "analysis": {
+      "$ref": "#/$defs/analysis"
+    },
+    "pagination": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "functions",
+        "storage",
+        "transientStorage",
+        "metadata",
+        "disassembly",
+        "basicBlocks",
+        "controlFlowGraph"
+      ],
+      "properties": {
+        "functions": {
+          "description": "Function records returned when selectors, arguments, or stateMutability is requested. Arguments and stateMutability are present only when requested.",
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "items": {"$ref": "#/$defs/function"}
+            }
+          ]
+        },
+        "storage": {
+          "$ref": "#/$defs/nullableStorage"
+        },
+        "transientStorage": {
+          "$ref": "#/$defs/nullableStorage"
+        },
+        "metadata": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/metadata"}
+          ]
+        },
+        "disassembly": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {"type": "integer", "minimum": 0},
+                  {"type": "string"}
+                ],
+                "items": false
+              }
+            }
+          ]
+        },
+        "basicBlocks": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {"type": "integer", "minimum": 0},
+                  {"type": "integer", "minimum": 0}
+                ],
+                "items": false
+              }
+            }
+          ]
+        },
+        "controlFlowGraph": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["blocks"],
+              "properties": {
+                "blocks": {
+                  "type": "array",
+                  "items": {"type": "object"}
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "function": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selector", "bytecodeOffset", "dispatch"],
+      "properties": {
+        "selector": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{8}$"
+        },
+        "bytecodeOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dispatch": {
+          "enum": ["abi", "fallback"]
+        },
+        "arguments": {
+          "type": "string"
+        },
+        "stateMutability": {
+          "enum": ["pure", "view", "payable", "nonpayable"]
+        }
+      }
+    },
+    "nullableStorage": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "array",
+          "items": {"$ref": "#/$defs/storageRecord"}
+        }
+      ]
+    },
+    "storageRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot", "offset", "type", "reads", "writes"],
+      "properties": {
+        "slot": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]+$"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 31
+        },
+        "type": {
+          "type": "string"
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{8}$"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{8}$"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytecodeOffset", "cborLength", "entries"],
+      "properties": {
+        "bytecodeOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cborLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "value"],
+            "properties": {
+              "key": {"type": "string"},
+              "value": {"type": "object"}
+            }
+          }
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "limit", "returned", "available", "truncated"],
+      "properties": {
+        "offset": {"type": "integer", "minimum": 0},
+        "limit": {"type": "integer", "minimum": 1},
+        "returned": {"type": "integer", "minimum": 0},
+        "available": {"type": "integer", "minimum": 0},
+        "truncated": {"type": "boolean"}
+      }
+    }
+  }
+}

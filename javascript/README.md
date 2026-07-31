@@ -6,6 +6,19 @@ The library is built with [wasm-pack](https://rustwasm.github.io/wasm-pack/). To
 
 
 ## Usage
+### JSON CLI
+
+Node.js 22 or newer can run the package as a deterministic JSON command:
+
+```sh
+npx -y evmole analyze --bytecode 0x6001600055
+echo '0x6001600055' | npx -y evmole analyze --include selectors,storage
+```
+
+Run `npx -y evmole --help` for commands and
+[`agent/README.md`](../agent/README.md) for the versioned contract, exit codes,
+MCP server, and agent integrations.
+
 ### Web page
 
 You can load evmole directly in a web page using a script module. Here's how to do it:

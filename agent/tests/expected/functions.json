@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "input": {
+    "byteLength": 24,
+    "normalizedBytecodeHash": "sha256:f672fde33a62e6a520b526239abf68b04b0690dffaa5be1f86fdc22e6d558cc3"
+  },
+  "analysis": {
+    "functions": [
+      {
+        "selector": "0x11223344",
+        "bytecodeOffset": 16,
+        "dispatch": "abi",
+        "arguments": "",
+        "stateMutability": "payable"
+      }
+    ],
+    "storage": null,
+    "transientStorage": null,
+    "metadata": null,
+    "disassembly": null,
+    "basicBlocks": null,
+    "controlFlowGraph": null
+  },
+  "pagination": {
+    "functions": {"offset": 0, "limit": 1000, "returned": 1, "available": 1, "truncated": false}
+  },
+  "warnings": [
+    "Arguments and state mutability are inferred from runtime bytecode rather than verified from source."
+  ]
+}

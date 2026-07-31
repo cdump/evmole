@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "input": {
+    "byteLength": 24,
+    "normalizedBytecodeHash": "sha256:f672fde33a62e6a520b526239abf68b04b0690dffaa5be1f86fdc22e6d558cc3"
+  },
+  "analysis": {
+    "functions": null,
+    "storage": [
+      {
+        "slot": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "offset": 0,
+        "type": "uint256",
+        "reads": [],
+        "writes": ["0x11223344"]
+      }
+    ],
+    "transientStorage": [],
+    "metadata": null,
+    "disassembly": null,
+    "basicBlocks": null,
+    "controlFlowGraph": null
+  },
+  "pagination": {
+    "storage": {"offset": 0, "limit": 1000, "returned": 1, "available": 1, "truncated": false},
+    "transientStorage": {"offset": 0, "limit": 1000, "returned": 0, "available": 0, "truncated": false}
+  },
+  "warnings": [
+    "Storage types and storage labels are inferred from runtime bytecode rather than verified from source."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "input": {
+    "byteLength": 1,
+    "normalizedBytecodeHash": "sha256:6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+  },
+  "analysis": {
+    "functions": [],
+    "storage": [],
+    "transientStorage": [],
+    "metadata": null,
+    "disassembly": null,
+    "basicBlocks": null,
+    "controlFlowGraph": null
+  },
+  "pagination": {
+    "functions": {"offset": 0, "limit": 1000, "returned": 0, "available": 0, "truncated": false},
+    "storage": {"offset": 0, "limit": 1000, "returned": 0, "available": 0, "truncated": false},
+    "transientStorage": {"offset": 0, "limit": 1000, "returned": 0, "available": 0, "truncated": false},
+    "metadata": {"offset": 0, "limit": 1000, "returned": 0, "available": 0, "truncated": false}
+  },
+  "warnings": [
+    "Arguments, state mutability, storage types, and storage labels are inferred from runtime bytecode rather than verified from source."
+  ]
+}

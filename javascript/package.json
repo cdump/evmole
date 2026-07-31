@@ -10,7 +10,27 @@
     "type": "git",
     "url": "git+https://github.com/cdump/evmole.git"
   },
+  "keywords": [
+    "evm",
+    "ethereum",
+    "bytecode",
+    "abi",
+    "static-analysis",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "codex",
+    "claude",
+    "opencode",
+    "pi"
+  ],
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "evmole": "./dist/evmole_cli.mjs"
+  },
   "main": "dist/evmole_node.cjs",
   "module": "dist/evmole.mjs",
   "types": "dist/evmole.d.ts",
@@ -23,7 +43,10 @@
     "dist/evmole.mjs",
     "dist/evmole_node.cjs",
     "dist/evmole_node.mjs",
-    "dist/evmole_wasm_import.js"
+    "dist/evmole_wasm_import.js",
+    "dist/agent_api.mjs",
+    "dist/evmole_cli.mjs",
+    "dist/schemas"
   ],
   "exports": {
     ".": {
@@ -33,6 +56,7 @@
     },
     "./evmole_bg.wasm": "./dist/evmole_bg.wasm",
     "./wasm_import": "./dist/evmole_wasm_import.js",
+    "./agent": "./dist/agent_api.mjs",
     "./no_tla": "./dist/evmole.js",
     "./dist/*": "./dist/*"
   },
@@ -41,13 +65,15 @@
     "build-wasm": "wasm-pack build --no-pack --out-dir ./javascript/dist --target web --features javascript",
     "build-node": "rollup ./src/evmole_node.cjs --file ./dist/evmole_node.cjs --format cjs",
     "build-esm": "rollup ./src/evmole_esm.js --file ./dist/evmole.mjs --format esm",
-    "build-cp": "cp ./src/evmole_node.mjs ./src/evmole_wasm_import.js dist/",
-    "doc": "jsdoc2md --files ./dist/evmole.js --heading-depth 3"
+    "build-cp": "cp ./src/evmole_node.mjs ./src/evmole_wasm_import.js ./src/agent_api.mjs ./src/evmole_cli.mjs dist/ && chmod +x dist/evmole_cli.mjs && mkdir -p dist/schemas && cp ../agent/schemas/*.json dist/schemas/ && rm -f dist/.gitignore",
+    "doc": "jsdoc2md --files ./dist/evmole.js --heading-depth 3",
+    "test": "node --test --test-isolation=none --test-concurrency=1 tests/agent_api.test.mjs tests/cli.test.mjs tests/package_smoke.test.mjs"
   },
   "devDependencies": {
     "jsdoc-to-markdown": "^9.1",
     "rollup": "^4.61",
     "typescript": "^6.0",
-    "wasm-pack": "^0.15"
+    "wasm-pack": "^0.15",
+    "ajv": "^8.20.0"
   }
 }

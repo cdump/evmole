@@ -1,0 +1,23 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.cdump/evmole",
+  "title": "EVMole",
+  "description": "Local structured analysis of deployed EVM runtime bytecode",
+  "version": "0.9.0",
+  "repository": {
+    "url": "https://github.com/cdump/evmole",
+    "source": "github",
+    "subfolder": "agent/mcp"
+  },
+  "websiteUrl": "https://github.com/cdump/evmole/tree/master/agent/mcp",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "evmole-mcp",
+      "version": "0.9.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

@@ -8,7 +8,6 @@
 
 EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), persistent and transient storage layouts, and CBOR metadata, even for unverified contracts.
 
-
 ## Key Features
 
 - Multi-language support: Available as [JavaScript](#javascript), [Rust](#rust), [Python](#python), and [Go](#go) libraries.
@@ -141,6 +140,41 @@ $ cast selectors --resolve $(cast code 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc
 0x23b872dd  address,address,uint256  nonpayable  transferFrom(address,address,uint256)
 ...
 ```
+
+### AI agents
+
+For application code, use one of the language bindings above. For agent-driven
+bytecode analysis, choose one integration.
+
+#### JSON CLI
+
+Use for one-off analysis and scripts:
+
+```bash
+npx -y evmole analyze --bytecode 0x...
+```
+
+#### Portable skill
+
+Install routing and interpretation guidance for supported agents:
+
+```bash
+npx skills add cdump/evmole --skill evm-bytecode-analysis -g
+```
+
+#### Local MCP server
+
+Expose EVMole as a typed local tool:
+
+```bash
+npx -y evmole-mcp
+```
+
+All integrations expect deployed/runtime bytecode and run locally without
+sending bytecode to an EVMole-operated service. See the
+[agent integration guide](./agent/README.md) for setup, schemas,
+limitations, and privacy details.
+
 
 ## Benchmark
 

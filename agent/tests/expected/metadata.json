@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "input": {
+    "byteLength": 13,
+    "normalizedBytecodeHash": "sha256:10c9e3b9a0bea6922927da7bd45acca7c093ddb1d2a4607637cfae8914d4e31a"
+  },
+  "analysis": {
+    "functions": null,
+    "storage": null,
+    "transientStorage": null,
+    "metadata": {
+      "bytecodeOffset": 1,
+      "cborLength": 10,
+      "entries": [
+        {
+          "key": "solc",
+          "value": {"type": "bytes", "value": "00081a"}
+        }
+      ]
+    },
+    "disassembly": null,
+    "basicBlocks": null,
+    "controlFlowGraph": null
+  },
+  "pagination": {
+    "metadata": {"offset": 0, "limit": 1000, "returned": 1, "available": 1, "truncated": false}
+  },
+  "warnings": []
+}
