@@ -48,6 +48,10 @@ struct Info {
 }
 
 impl Info {
+    fn has_dynamic(&self) -> bool {
+        self.tinfo.is_some() || self.children.values().any(Self::has_dynamic)
+    }
+
     fn to_alloy_type(&self, is_root: bool) -> Vec<DynSolType> {
         if let Some((name, _)) = &self.tname {
             if matches!(name, DynSolType::Bytes) {
@@ -130,6 +134,7 @@ impl Info {
 struct ArgsResult {
     data: Info,
     not_bool: HashSet<Vec<u32>>,
+    decoder_active: bool,
 }
 
 impl ArgsResult {
@@ -209,11 +214,101 @@ impl ArgsResult {
     }
 }
 
+fn is_conditional_guard(code: &[u8], pc: usize) -> bool {
+    let Some((&next_op, rest)) = code.get(pc..).and_then(|code| code.split_first()) else {
+        return false;
+    };
+    let (next_op, rest) = if next_op == op::ISZERO {
+        let Some((&next_op, rest)) = rest.split_first() else {
+            return false;
+        };
+        (next_op, rest)
+    } else {
+        (next_op, rest)
+    };
+    if !(op::PUSH1..=op::PUSH4).contains(&next_op) {
+        return false;
+    }
+    let push_size = (next_op - op::PUSH0) as usize;
+    rest.get(push_size) == Some(&op::JUMPI)
+}
+
+fn direct_min_calldata_words(code: &[u8], pc: usize) -> Option<usize> {
+    let pc = pc + usize::from(code.get(pc) == Some(&op::JUMPDEST));
+    let &push_op = code.get(pc)?;
+    if !(op::PUSH1..=op::PUSH4).contains(&push_op) {
+        return None;
+    }
+    let push_size = (push_op - op::PUSH0) as usize;
+    if code.get(pc + 1 + push_size) != Some(&op::CALLDATASIZE)
+        || code.get(pc + 2 + push_size) != Some(&op::LT)
+    {
+        return None;
+    }
+    let min_size = code
+        .get(pc + 1..pc + 1 + push_size)?
+        .iter()
+        .fold(0usize, |value, &byte| (value << 8) | usize::from(byte));
+    (min_size >= 4 && (min_size - 4).is_multiple_of(32)).then_some((min_size - 4) / 32)
+}
+
+fn dense_min_calldata_words(code: &[u8], pc: usize, packed: &Element<Label>) -> Option<usize> {
+    let pc = pc + usize::from(code.get(pc) == Some(&op::JUMPDEST));
+    if code.get(pc) != Some(&op::DUP1) {
+        return None;
+    }
+    let &push_op = code.get(pc + 1)?;
+    if !(op::PUSH1..=op::PUSH3).contains(&push_op) {
+        return None;
+    }
+    let push_size = (push_op - op::PUSH0) as usize;
+    let mask_bytes = code.get(pc + 2..pc + 2 + push_size)?;
+    if code.get(pc + 2 + push_size) != Some(&op::AND)
+        || code.get(pc + 3 + push_size) != Some(&op::CALLDATASIZE)
+        || code.get(pc + 4 + push_size) != Some(&op::LT)
+        || mask_bytes[..mask_bytes.len() - 1]
+            .iter()
+            .any(|&byte| byte != 0xff)
+        || mask_bytes.last() != Some(&0xfe)
+    {
+        return None;
+    }
+
+    let mask = mask_bytes
+        .iter()
+        .fold(U256::ZERO, |value, &byte| (value << 8) | U256::from(byte));
+    let packed = U256::from_be_bytes(packed.data);
+    let min_size: usize = (packed & mask).try_into().ok()?;
+    (min_size >= 4 && (min_size - 4).is_multiple_of(32)).then_some((min_size - 4) / 32)
+}
+
 fn analyze(
     vm: &mut Vm<Label, CallDataImpl>,
     args: &mut ArgsResult,
     ret: StepResult<Label>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if matches!(
+        ret.op,
+        op::SLOAD
+            | op::SSTORE
+            | op::TLOAD
+            | op::TSTORE
+            | op::KECCAK256
+            | op::BALANCE
+            | op::EXTCODESIZE
+            | op::EXTCODEHASH
+            | op::EXTCODECOPY
+            | op::CALL
+            | op::CALLCODE
+            | op::DELEGATECALL
+            | op::STATICCALL
+            | op::CREATE
+            | op::CREATE2
+            | op::SELFDESTRUCT
+            | op::LOG0..=op::LOG4
+    ) {
+        args.decoder_active = false;
+    }
     match ret {
         StepResult {
             op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),
@@ -403,6 +498,20 @@ fn analyze(
         }
 
         StepResult {
+            op: op::SHL,
+            args: [shift, elabel!(Label::Arg(Val { offset, path, .. })), ..],
+            ..
+        } if path.is_empty() && args.decoder_active => {
+            if is_conditional_guard(vm.code, vm.pc)
+                && let Ok(shift) = usize::try_from(shift)
+                && (8..=256).contains(&shift)
+                && shift.is_multiple_of(8)
+            {
+                args.set_tname(&path, offset, DynSolType::FixedBytes(shift / 8), 20);
+            }
+        }
+
+        StepResult {
             op: op @ op::MUL,
             args:
                 match_first_two!(
@@ -549,6 +658,33 @@ fn analyze(
         } => {
             args.mark_not_bool(&path, offset);
             args.set_tname(&path, offset, DynSolType::Uint(8), 12);
+        }
+
+        // Vyper validates narrow ABI scalars by rejecting non-zero high bits.
+        // Modern code branches directly on SHR, while older versions insert
+        // ISZERO before the branch.
+        StepResult {
+            op: op::SHR,
+            args: [shift, elabel!(Label::Arg(Val { offset, path, .. })), ..],
+            ..
+        } if args.decoder_active => {
+            if is_conditional_guard(vm.code, vm.pc)
+                && let Ok(width) = usize::try_from(shift)
+                && width < 256
+            {
+                let inferred_type = if width == 1 {
+                    Some(DynSolType::Bool)
+                } else if width == 160 {
+                    Some(DynSolType::Address)
+                } else if width.is_multiple_of(8) {
+                    Some(DynSolType::Uint(width))
+                } else {
+                    None
+                };
+                if let Some(inferred_type) = inferred_type {
+                    args.set_tname(&path, offset, inferred_type, 20);
+                }
+            }
         }
 
         StepResult {
@@ -710,7 +846,10 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
         selector: *selector,
     };
     let mut vm = Vm::new(code, &calldata);
-    let mut args = ArgsResult::default();
+    let mut args = ArgsResult {
+        decoder_active: true,
+        ..ArgsResult::default()
+    };
     let mut gas_used = 0;
     let real_gas_limit = if gas_limit == 0 {
         5e4 as u32
@@ -722,6 +861,15 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
         gas_used += g;
     } else {
         return vec![];
+    }
+
+    // Seed Vyper's static ABI head from its minimum-calldata-size check. This
+    // preserves arguments that the one concrete execution path never reads.
+    let mut min_static_words = direct_min_calldata_words(vm.code, vm.pc);
+    if let Ok(packed) = vm.stack.peek()
+        && let Some(words) = dense_min_calldata_words(vm.code, vm.pc, packed)
+    {
+        min_static_words = Some(words);
     }
 
     while !vm.stopped {
@@ -745,6 +893,16 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
 
         if analyze(&mut vm, &mut args, ret).is_err() {
             break;
+        }
+    }
+
+    // Dynamic minimum sizes include tail words, so only apply this fallback
+    // when execution found no dynamic structure at all.
+    if !args.data.has_dynamic()
+        && let Some(words) = min_static_words
+    {
+        for offset in (0..words * 32).step_by(32) {
+            args.get_or_create(&[offset as u32]);
         }
     }
 
