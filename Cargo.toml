@@ -2,10 +2,9 @@
 name = "evmole"
 version = "0.9.3"
 edition = "2024"
-description = "Extracts function selectors and arguments from EVM bytecode"
+description = "Analyzes deployed EVM bytecode to infer selectors, arguments, mutability, storage layout, control flow, and metadata"
 authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
 license = "MIT"
-readme = "README.md"
 repository = "https://github.com/cdump/evmole"
 exclude = ["/javascript", "/python", "/benchmark", "/.github"]
 

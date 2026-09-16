@@ -1,6 +1,6 @@
 {
   "name": "evmole",
-  "description": "Extracts function selectors and arguments from EVM bytecode",
+  "description": "Analyzes deployed EVM bytecode to infer selectors, arguments, mutability, storage layout, control flow, and metadata",
   "version": "0.9.3",
   "license": "MIT",
   "collaborators": [
@@ -75,5 +75,8 @@
     "typescript": "^6.0",
     "wasm-pack": "^0.15",
     "ajv": "^8.20.0"
+  },
+  "allowScripts": {
+    "wasm-pack@0.15.0": true
   }
 }
