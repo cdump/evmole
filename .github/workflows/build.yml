@@ -145,7 +145,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Build, test, and package JavaScript integrations
         run: |
-          cp README.md javascript/
+          cp README.md LICENSE javascript/
           npm --prefix javascript ci
           npm --prefix javascript run build
           (cd javascript && npx tsc ./dist/evmole.d.ts)

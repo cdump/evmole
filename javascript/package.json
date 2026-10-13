@@ -35,6 +35,7 @@
   "module": "dist/evmole.mjs",
   "types": "dist/evmole.d.ts",
   "files": [
+    "LICENSE",
     "README.md",
     "dist/evmole_bg.wasm",
     "dist/evmole_bg.wasm.d.ts",
