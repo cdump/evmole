@@ -11,8 +11,8 @@ on:
         type: string
 
 env:
-  MATURIN_VERSION: 1.13.3
-  MCP_PUBLISHER_VERSION: 1.7.9
+  MATURIN_VERSION: 1.15.0
+  MCP_PUBLISHER_VERSION: 1.8.1
 
 jobs:
   prepare-release:
@@ -21,7 +21,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -49,7 +49,7 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
 
@@ -91,7 +91,7 @@ jobs:
     needs: [prepare-release]
     if: always() && (needs.prepare-release.result == 'success' || needs.prepare-release.result == 'skipped')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install Rust
@@ -110,7 +110,7 @@ jobs:
       matrix:
         go-version: ['1.25', 'stable']
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && format('go/v{0}', inputs.version) || '' }}
       - name: Install Rust
@@ -118,7 +118,7 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
       - name: Install Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
       - name: Build WASM
@@ -133,11 +133,11 @@ jobs:
     needs: rust-test
     if: always() && needs.rust-test.result == 'success'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org/'
@@ -163,7 +163,7 @@ jobs:
 
           (cd agent/mcp && npm pack)
       - name: Upload JavaScript artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: javascript
           path: |
@@ -188,11 +188,11 @@ jobs:
             target: universal2-apple-darwin
     runs-on: ${{ matrix.platform.runner }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Build
@@ -207,7 +207,7 @@ jobs:
       - name: Test
         run: python3 python/test_python.py
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: python-${{ matrix.platform.os}}-${{ matrix.python-version }}
           path: dist/*.whl
@@ -218,11 +218,11 @@ jobs:
     needs: rust-test
     if: always() && needs.rust-test.result == 'success'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: 3.x
       - name: Build sdist
@@ -232,7 +232,7 @@ jobs:
           command: sdist
           args: --out dist
       - name: Upload artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: python-sdist
           path: dist
@@ -243,17 +243,17 @@ jobs:
     needs: python-sdist
     if: always() && needs.python-sdist.result == 'success'
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.version || '' }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: 3.13
           allow-prereleases: true
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           name: python-sdist
       - name: Build and install wheel
@@ -269,7 +269,7 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # need tags to generate release notes
           ref: ${{ inputs.version }}
@@ -283,7 +283,7 @@ jobs:
         run: cargo publish --allow-dirty
 
       - name: Install Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org/'
@@ -295,14 +295,14 @@ jobs:
           cat changelog.md
 
       - name: Download Python Artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           pattern: python-*
           path: dist-py
           merge-multiple: true
 
       - name: Download JavaScript artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: javascript
           path: .
@@ -361,7 +361,7 @@ jobs:
             dist-py/*
 
       - name: Publish python
-        uses: pypa/gh-action-pypi-publish@unstable/v1 # unstable tmp for issue #309
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true
           packages-dir: dist-py/

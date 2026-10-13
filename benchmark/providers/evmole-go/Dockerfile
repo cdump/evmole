@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM rust:1.97 AS build-wasm
+FROM rust:1.99 AS build-wasm
 RUN rustup target add wasm32-unknown-unknown
 COPY ./rust /rust
 RUN cargo build --target wasm32-unknown-unknown --release --features wasm --manifest-path /rust/Cargo.toml
