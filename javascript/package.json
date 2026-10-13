@@ -1,7 +1,7 @@
 {
   "name": "evmole",
   "description": "Analyzes deployed EVM bytecode: extracts function selectors and CBOR metadata; infers argument types, state mutability, storage layouts, and control flow.",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "license": "MIT",
   "author": "Maxim Andreev <andreevmaxim@gmail.com>",
   "homepage": "https://evmole.xyz/",
