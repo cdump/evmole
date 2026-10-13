@@ -73,7 +73,7 @@
   "devDependencies": {
     "jsdoc-to-markdown": "^9.1",
     "rollup": "^4.61",
-    "typescript": "^6.0",
+    "typescript": "^7.0",
     "wasm-pack": "^0.15",
     "ajv": "^8.20.0"
   },
