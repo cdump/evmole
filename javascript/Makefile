@@ -19,6 +19,8 @@ evmole.latest.tgz: evmole-%.tgz
 
 test: evmole.latest.tgz $(NODE_MODULES_TARGETS)
 	npx tsc ./dist/evmole.d.ts
+	npx tsc --noEmit --strict --module nodenext typecheck/esm.mts typecheck/cjs.cts
+	npx tsc --noEmit --strict --module preserve --moduleResolution bundler typecheck/esm.mts typecheck/cjs.cts
 
 	for dir in $(EXAMPLES_DIR); do \
 		npm --prefix $$dir install --force --no-save ./evmole.latest.tgz; \

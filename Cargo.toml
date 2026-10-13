@@ -2,9 +2,11 @@
 name = "evmole"
 version = "0.9.3"
 edition = "2024"
-description = "Analyzes deployed EVM bytecode to infer selectors, arguments, mutability, storage layout, control flow, and metadata"
+description = "Analyzes deployed EVM bytecode: extracts function selectors and CBOR metadata; infers argument types, state mutability, storage layouts, and control flow."
+keywords = ["evm", "ethereum", "bytecode", "abi", "static-analysis"]
 authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
 license = "MIT"
+homepage = "https://evmole.xyz/"
 repository = "https://github.com/cdump/evmole"
 exclude = ["/javascript", "/python", "/benchmark", "/.github"]
 

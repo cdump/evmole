@@ -1,14 +1,17 @@
 {
   "name": "evmole",
-  "description": "Analyzes deployed EVM bytecode to infer selectors, arguments, mutability, storage layout, control flow, and metadata",
+  "description": "Analyzes deployed EVM bytecode: extracts function selectors and CBOR metadata; infers argument types, state mutability, storage layouts, and control flow.",
   "version": "0.9.3",
   "license": "MIT",
-  "collaborators": [
-    "Maxim Andreev <andreevmaxim@gmail.com>"
-  ],
+  "author": "Maxim Andreev <andreevmaxim@gmail.com>",
+  "homepage": "https://evmole.xyz/",
+  "bugs": {
+    "url": "https://github.com/cdump/evmole/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/cdump/evmole.git"
+    "url": "git+https://github.com/cdump/evmole.git",
+    "directory": "javascript"
   },
   "keywords": [
     "evm",
@@ -16,13 +19,17 @@
     "bytecode",
     "abi",
     "static-analysis",
+    "solidity",
+    "vyper",
+    "function-selectors",
+    "storage-layouts",
+    "control-flow",
+    "disassembler",
+    "cbor",
+    "cli",
     "mcp",
     "model-context-protocol",
-    "ai-agent",
-    "codex",
-    "claude",
-    "opencode",
-    "pi"
+    "ai-agent"
   ],
   "type": "module",
   "engines": {
@@ -41,6 +48,8 @@
     "dist/evmole_bg.wasm.d.ts",
     "dist/evmole.js",
     "dist/evmole.d.ts",
+    "dist/evmole_main.d.mts",
+    "dist/evmole_main.d.cts",
     "dist/evmole.mjs",
     "dist/evmole_node.cjs",
     "dist/evmole_node.mjs",
@@ -51,6 +60,10 @@
   ],
   "exports": {
     ".": {
+      "types": {
+        "require": "./dist/evmole_main.d.cts",
+        "default": "./dist/evmole_main.d.mts"
+      },
       "require": "./dist/evmole_node.cjs",
       "node": "./dist/evmole_node.mjs",
       "default": "./dist/evmole.mjs"
@@ -66,7 +79,7 @@
     "build-wasm": "wasm-pack build --no-pack --out-dir ./javascript/dist --target web --features javascript",
     "build-node": "rollup ./src/evmole_node.cjs --file ./dist/evmole_node.cjs --format cjs",
     "build-esm": "rollup ./src/evmole_esm.js --file ./dist/evmole.mjs --format esm",
-    "build-cp": "cp ./src/evmole_node.mjs ./src/evmole_wasm_import.js ./src/agent_api.mjs ./src/evmole_cli.mjs dist/ && chmod +x dist/evmole_cli.mjs && mkdir -p dist/schemas && cp ../agent/schemas/*.json dist/schemas/ && rm -f dist/.gitignore",
+    "build-cp": "cp ./src/evmole_node.mjs ./src/evmole_wasm_import.js ./src/agent_api.mjs ./src/evmole_cli.mjs ./src/evmole_main.d.mts ./src/evmole_main.d.cts dist/ && chmod +x dist/evmole_cli.mjs && mkdir -p dist/schemas && cp ../agent/schemas/*.json dist/schemas/ && rm -f dist/.gitignore",
     "doc": "jsdoc2md --files ./dist/evmole.js --heading-depth 3",
     "test": "node --test --test-isolation=none --test-concurrency=1 tests/agent_api.test.mjs tests/cli.test.mjs tests/package_smoke.test.mjs"
   },
