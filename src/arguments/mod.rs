@@ -857,13 +857,13 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
         return vec![];
     }
 
-    // Seed Vyper's static ABI head from its minimum-calldata-size check. This
-    // preserves arguments that the one concrete execution path never reads.
-    let mut min_static_words = direct_min_calldata_words(vm.code, vm.pc);
+    // Read Vyper's minimum calldata size to recover head words that the one
+    // concrete execution path never reads.
+    let mut min_calldata_words = direct_min_calldata_words(vm.code, vm.pc);
     if let Ok(packed) = vm.stack.peek()
         && let Some(words) = dense_min_calldata_words(vm.code, vm.pc, packed)
     {
-        min_static_words = Some(words);
+        min_calldata_words = Some(words);
     }
 
     while !vm.stopped {
@@ -884,11 +884,25 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
         }
     }
 
-    // Dynamic minimum sizes include tail words, so only apply this fallback
-    // when execution found no dynamic structure at all.
-    if !args.data.has_dynamic()
-        && let Some(words) = min_static_words
-    {
+    // A single array without decoded elements contributes a length word to
+    // the minimum tail size. Exclude that word when recovering its ABI head.
+    let head_words = min_calldata_words.and_then(|words| {
+        let mut dynamic_args = args
+            .data
+            .children
+            .values()
+            .filter(|info| info.has_dynamic());
+        match (dynamic_args.next(), dynamic_args.next()) {
+            (None, None) => Some(words),
+            (Some(info), None)
+                if matches!(info.tinfo, Some(InfoVal::Array(_))) && info.children.is_empty() =>
+            {
+                words.checked_sub(1)
+            }
+            _ => None,
+        }
+    });
+    if let Some(words) = head_words {
         for offset in (0..words * 32).step_by(32) {
             args.get_or_create(&[offset as u32]);
         }
