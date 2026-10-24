@@ -25,6 +25,10 @@ enum Label {
 const VAL_2: U256 = uint!(2_U256);
 const VAL_31_B: [u8; 32] = uint!(31_U256).to_be_bytes();
 
+// Bound materialization to the simulated 128 KiB calldata capacity.
+const MAX_ARGUMENT_WORDS: usize = 4096;
+const MAX_ARGUMENT_DEPTH: usize = 64;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Val {
     offset: u32,
@@ -48,6 +52,26 @@ struct Info {
 }
 
 impl Info {
+    fn fits_type_budget(&self, budget: &mut usize, depth: usize) -> bool {
+        if depth > MAX_ARGUMENT_DEPTH {
+            return false;
+        }
+        let mut last_word = self
+            .children
+            .last_key_value()
+            .map_or(0, |(&offset, _)| offset / 32);
+        if let Some(InfoVal::Array(n) | InfoVal::Dynamic(n)) = self.tinfo {
+            last_word = max(last_word, n);
+        }
+        let Some(remaining) = budget.checked_sub(last_word as usize + 1) else {
+            return false;
+        };
+        *budget = remaining;
+        self.children
+            .values()
+            .all(|child| child.fits_type_budget(budget, depth + 1))
+    }
+
     fn has_dynamic(&self) -> bool {
         self.tinfo.is_some() || self.children.values().any(Self::has_dynamic)
     }
@@ -902,13 +926,14 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
             _ => None,
         }
     });
-    if let Some(words) = head_words {
+    if let Some(words) = head_words.filter(|&words| words <= MAX_ARGUMENT_WORDS) {
         for offset in (0..words * 32).step_by(32) {
             args.get_or_create(&[offset as u32]);
         }
     }
 
-    if args.data.children.is_empty() {
+    let mut type_budget = MAX_ARGUMENT_WORDS * 2;
+    if args.data.children.is_empty() || !args.data.fits_type_budget(&mut type_budget, 0) {
         vec![]
     } else {
         args.data.to_alloy_type(true)
