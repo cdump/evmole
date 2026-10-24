@@ -226,13 +226,14 @@ mod tests {
     use super::*;
     use std::collections::BTreeMap;
 
-    fn encode_maps(
-        elements: &[DynSolType],
-    ) -> (
+    /// The encoded size, the label type at each offset, and the value at each offset.
+    type EncodedMaps = (
         usize,
         BTreeMap<usize, (DynSolType, CallDataLabelType)>,
         BTreeMap<usize, U256>,
-    ) {
+    );
+
+    fn encode_maps(elements: &[DynSolType]) -> EncodedMaps {
         let (size, types, vals) = encode(elements);
         (size, BTreeMap::from_iter(types), BTreeMap::from_iter(vals))
     }
