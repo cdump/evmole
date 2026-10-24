@@ -108,7 +108,7 @@ jobs:
     if: always() && needs.rust-test.result == 'success'
     strategy:
       matrix:
-        go-version: ['1.25', 'stable']
+        go-version: ['1.26', 'stable']
     steps:
       - uses: actions/checkout@v7
         with:
