@@ -905,10 +905,6 @@ fn analyze_rec(
     let mut gas_used = 0;
 
     while !vm.stopped {
-        if cfg!(feature = "trace_storage") {
-            println!("{vm:?}\n");
-            println!("storage: {:?}\n", st.loaded);
-        }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
@@ -947,13 +943,6 @@ fn analyze_one_function(
     is_fallback: bool,
     gas_limit: u32,
 ) -> SlotHashMap {
-    if cfg!(feature = "trace_storage") {
-        println!(
-            "analyze selector {}\n",
-            alloy_primitives::hex::encode(selector)
-        );
-    }
-
     let calldata = CallDataImpl::<Label>::new(selector, arguments);
     let mut vm = Vm::new(code, &calldata);
 
@@ -1050,7 +1039,6 @@ fn collect_slot_records(records: &mut DomainSlotRecords, selector: Selector, loa
 fn finalize_slot_records(
     slot_records: SlotRecords,
     fallback_selector: Selector,
-    domain_name: &str,
 ) -> Vec<StorageRecord> {
     let mut normalized_slot_records = BTreeMap::new();
     let mut grouped_by_slot: BTreeMap<Slot, Vec<_>> = BTreeMap::new();
@@ -1117,34 +1105,6 @@ fn finalize_slot_records(
         });
     }
 
-    if cfg!(feature = "trace_storage") {
-        println!("{domain_name} storage:");
-        for record in &records {
-            println!(
-                "slot {} off {}",
-                alloy_primitives::hex::encode(record.slot),
-                record.offset
-            );
-            println!(" type: {}", record.r#type);
-            println!(
-                " reads: {:?}",
-                record
-                    .reads
-                    .iter()
-                    .map(alloy_primitives::hex::encode)
-                    .collect::<Vec<_>>()
-            );
-            println!(
-                " writes: {:?}",
-                record
-                    .writes
-                    .iter()
-                    .map(alloy_primitives::hex::encode)
-                    .collect::<Vec<_>>()
-            );
-        }
-    }
-
     records
 }
 
@@ -1179,11 +1139,7 @@ where
     collect_slot_records(&mut slot_records, fallback_selector, fallback);
 
     StorageLayouts {
-        storage: finalize_slot_records(slot_records.persistent, fallback_selector, "persistent"),
-        transient_storage: finalize_slot_records(
-            slot_records.transient,
-            fallback_selector,
-            "transient",
-        ),
+        storage: finalize_slot_records(slot_records.persistent, fallback_selector),
+        transient_storage: finalize_slot_records(slot_records.transient, fallback_selector),
     }
 }

@@ -31,18 +31,6 @@ python = ["dep:pyo3"]
 javascript = ["dep:wasm-bindgen", "dep:serde-wasm-bindgen", "serde"]
 wasm = ["serde", "dep:serde_json"]
 
-# for dev
-trace_selectors = []
-trace_arguments = []
-trace_mutability = []
-trace_storage = []
-trace = [
-    "trace_selectors",
-    "trace_arguments",
-    "trace_mutability",
-    "trace_storage",
-]
-
 [lib]
 crate-type = ["cdylib", "lib"]
 

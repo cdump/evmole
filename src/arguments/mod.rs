@@ -836,12 +836,6 @@ fn analyze(
 /// * `gas_limit` - Maximum allowed gas usage; set to `0` to use defaults
 /// ```
 pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> Vec<DynSolType> {
-    if cfg!(feature = "trace_arguments") {
-        println!(
-            "Processing selector {:02x}{:02x}{:02x}{:02x}",
-            selector[0], selector[1], selector[2], selector[3]
-        );
-    }
     let calldata = CallDataImpl {
         selector: *selector,
     };
@@ -873,12 +867,6 @@ pub fn function_arguments(code: &[u8], selector: &Selector, gas_limit: u32) -> V
     }
 
     while !vm.stopped {
-        if cfg!(feature = "trace_arguments") {
-            println!("args: {args:?}");
-            println!("not_bool: {:?}", args.not_bool);
-            println!("{:#?}", args.data);
-            println!("{vm:?}\n");
-        }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {

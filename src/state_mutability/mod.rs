@@ -80,9 +80,6 @@ fn analyze_payable(
     let mut last_jumpi_callvalue = false;
 
     while !vm.stopped {
-        if cfg!(feature = "trace_mutability") {
-            println!("{vm:?}\n");
-        }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
@@ -177,9 +174,6 @@ fn analyze_view_pure_internal(
     }
 
     while !vm.stopped && vpr.view {
-        if cfg!(feature = "trace_mutability") {
-            println!("{vm:?}\n");
-        }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {

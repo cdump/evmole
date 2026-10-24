@@ -9,7 +9,7 @@ use crate::{
     },
     utils::{elabel, match_first_two},
 };
-use alloy_primitives::{hex, uint};
+use alloy_primitives::uint;
 use std::collections::BTreeMap;
 
 mod calldata;
@@ -240,16 +240,6 @@ fn process(
 ) -> u32 {
     let mut gas_used = 0;
     while !vm.stopped {
-        if cfg!(feature = "trace_selectors") {
-            println!(
-                "selectors: {:?}",
-                selectors
-                    .iter()
-                    .map(|(s, p)| (hex::encode(s), *p))
-                    .collect::<Vec<(String, usize)>>()
-            );
-            println!("{vm:?}\n");
-        }
         let ret = match vm.step() {
             Ok(v) => v,
             Err(_e) => {
