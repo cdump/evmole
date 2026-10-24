@@ -11,11 +11,9 @@ repository = "https://github.com/cdump/evmole"
 exclude = ["/javascript", "/python", "/benchmark", "/.github", "/agent", "/go"]
 
 [dependencies]
-alloy-primitives = { version = "1", default-features = false, features = [
-    "std",
-    "map-foldhash",
-] }
+alloy-primitives = { version = "1", default-features = false, features = ["std"] }
 alloy-dyn-abi = { version = "1", default-features = false }
+foldhash = "0.2"
 indexmap = "2.12"
 minicbor = { version = "2.2", default-features = false, features = ["alloc"] }
 

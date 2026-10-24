@@ -925,6 +925,7 @@ version = "0.9.4"
 dependencies = [
  "alloy-dyn-abi",
  "alloy-primitives",
+ "foldhash",
  "indexmap 2.14.2",
  "minicbor",
  "pyo3",
