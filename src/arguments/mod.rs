@@ -670,7 +670,7 @@ fn analyze(
         } if args.decoder_active => {
             if is_conditional_guard(vm.code, vm.pc)
                 && let Ok(width) = usize::try_from(shift)
-                && width < 256
+                && (1..256).contains(&width)
             {
                 let inferred_type = if width == 1 {
                     Some(DynSolType::Bool)
