@@ -8,7 +8,7 @@ authors = ["Maxim Andreev <andreevmaxim@gmail.com>"]
 license = "MIT"
 homepage = "https://evmole.xyz/"
 repository = "https://github.com/cdump/evmole"
-exclude = ["/javascript", "/python", "/benchmark", "/.github"]
+exclude = ["/javascript", "/python", "/benchmark", "/.github", "/agent", "/go"]
 
 [dependencies]
 alloy-primitives = { version = "1", default-features = false, features = [
@@ -41,6 +41,3 @@ codegen-units = 1
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-O", "--enable-bulk-memory"]
-
-[lints.clippy]
-collapsible_match = "allow" # since 1.95 got false-positives in our codebase
