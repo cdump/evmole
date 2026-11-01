@@ -6,7 +6,7 @@ use crate::{
         op,
         vm::{StepResult, Vm},
     },
-    utils::{elabel, execute_until_function_start},
+    utils::{elabel, execute_until_function_start, match_first_two},
 };
 
 mod calldata;
@@ -14,8 +14,9 @@ use calldata::CallDataImpl;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Label {
+    /// Depends on the call value, not necessarily equal to it
     CallValue,
-    IsZero,
+    ConstZero,
 }
 
 const fn create_opcode_lookup_table<const N: usize>(ops: [op::OpCode; N]) -> [bool; 256] {
@@ -112,17 +113,38 @@ fn analyze_payable(
                 vm.stack
                     .peek_mut()
                     .expect("results is always pushed in vm.rs")
-                    .label = Some(Label::IsZero);
+                    .label = Some(Label::CallValue);
             }
 
             StepResult {
                 op: op::AND | op::OR | op::XOR | op::MUL,
                 ref args,
                 ..
-            } if args.iter().any(|arg| {
-                arg.label == Some(Label::CallValue) || arg.label == Some(Label::IsZero)
-            }) =>
-            {
+            } if args.iter().any(|arg| arg.label == Some(Label::CallValue)) => {
+                vm.stack
+                    .peek_mut()
+                    .expect("results is always pushed in vm.rs")
+                    .label = Some(Label::CallValue);
+            }
+
+            // Unknown reads (SLOAD, CALLDATALOAD, ...) are also 0 in this VM, so only a pushed
+            // zero proves that `EQ` is a zero check and not `msg.value == price`.
+            StepResult {
+                op: op::PUSH0..=op::PUSH32,
+                ..
+            } => {
+                if let Ok(s) = vm.stack.peek_mut()
+                    && s.data == VAL_0_B
+                {
+                    s.label = Some(Label::ConstZero);
+                }
+            }
+
+            StepResult {
+                op: op::EQ,
+                args: match_first_two!(elabel!(Label::ConstZero), elabel!(Label::CallValue)),
+                ..
+            } => {
                 vm.stack
                     .peek_mut()
                     .expect("results is always pushed in vm.rs")
@@ -134,8 +156,7 @@ fn analyze_payable(
                 args: [_, sa, ..],
                 ..
             } => {
-                last_jumpi_callvalue =
-                    sa.label == Some(Label::IsZero) || sa.label == Some(Label::CallValue);
+                last_jumpi_callvalue = sa.label == Some(Label::CallValue);
             }
 
             StepResult {
