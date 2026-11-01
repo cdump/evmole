@@ -22,6 +22,8 @@ enum Label {
     IsZeroResult(Val),
 }
 
+const RANGE_CONFIDENCE: u8 = 6;
+
 const VAL_2: U256 = uint!(2_U256);
 const VAL_31_B: [u8; 32] = uint!(31_U256).to_be_bytes();
 
@@ -49,9 +51,17 @@ struct Info {
     tinfo: Option<InfoVal>,
     tname: Option<(DynSolType, u8)>,
     children: BTreeMap<u32, Info>,
+    range_blocked: bool,
 }
 
 impl Info {
+    fn clear_range_hints(&mut self) {
+        self.tname.take_if(|(_, conf)| *conf == RANGE_CONFIDENCE);
+        for child in self.children.values_mut() {
+            child.clear_range_hints();
+        }
+    }
+
     fn fits_type_budget(&self, budget: &mut usize, depth: usize) -> bool {
         if depth > MAX_ARGUMENT_DEPTH {
             return false;
@@ -173,13 +183,27 @@ impl ArgsResult {
             .try_fold(&mut self.data, |node, &key| node.children.get_mut(&key))
     }
 
+    fn clear_range_hint(&mut self, val: &Val, block: bool) {
+        if let Some(info) = self
+            .get_mut(&val.path)
+            .and_then(|info| info.children.get_mut(&val.offset))
+        {
+            info.range_blocked |= block;
+            info.tname.take_if(|(_, conf)| *conf == RANGE_CONFIDENCE);
+        }
+    }
+
+    fn has_range_hint(&mut self, path: &[u32], offset: u32) -> bool {
+        self.get_mut(&[path, &[offset]].concat())
+            .is_some_and(|el| matches!(el.tname, Some((_, RANGE_CONFIDENCE))))
+    }
+
     fn mark_not_bool(&mut self, path: &[u32], offset: u32) {
         let full_path = [path, &[offset]].concat();
 
-        if let Some(el) = self.get_mut(&full_path)
-            && let Some((DynSolType::Bool, _)) = &mut el.tname
-        {
-            el.tname = None;
+        if let Some(el) = self.get_mut(&full_path) {
+            el.tname
+                .take_if(|(ty, conf)| matches!(ty, DynSolType::Bool) || *conf == RANGE_CONFIDENCE);
         }
 
         self.not_bool.insert(full_path);
@@ -188,11 +212,16 @@ impl ArgsResult {
     fn set_tname(&mut self, path: &[u32], offset: u32, tname: DynSolType, confidence: u8) {
         let full_path = [path, &[offset]].concat();
 
-        if matches!(tname, DynSolType::Bool) && self.not_bool.contains(&full_path) {
+        if (matches!(tname, DynSolType::Bool) || confidence == RANGE_CONFIDENCE)
+            && self.not_bool.contains(&full_path)
+        {
             return;
         }
 
         let el = self.get_or_create(&full_path);
+        if confidence == RANGE_CONFIDENCE && el.range_blocked {
+            return;
+        }
         if let Some((_, conf)) = el.tname
             && confidence <= conf
         {
@@ -238,23 +267,39 @@ impl ArgsResult {
     }
 }
 
-fn is_conditional_guard(code: &[u8], pc: usize) -> bool {
-    let Some((&next_op, rest)) = code.get(pc..).and_then(|code| code.split_first()) else {
-        return false;
-    };
-    let (next_op, rest) = if next_op == op::ISZERO {
-        let Some((&next_op, rest)) = rest.split_first() else {
-            return false;
-        };
-        (next_op, rest)
-    } else {
-        (next_op, rest)
-    };
-    if !(op::PUSH1..=op::PUSH4).contains(&next_op) {
-        return false;
+fn guard_failure_pc(code: &[u8], mut pc: usize, less_than: bool) -> Option<usize> {
+    let inverted = *code.get(pc)? == op::ISZERO;
+    pc += usize::from(inverted);
+    let push = *code.get(pc)?;
+    if !(op::PUSH1..=op::PUSH4).contains(&push) {
+        return None;
     }
-    let push_size = (next_op - op::PUSH0) as usize;
-    rest.get(push_size) == Some(&op::JUMPI)
+    let size = usize::from(push - op::PUSH0);
+    if code.get(pc + 1 + size) != Some(&op::JUMPI) {
+        return None;
+    }
+    Some(if less_than != inverted {
+        pc + 2 + size
+    } else {
+        code.get(pc + 1..pc + 1 + size)?
+            .iter()
+            .fold(0usize, |acc, byte| (acc << 8) | usize::from(*byte))
+    })
+}
+
+// Only empty-revert guards are candidates for ABI range validation.
+fn is_empty_revert_guard(code: &[u8], pc: usize, less_than: bool) -> bool {
+    let Some(rest) = guard_failure_pc(code, pc, less_than).and_then(|pc| code.get(pc..)) else {
+        return false;
+    };
+    let rest = rest.strip_prefix(&[op::JUMPDEST]).unwrap_or(rest);
+    matches!(
+        rest,
+        [op::PUSH0, op::PUSH0 | op::DUP1, op::REVERT, ..]
+            | [op::PUSH0, op::PUSH1, 0, op::REVERT, ..]
+            | [op::PUSH1, 0, op::PUSH0 | op::DUP1, op::REVERT, ..]
+            | [op::PUSH1, 0, op::PUSH1, 0, op::REVERT, ..]
+    )
 }
 
 fn direct_min_calldata_words(code: &[u8], pc: usize) -> Option<usize> {
@@ -311,6 +356,57 @@ fn analyze(
     args: &mut ArgsResult,
     ret: StepResult<Label>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    if matches!(
+        ret.op,
+        op::DIV | op::MOD | op::SUB | op::EXP | op::EQ | op::ISZERO | op::JUMPI | op::SLOAD
+    ) {
+        // Prior word comparisons rule out new range hints, while preserving
+        // types already inferred by the existing ABI cleanup checks.
+        let compared_words = ret.op == op::EQ
+            && ret
+                .args
+                .iter()
+                .all(|arg| matches!(arg.label, Some(Label::Arg(_))));
+        // Comparing a validated word with a constant is its normal use.
+        if ret.op != op::EQ || compared_words {
+            for operand in &ret.args {
+                if let Some(Label::Arg(val)) = &operand.label {
+                    args.clear_range_hint(val, compared_words);
+                }
+            }
+        }
+    }
+    if ret.op == op::REVERT && args.decoder_active {
+        // An aborted simulated decoder path does not establish a range type.
+        args.data.clear_range_hints();
+    }
+    if matches!(ret.op, op::LT | op::GT) && args.decoder_active {
+        // Orient strict comparisons as value < bound or value > bound.
+        let comparison = match (&ret.args[0].label, &ret.args[1].label) {
+            (Some(Label::Arg(val)), None) => Some((val, &ret.args[1], ret.op == op::LT)),
+            (None, Some(Label::Arg(val))) => Some((val, &ret.args[0], ret.op == op::GT)),
+            _ => None,
+        };
+        if let Some((val, bound, less_than)) = comparison
+            && val.add_val == 0
+            && val.and_mask.is_none()
+            // Slot zero of a dynamic path may be its length. Bounds on that
+            // length describe the container, not a scalar argument.
+            && (val.offset != 0 || val.path.is_empty())
+            && let Ok(bound) = u32::try_from(bound)
+            && let Some(upper) = bound.checked_sub(u32::from(less_than))
+            && (1..=255).contains(&upper)
+            && is_empty_revert_guard(vm.code, vm.pc, less_than)
+        {
+            // Solidity validates enums this way, including two-member ones, and
+            // validates bools differently, so a bound of 1 is uint8 as well.
+            args.set_tname(&val.path, val.offset, DynSolType::Uint(8), RANGE_CONFIDENCE);
+            // Inserted directly: mark_not_bool would drop the new hint.
+            args.not_bool
+                .insert([val.path.as_slice(), &[val.offset]].concat());
+            return Ok(());
+        }
+    }
     if matches!(
         ret.op,
         op::SLOAD
@@ -526,7 +622,8 @@ fn analyze(
             args: [shift, elabel!(Label::Arg(Val { offset, path, .. })), ..],
             ..
         } if path.is_empty() && args.decoder_active => {
-            if is_conditional_guard(vm.code, vm.pc)
+            args.mark_not_bool(&path, offset);
+            if guard_failure_pc(vm.code, vm.pc, true).is_some()
                 && let Ok(shift) = usize::try_from(shift)
                 && (8..=256).contains(&shift)
                 && shift.is_multiple_of(8)
@@ -672,7 +769,10 @@ fn analyze(
             args: match_first_two!(elabel!(Label::Arg(Val { offset, path, .. })), _),
             ..
         } => {
-            args.mark_not_bool(&path, offset);
+            // A validated enum can be checked again, e.g. before a panic.
+            if !args.has_range_hint(&path, offset) {
+                args.mark_not_bool(&path, offset);
+            }
         }
 
         StepResult {
@@ -692,7 +792,7 @@ fn analyze(
             args: [shift, elabel!(Label::Arg(Val { offset, path, .. })), ..],
             ..
         } if args.decoder_active => {
-            if is_conditional_guard(vm.code, vm.pc)
+            if guard_failure_pc(vm.code, vm.pc, true).is_some()
                 && let Ok(width) = usize::try_from(shift)
                 && (1..256).contains(&width)
             {

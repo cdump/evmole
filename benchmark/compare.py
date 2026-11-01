@@ -322,8 +322,38 @@ def process_mutability(dname: str, providers: list[str], results_dir: str, stric
     nfn = mutability_normalize_dummy if strict is True else mutability_normalize
     return process_functions('mutability', dname, providers, results_dir, nfn)
 
+def split_args(args: str) -> list[str]:
+    """Split on top-level commas: 'a,(b,c)[],d' => ['a', '(b,c)[]', 'd']."""
+    ret = []
+    depth = 0
+    start = 0
+    for i, c in enumerate(args):
+        if c == '(':
+            depth += 1
+        elif c == ')':
+            depth -= 1
+        elif c == ',' and depth == 0:
+            ret.append(args[start:i])
+            start = i + 1
+    if args:
+        ret.append(args[start:])
+    return ret
+
 def process_arguments(dname: str, providers: list[str], results_dir: str, normalize_rules: set[str]):
-    return process_functions('arguments', dname, providers, results_dir, lambda x: normalize_args(x, normalize_rules))
+    normalize = lambda x: normalize_args(x, normalize_rules)
+    ret = process_functions('arguments', dname, providers, results_dir, normalize)
+    for contract in ret['results']:
+        for func in contract['func']:
+            gt_args = split_args(normalize(func['gt']))
+            func['args_cnt'] = len(gt_args)
+            func['args_good'] = []
+            func['args_extra'] = []
+            for data in func['data']:
+                # data[1] is only present for functions with wrong arguments
+                got_args = gt_args if data[0] else split_args(normalize(data[1]))
+                func['args_good'].append(sum(a == b for a, b in zip(gt_args, got_args)))
+                func['args_extra'].append(max(0, len(got_args) - len(gt_args)))
+    return ret
 
 def process_storage(dname: str, providers: list[str], results_dir: str):
     pdata, ptimes = load_data('storage', dname, providers, results_dir)
@@ -500,6 +530,11 @@ def show_arguments_or_mutability(providers: list[str], all_results: list, show_e
             print(f'  time: {format_time(dataset_result["timings"][provider_idx])}')
             print(f'  bad:  {bad_fn} functions {(bad_fn*100/cnt_funcs):.2f}%')
             print(f'  good: {good_fn} functions ({(good_fn*100/cnt_funcs):.2f}%)')
+            cnt_args = sum(y.get('args_cnt', 0) for x in dataset_result['results'] for y in x['func'])
+            if cnt_args > 0:
+                good_args = sum(y['args_good'][provider_idx] for x in dataset_result['results'] for y in x['func'])
+                extra_args = sum(y['args_extra'][provider_idx] for x in dataset_result['results'] for y in x['func'])
+                print(f'  args: {good_args} of {cnt_args} valid ({(good_args*100/cnt_args):.2f}%), {extra_args} extra')
 
             if show_errors is not True:
                 continue
