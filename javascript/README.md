@@ -252,7 +252,7 @@ Represents a basic block in the control flow graph
 
 | Name | Type | Description |
 | --- | --- | --- |
-| to | [<code>DynamicJump</code>](#DynamicJump) | Possible computed jump destinations |
+| to | [<code>Array.&lt;DynamicJump&gt;</code>](#DynamicJump) | Possible computed jump destinations |
 
 <a name="DataDynamicJumpi"></a>
 
@@ -262,7 +262,7 @@ Represents a basic block in the control flow graph
 
 | Name | Type | Description |
 | --- | --- | --- |
-| true_to | [<code>DynamicJump</code>](#DynamicJump) | Possible computed jump destinations if true |
+| true_to | [<code>Array.&lt;DynamicJump&gt;</code>](#DynamicJump) | Possible computed jump destinations if true |
 | false_to | <code>number</code> | Destination block ID if condition is false; use `Block.start` to get the bytecode offset |
 
 <a name="DynamicJump"></a>

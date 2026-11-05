@@ -194,11 +194,11 @@ export type Block = {
       }
     | {
           type: 'DynamicJump';
-          data: { to: DynamicJump };
+          data: { to: DynamicJump[] };
       }
     | {
           type: 'DynamicJumpi';
-          data: { true_to: DynamicJump, false_to: number};
+          data: { true_to: DynamicJump[]; false_to: number };
       }
 );
 "#;
@@ -238,14 +238,14 @@ pub fn dummy_block_data_jumpi() {}
 
 // {{{ Data DynamicJump Block
 /// @typedef {Object} DataDynamicJump
-/// @property {DynamicJump} to - Possible computed jump destinations
+/// @property {DynamicJump[]} to - Possible computed jump destinations
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_dynamic_jump() {}
 // }}}
 
 // {{{ Data DynamicJumpi Block
 /// @typedef {Object} DataDynamicJumpi
-/// @property {DynamicJump} true_to - Possible computed jump destinations if true
+/// @property {DynamicJump[]} true_to - Possible computed jump destinations if true
 /// @property {number} false_to - Destination block ID if condition is false; use Block.start to get the bytecode offset
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_dynamic_jumpi() {}
