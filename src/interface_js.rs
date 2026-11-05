@@ -1,5 +1,5 @@
 use alloy_primitives::hex;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -375,6 +375,9 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     }
 
     let info = crate::contract_info(cargs);
-    Ok(serde_wasm_bindgen::to_value(&info)?)
+    // `Block` flattens its `BlockType`, which serde emits as a map; serialize maps as plain
+    // objects so CFG blocks match the `Block` TypeScript type instead of becoming JS `Map`s.
+    let serializer = serde_wasm_bindgen::Serializer::new().serialize_maps_as_objects(true);
+    Ok(info.serialize(&serializer)?)
 }
 // }}}

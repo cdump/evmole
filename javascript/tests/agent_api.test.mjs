@@ -234,6 +234,14 @@ test("paginates every requested list section and reports truncation", async () =
   assert.equal(paged.analysis.disassembly.length, 1);
   assert.equal(paged.analysis.basicBlocks.length, 1);
   assert.equal(paged.analysis.controlFlowGraph.blocks.length, 1);
+  assert.deepEqual(full.analysis.controlFlowGraph.blocks[0], {
+    id: 0,
+    start: 0,
+    end: 4,
+    type: "Jumpi",
+    data: { true_to: 8, false_to: 5 },
+  });
+  assert.deepEqual(paged.analysis.controlFlowGraph.blocks[0], full.analysis.controlFlowGraph.blocks[1]);
   assert.equal(paged.pagination.disassembly.available, full.analysis.disassembly.length);
   assert.equal(paged.pagination.disassembly.truncated, true);
   assert.match(paged.warnings.join(" "), /truncated/);
