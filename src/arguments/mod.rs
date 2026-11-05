@@ -563,21 +563,23 @@ fn analyze(
         } => {
             args.mark_not_bool(&f_path, f_offset);
             args.mark_not_bool(&s_path, s_offset);
-            vm.stack.peek_mut()?.label = Some(Label::Arg(if f_path.len() > s_path.len() {
-                Val {
-                    offset: f_offset,
-                    path: f_path,
-                    add_val: f_add_val + s_add_val,
-                    and_mask: f_and_mask,
-                }
-            } else {
-                Val {
-                    offset: s_offset,
-                    path: s_path,
-                    add_val: s_add_val + f_add_val,
-                    and_mask: s_and_mask,
-                }
-            }));
+            if let Some(add_val) = f_add_val.checked_add(s_add_val) {
+                vm.stack.peek_mut()?.label = Some(Label::Arg(if f_path.len() > s_path.len() {
+                    Val {
+                        offset: f_offset,
+                        path: f_path,
+                        add_val,
+                        and_mask: f_and_mask,
+                    }
+                } else {
+                    Val {
+                        offset: s_offset,
+                        path: s_path,
+                        add_val,
+                        and_mask: s_and_mask,
+                    }
+                }));
+            }
         }
 
         StepResult {
@@ -1057,6 +1059,22 @@ mod tests {
         assert_eq!(functions.len(), 1);
         assert_eq!(functions[0].selector, [0x11, 0x22, 0x33, 0x44]);
         assert_eq!(functions[0].arguments, Some(vec![crate::DynSolType::Bool]));
+    }
+
+    #[test]
+    fn test_add_two_args_add_val_overflow() {
+        // calldataload(4) + 0xfffffff0, then that value added to itself:
+        // the two add_val constants overflow u32
+        let code = hex::decode("60003560e01c631122334414600f575b60043563fffffff001800100").unwrap();
+
+        let info = contract_info(ContractInfoArgs::new(&code).with_arguments());
+
+        let functions = info.functions.unwrap();
+        assert_eq!(functions.len(), 1);
+        assert_eq!(
+            functions[0].arguments,
+            Some(vec![crate::DynSolType::Uint(256)])
+        );
     }
 
     #[test]
