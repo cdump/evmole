@@ -18,21 +18,17 @@ const TOOL_DESCRIPTION =
   "This tool does not fetch contracts, decode calldata, verify source code, or " +
   "fully decompile a contract.";
 
-const sections = [
-  "selectors",
-  "arguments",
-  "stateMutability",
-  "storage",
-  "transientStorage",
-  "metadata",
-  "disassembly",
-  "basicBlocks",
-  "controlFlowGraph",
-];
-
-export function createEvmoleServer({ analyzeBytecode, normalizeAgentError }) {
-  if (typeof analyzeBytecode !== "function" || typeof normalizeAgentError !== "function") {
-    throw new TypeError("EVMole adapter functions are required.");
+export function createEvmoleServer({
+  analyzeBytecode,
+  normalizeAgentError,
+  analysisSections,
+}) {
+  if (
+    typeof analyzeBytecode !== "function" ||
+    typeof normalizeAgentError !== "function" ||
+    !Array.isArray(analysisSections)
+  ) {
+    throw new TypeError("EVMole adapter functions and sections are required.");
   }
 
   const server = new McpServer({
@@ -45,7 +41,10 @@ export function createEvmoleServer({ analyzeBytecode, normalizeAgentError }) {
     {
       title: "Analyze EVM bytecode",
       description: TOOL_DESCRIPTION,
-      inputSchema: {
+      // Unknown keys pass through so the shared adapter rejects them with its
+      // canonical INVALID_REQUEST envelope; the advertised JSON Schema still
+      // declares additionalProperties: false, as request-v1.schema.json does.
+      inputSchema: z.looseObject({
         bytecode: z
           .string()
           .describe(
@@ -55,12 +54,12 @@ export function createEvmoleServer({ analyzeBytecode, normalizeAgentError }) {
           .array(z.string())
           .optional()
           .describe(
-            `Analysis features to include: ${sections.join(", ")}. ` +
+            `Analysis features to include: ${analysisSections.join(", ")}. ` +
             "arguments and stateMutability imply selectors.",
           ),
         offset: z.number().optional(),
         limit: z.number().optional(),
-      },
+      }).meta({ additionalProperties: false }),
     },
     async (request) => {
       try {
@@ -126,8 +125,13 @@ function isMainModule() {
 
 if (isMainModule()) {
   try {
-    const { analyzeBytecode, normalizeAgentError } = await import("evmole/agent");
-    await runStdioServer({ analyzeBytecode, normalizeAgentError });
+    const { analyzeBytecode, normalizeAgentError, ANALYSIS_SECTIONS } =
+      await import("evmole/agent");
+    await runStdioServer({
+      analyzeBytecode,
+      normalizeAgentError,
+      analysisSections: ANALYSIS_SECTIONS,
+    });
   } catch {
     process.stderr.write("evmole-mcp failed to start.\n");
     process.exitCode = 1;

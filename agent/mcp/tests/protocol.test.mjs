@@ -42,6 +42,7 @@ test("negotiates protocol and lists exactly one documented tool", async () => {
     assert.equal(result.tools[0].name, "analyze_evm_bytecode");
     assert.match(result.tools[0].description, /deployed EVM runtime bytecode/);
     assert.equal(result.tools[0].inputSchema.required.includes("bytecode"), true);
+    assert.equal(result.tools[0].inputSchema.additionalProperties, false);
     const includeSchema = result.tools[0].inputSchema.properties.include;
     assert.equal(includeSchema.items.type, "string");
     assert.match(includeSchema.description, /selectors/);
@@ -111,6 +112,7 @@ test("returns canonical errors for semantically invalid requests", async () => {
         { bytecode: "00", include: ["selectors", "selectors"] },
         "INVALID_REQUEST",
       ],
+      [{ bytecode: "00", inclde: ["disassembly"] }, "INVALID_REQUEST"],
     ];
 
     for (const [arguments_, code] of cases) {

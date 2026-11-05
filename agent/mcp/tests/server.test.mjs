@@ -5,6 +5,7 @@ import test from "node:test";
 import Ajv from "ajv";
 
 import {
+  ANALYSIS_SECTIONS,
   analyzeBytecode,
   normalizeAgentError,
 } from "../../../javascript/dist/agent_api.mjs";
@@ -23,7 +24,11 @@ test("creates one MCP server without writing stdout or stderr", () => {
     return true;
   };
   try {
-    const server = createEvmoleServer({ analyzeBytecode, normalizeAgentError });
+    const server = createEvmoleServer({
+      analyzeBytecode,
+      normalizeAgentError,
+      analysisSections: ANALYSIS_SECTIONS,
+    });
     assert.ok(server);
   } finally {
     process.stdout.write = stdout;
