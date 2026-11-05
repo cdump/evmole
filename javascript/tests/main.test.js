@@ -27,5 +27,8 @@ import { test, expect } from '@playwright/test';
 
     const d = page.locator('#disassembled')
     await expect(d).toHaveText(/0 PUSH1 80.*/);
+
+    const cfg = page.locator('#control_flow_graph')
+    await expect(cfg).toHaveText('{"id":0,"start":0,"end":10,"type":"Jumpi","data":{"true_to":14,"false_to":11}}');
   });
 });
