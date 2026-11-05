@@ -130,7 +130,7 @@
               "properties": {
                 "blocks": {
                   "type": "array",
-                  "items": {"type": "object"}
+                  "items": {"$ref": "#/$defs/cfgBlock"}
                 }
               }
             }
@@ -228,6 +228,87 @@
             }
           }
         }
+      }
+    },
+    "cfgBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "start", "end", "type", "data"],
+      "properties": {
+        "id": {"type": "integer", "minimum": 0},
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0},
+        "type": {"enum": ["Terminate", "Jump", "Jumpi", "DynamicJump", "DynamicJumpi"]},
+        "data": {"type": "object"}
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {"const": "Terminate"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["success"],
+              "properties": {"success": {"type": "boolean"}}
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "Jump"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["to"],
+              "properties": {"to": {"type": "integer", "minimum": 0}}
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "Jumpi"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["true_to", "false_to"],
+              "properties": {
+                "true_to": {"type": "integer", "minimum": 0},
+                "false_to": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "DynamicJump"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["to"],
+              "properties": {
+                "to": {"type": "array", "items": {"$ref": "#/$defs/dynamicJump"}}
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "DynamicJumpi"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["true_to", "false_to"],
+              "properties": {
+                "true_to": {"type": "array", "items": {"$ref": "#/$defs/dynamicJump"}},
+                "false_to": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dynamicJump": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+        "to": {"type": "integer", "minimum": 0}
       }
     },
     "page": {
