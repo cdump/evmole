@@ -270,6 +270,8 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
 
     let disassembled = args.need_disassemble.then(|| disassemble(args.code));
 
+    let metadata = metadata.filter(|_| args.need_metadata);
+
     Contract {
         functions,
         storage,
