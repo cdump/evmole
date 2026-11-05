@@ -245,6 +245,7 @@ func (b *Block) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements custom marshaling for Block with type and data fields.
 func (b Block) MarshalJSON() ([]byte, error) {
 	type blockJSON struct {
+		ID    int    `json:"id"`
 		Start int    `json:"start"`
 		End   int    `json:"end"`
 		Type  string `json:"type"`
@@ -266,6 +267,7 @@ func (b Block) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(blockJSON{
+		ID:    b.ID,
 		Start: b.Start,
 		End:   b.End,
 		Type:  b.Type.Kind.String(),

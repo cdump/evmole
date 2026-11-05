@@ -252,15 +252,11 @@ func TestJSONRoundTrip(t *testing.T) {
 	if len(info2.ControlFlowGraph.Blocks) != len(info.ControlFlowGraph.Blocks) {
 		t.Errorf("CFG blocks count mismatch: got %d, want %d", len(info2.ControlFlowGraph.Blocks), len(info.ControlFlowGraph.Blocks))
 	}
-	if len(info.ControlFlowGraph.Blocks) > 0 && len(info2.ControlFlowGraph.Blocks) > 0 {
-		b1 := info.ControlFlowGraph.Blocks[0]
-		b2 := info2.ControlFlowGraph.Blocks[0]
-		if b2.Start != b1.Start || b2.End != b1.End {
-			t.Errorf("First block mismatch: got {%d,%d}, want {%d,%d}", b2.Start, b2.End, b1.Start, b1.End)
-		}
-		if b2.Type.Kind != b1.Type.Kind {
-			t.Errorf("First block type mismatch: got %v, want %v", b2.Type.Kind, b1.Type.Kind)
-		}
+	if len(info.ControlFlowGraph.Blocks) < 2 {
+		t.Fatalf("expected a multi-block CFG, got %d blocks", len(info.ControlFlowGraph.Blocks))
+	}
+	if !reflect.DeepEqual(info2.ControlFlowGraph, info.ControlFlowGraph) {
+		t.Errorf("ControlFlowGraph mismatch after JSON round trip:\ngot  %+v\nwant %+v", info2.ControlFlowGraph.Blocks, info.ControlFlowGraph.Blocks)
 	}
 }
 
