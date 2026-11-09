@@ -1,5 +1,5 @@
 REFERENCE_PROVIDER = reference
-PROVIDERS_SELECTORS ?= whatsabi evm-hound-rs sevm heimdall-rs evmole-rs evmole-js evmole-py evmole-go
+PROVIDERS_SELECTORS ?= whatsabi evm-hound-rs sevm heimdall-rs gigahorse evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_ARGUMENTS ?= heimdall-rs evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_MUTABILITY ?= whatsabi sevm heimdall-rs evmole-rs evmole-js evmole-py evmole-go
 PROVIDERS_STORAGE ?= evmole-rs evmole-js evmole-py evmole-go smlxl

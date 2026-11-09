@@ -1,0 +1,37 @@
+// Top-level storage layout
+#include "../clientlib/decompiler_imports.dl"
+#include "../clientlib/memory_modeling/memory_modeling.dl"
+#include "../clientlib/storage_modeling/storage_modeling.dl"
+
+// Value-typed variables. Same rules as StorageVariableType, which also emits a
+// "uint256" fallback next to the inferred type of full-word variables
+.decl StorageLayoutVariable(slot: symbol, offset: number, type: symbol)
+.output StorageLayoutVariable
+
+StorageLayoutVariable(slot, 0, type):-
+  StorageVariableInfo(_, $Storage(), slot, 0, 31),
+  StorageVariable_Type($Storage(), $Variable($Constant(slot)), type).
+
+StorageLayoutVariable(slot, 0, "uint256"):-
+  StorageVariableInfo(_, $Storage(), slot, 0, 31),
+  !StorageVariable_Type($Storage(), $Variable($Constant(slot)), _).
+
+StorageLayoutVariable(slot, byteLow, type):-
+  StorageVariableInfo(_, $Storage(), slot, byteLow, byteHigh),
+  byteHigh - byteLow != 31,
+  StorageVariable_Type($Storage(), $TightlyPackedVariable($Constant(slot), byteLow, byteHigh), type).
+
+StorageLayoutVariable(slot, byteLow, cat("uint", to_string(8 * (1 + byteHigh - byteLow)))):-
+  StorageVariableInfo(_, $Storage(), slot, byteLow, byteHigh),
+  byteHigh - byteLow != 31,
+  !StorageVariable_Type($Storage(), $TightlyPackedVariable($Constant(slot), byteLow, byteHigh), _).
+
+// Mappings, arrays and strings declared at a constant slot
+.output StorageOffset_Type
+
+// Struct values of mappings/arrays, to name them struct_N_fields like the reference provider
+.decl StorageLayoutStruct(structID: symbol, elemNum: number)
+.output StorageLayoutStruct
+
+StorageLayoutStruct(structID, elemNum):-
+  DataStructureValueIsStruct($Storage(), _, structID, elemNum).
