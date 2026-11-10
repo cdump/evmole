@@ -126,6 +126,11 @@ def format_time(timings) -> str:
     # return f'total = {format_time_val(timings["total"])} | p50 = {format_time_val(timings["p50"])} | p99 = {format_time_val(timings["p99"])}'
 
 
+def format_time_markdown(timings, provider: str) -> str:
+    suffix = '<sup>*</sup>' if provider in {'sevm', 'heimdall-rs', 'gigahorse'} else ''
+    return format_time(timings) + suffix
+
+
 
 def markdown_selectors(providers: list[str], all_results: list):
     print('<table>')
@@ -133,7 +138,7 @@ def markdown_selectors(providers: list[str], all_results: list):
     print('  <td>Dataset</td>')
     print('  <td></td>')
     for name in providers[1:]:
-        print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
+        print(f'  <td><a href="benchmark/providers/{name}/"><i>{name}</i></a></td>')
     print(' </tr>')
     for dataset_idx, dataset_result in enumerate(all_results):
         dataset_language, dataset_name = parse_dataset_name(dataset_result['dataset'])
@@ -145,25 +150,25 @@ def markdown_selectors(providers: list[str], all_results: list):
             f'{cnt_contracts}<br>addresses<br><br>{cnt_funcs}<br>functions</sub>'
         )
         print(f'  <td rowspan="5">{dataset_cell}</td>')
-        print('  <td><i>FP <sub>addrs</sub></i></td>')
+        print('  <td><i>FP&nbsp;<sub>addr</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fp_contracts = sum(len(x['data'][idx][0]) > 0 for x in dataset_result['results'])
             print(f'  <td>{fp_contracts}</td>')
         print(' </tr>')
         print(' <tr>')
-        print('  <td><i>FN <sub>addrs</sub></i></td>')
+        print('  <td><i>FN&nbsp;<sub>addr</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fn_contracts = sum(len(x['data'][idx][1]) > 0 for x in dataset_result['results'])
             print(f'  <td>{fn_contracts}</td>')
         print(' </tr>')
         print(' <tr>')
-        print('  <td><i>FP <sub>funcs</sub></i></td>')
+        print('  <td><i>FP&nbsp;<sub>func</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fp_signatures = sum(len(x['data'][idx][0]) for x in dataset_result['results'])
             print(f'  <td>{fp_signatures}</td>')
         print(' </tr>')
         print(' <tr>')
-        print('  <td><i>FN <sub>funcs</sub></i></td>')
+        print('  <td><i>FN&nbsp;<sub>func</sub></i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
             fn_signatures = sum(len(x['data'][idx][1]) for x in dataset_result['results'])
             print(f'  <td>{fn_signatures}</td>')
@@ -171,7 +176,7 @@ def markdown_selectors(providers: list[str], all_results: list):
         print(' <tr>')
         print('  <td><i>Time</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
-            print(f'  <td>{format_time(dataset_result["timings"][idx])}</td>')
+            print(f'  <td>{format_time_markdown(dataset_result["timings"][idx], providers[idx + 1])}</td>')
         print(' </tr>')
         if dataset_idx != len(all_results) - 1:
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
@@ -183,7 +188,7 @@ def markdown_arguments_or_mutability(providers: list[str], all_results: list, se
     print('  <td>Dataset</td>')
     print('  <td></td>')
     for name in providers[1:]:
-        print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
+        print(f'  <td><a href="benchmark/providers/{name}/"><i>{name}</i></a></td>')
     print(' </tr>')
     for dataset_idx, dataset_result in enumerate(all_results):
         dataset_language, dataset_name = parse_dataset_name(dataset_result['dataset'])
@@ -201,7 +206,7 @@ def markdown_arguments_or_mutability(providers: list[str], all_results: list, se
         print(' </tr>')
         if second_results is not None:
             print(' <tr>')
-            print('  <td><i>Errors 2nd</i></td>')
+            print('  <td><i>Errors&nbsp;2nd</i></td>')
             for provider_idx in range(0, len(providers) - 1): # skip ground_truth provider
                 bad_fn = sum(1 - y['data'][provider_idx][0] for x in second_results[dataset_idx]['results'] for y in x['func'])
                 print(f'  <td>{(bad_fn*100/cnt_funcs):.1f}%<br><sub>{bad_fn}</sub></td>')
@@ -209,7 +214,7 @@ def markdown_arguments_or_mutability(providers: list[str], all_results: list, se
         print(' <tr>')
         print('  <td><i>Time</i></td>')
         for idx in range(0, len(providers) - 1): # skip ground_truth provider
-            print(f'  <td>{format_time(dataset_result["timings"][idx])}</td>')
+            print(f'  <td>{format_time_markdown(dataset_result["timings"][idx], providers[idx + 1])}</td>')
         print(' </tr>')
         if dataset_idx != len(all_results) - 1:
             print(f' <tr><td colspan="{1 + len(providers)}"></td></tr>')
@@ -487,25 +492,25 @@ def markdown_flow(providers: list[str], all_results: list):
     print('  <td>Dataset</td>')
     print('  <td></td>')
     for name in providers:
-        print(f'  <td><a href="benchmark/providers/{name}/"><b><i>{name}</i></b></a></td>')
+        print(f'  <td><a href="benchmark/providers/{name}/"><i>{name}</i></a></td>')
     print(' </tr>')
 
     print(' <tr>')
-    print('  <td><i>Basic Blocks</i></td>')
+    print('  <td><i>Basic&nbsp;Blocks</i></td>')
     for provider_idx in range(len(providers)):
         total_blocks_cnt = sum(y['results'][provider_idx][0] for y in dataset_result['results'])
         print(f'  <td>{(total_blocks_cnt*100/total_gt_blocks):.1f}%<br><sub>{total_blocks_cnt}</sub></td>')
     print(' </tr>')
 
     print(' <tr>')
-    print('  <td><i>False Negatives</i></td>')
+    print('  <td><i>False&nbsp;Negatives</i></td>')
     for provider_idx in range(len(providers)):
         missing_blocks_cnt = sum(len(y['results'][provider_idx][2]) for y in dataset_result['results'])
         print(f'  <td>{(missing_blocks_cnt*100/total_gt_blocks):.1f}%<br><sub>{missing_blocks_cnt}</sub></td>')
     print(' </tr>')
 
     print(' <tr>')
-    print('  <td><i>False Positives</i></td>')
+    print('  <td><i>False&nbsp;Positives</i></td>')
     for provider_idx in range(len(providers)):
         extra_blocks_cnt = sum(len(y['results'][provider_idx][1]) for y in dataset_result['results'])
         print(f'  <td>{(extra_blocks_cnt*100/total_gt_blocks):.1f}%<br><sub>{extra_blocks_cnt}</sub></td>')

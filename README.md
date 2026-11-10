@@ -185,136 +185,152 @@ limitations, and privacy details.
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><b><i>evmole</i></b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
-  <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
-  <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
-  <td><a href="benchmark/providers/evm-hound-rs/"><b><i>evmhound</i></b></a></td>
-  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
+  <td><i>evmole</i> <a href="benchmark/providers/evmole-rs/"><i>rs</i></a> · <a href="benchmark/providers/evmole-js/"><i>js</i></a> · <a href="benchmark/providers/evmole-py/"><i>py</i></a> · <a href="benchmark/providers/evmole-go/"><i>go</i></a></td>
+  <td><a href="benchmark/providers/whatsabi/"><i>whatsabi</i></a></td>
+  <td><a href="benchmark/providers/sevm/"><i>sevm</i></a></td>
+  <td><a href="benchmark/providers/evm-hound-rs/"><i>evmhnd</i></a></td>
+  <td><a href="benchmark/providers/heimdall-rs/"><i>heimdall</i></a></td>
+  <td><a href="benchmark/providers/gigahorse/"><i>gigahorse</i></a></td>
  </tr>
  <tr>
   <td rowspan="5"><b>coverage2k</b><br><sub>solidity<br><br>2000<br>addresses<br><br>45650<br>functions</sub></td>
-  <td><i>FP <sub>addrs</sub></i></td>
+  <td><i>FP&nbsp;<sub>addr</sub></i></td>
   <td>0 🥇</td>
   <td>4</td>
   <td>1</td>
   <td>56</td>
   <td>3</td>
+  <td>2</td>
  </tr>
  <tr>
-  <td><i>FN <sub>addrs</sub></i></td>
+  <td><i>FN&nbsp;<sub>addr</sub></i></td>
   <td>0 🥇</td>
   <td>11</td>
   <td>0 🥇</td>
   <td>224</td>
   <td>166</td>
+  <td>6</td>
  </tr>
  <tr>
-  <td><i>FP <sub>funcs</sub></i></td>
+  <td><i>FP&nbsp;<sub>func</sub></i></td>
   <td>0 🥇</td>
   <td>10</td>
   <td>10</td>
   <td>616</td>
   <td>27</td>
+  <td>11</td>
  </tr>
  <tr>
-  <td><i>FN <sub>funcs</sub></i></td>
+  <td><i>FN&nbsp;<sub>func</sub></i></td>
   <td>0 🥇</td>
   <td>145</td>
   <td>0 🥇</td>
   <td>821</td>
   <td>342</td>
+  <td>211</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>24ms · 0.3s · 31ms · 0.1s</td>
+  <td>24ms&nbsp;·&nbsp;0.3s&nbsp;·&nbsp;31ms&nbsp;·&nbsp;0.1s</td>
   <td>2.0s</td>
-  <td>28s<sup>(*)</sup></td>
+  <td>28s<sup>*</sup></td>
   <td>86ms</td>
-  <td>111s<sup>(*)</sup></td>
+  <td>111s<sup>*</sup></td>
+  <td>5922s<sup>*</sup></td>
  </tr>
- <tr><td colspan="7"></td></tr>
+ <tr><td colspan="8"></td></tr>
  <tr>
   <td rowspan="5"><b>random10k</b><br><sub>solidity<br><br>10000<br>addresses<br><br>223316<br>functions</sub></td>
-  <td><i>FP <sub>addrs</sub></i></td>
+  <td><i>FP&nbsp;<sub>addr</sub></i></td>
   <td>0 🥇</td>
   <td>19</td>
   <td>16</td>
   <td>224</td>
   <td>7</td>
+  <td>21</td>
  </tr>
  <tr>
-  <td><i>FN <sub>addrs</sub></i></td>
+  <td><i>FN&nbsp;<sub>addr</sub></i></td>
   <td>0 🥇</td>
   <td>44</td>
   <td>1</td>
   <td>838</td>
   <td>819</td>
+  <td>16</td>
  </tr>
  <tr>
-  <td><i>FP <sub>funcs</sub></i></td>
+  <td><i>FP&nbsp;<sub>func</sub></i></td>
   <td>0 🥇</td>
   <td>65</td>
   <td>112</td>
   <td>3157</td>
   <td>260</td>
+  <td>92</td>
  </tr>
  <tr>
-  <td><i>FN <sub>funcs</sub></i></td>
+  <td><i>FN&nbsp;<sub>func</sub></i></td>
   <td>0 🥇</td>
   <td>173</td>
   <td>7</td>
   <td>4112</td>
   <td>1021</td>
+  <td>297</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.1s · 0.8s · 0.2s · 0.8s</td>
+  <td>0.1s&nbsp;·&nbsp;0.8s&nbsp;·&nbsp;0.2s&nbsp;·&nbsp;0.8s</td>
   <td>7.1s</td>
-  <td>80s<sup>(*)</sup></td>
+  <td>80s<sup>*</sup></td>
   <td>0.4s</td>
-  <td>533s<sup>(*)</sup></td>
+  <td>533s<sup>*</sup></td>
+  <td>22870s<sup>*</sup></td>
  </tr>
- <tr><td colspan="7"></td></tr>
+ <tr><td colspan="8"></td></tr>
  <tr>
   <td rowspan="5"><b>coverage1k</b><br><sub>vyper<br><br>1000<br>addresses<br><br>38759<br>functions</sub></td>
-  <td><i>FP <sub>addrs</sub></i></td>
+  <td><i>FP&nbsp;<sub>addr</sub></i></td>
   <td>0 🥇</td>
   <td>560</td>
   <td>0 🥇</td>
   <td>2</td>
   <td>0 🥇</td>
+  <td>0 🥇</td>
  </tr>
  <tr>
-  <td><i>FN <sub>addrs</sub></i></td>
+  <td><i>FN&nbsp;<sub>addr</sub></i></td>
   <td>0 🥇</td>
   <td>998</td>
   <td>788</td>
   <td>525</td>
   <td>998</td>
+  <td>927</td>
  </tr>
  <tr>
-  <td><i>FP <sub>funcs</sub></i></td>
+  <td><i>FP&nbsp;<sub>func</sub></i></td>
   <td>0 🥇</td>
   <td>560</td>
   <td>0 🥇</td>
   <td>5</td>
   <td>0 🥇</td>
+  <td>0 🥇</td>
  </tr>
  <tr>
-  <td><i>FN <sub>funcs</sub></i></td>
+  <td><i>FN&nbsp;<sub>func</sub></i></td>
   <td>0 🥇</td>
   <td>38759</td>
   <td>34077</td>
   <td>16218</td>
   <td>38759</td>
+  <td>37858</td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>91ms · 0.4s · 0.1s · 0.3s</td>
+  <td>91ms&nbsp;·&nbsp;0.4s&nbsp;·&nbsp;0.1s&nbsp;·&nbsp;0.3s</td>
   <td>1.9s</td>
-  <td>5.4s<sup>(*)</sup></td>
+  <td>5.4s<sup>*</sup></td>
   <td>67ms</td>
-  <td>12s<sup>(*)</sup></td>
+  <td>12s<sup>*</sup></td>
+  <td>1195s<sup>*</sup></td>
  </tr>
 </table>
 
@@ -325,8 +341,8 @@ limitations, and privacy details.
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><b><i>evmole</i></b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
-  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
+  <td><i>evmole</i> <a href="benchmark/providers/evmole-rs/"><i>rs</i></a> · <a href="benchmark/providers/evmole-js/"><i>js</i></a> · <a href="benchmark/providers/evmole-py/"><i>py</i></a> · <a href="benchmark/providers/evmole-go/"><i>go</i></a></td>
+  <td><a href="benchmark/providers/heimdall-rs/"><i>heimdall</i></a></td>
  </tr>
  <tr>
   <td rowspan="2"><b>coverage2k</b><br><sub>solidity<br><br>45650<br>functions</sub></td>
@@ -336,8 +352,8 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.8s · 1.7s · 1.1s · 2.1s</td>
-  <td>111s<sup>(*)</sup></td>
+  <td>0.8s&nbsp;·&nbsp;1.7s&nbsp;·&nbsp;1.1s&nbsp;·&nbsp;2.1s</td>
+  <td>111s<sup>*</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
@@ -348,8 +364,8 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>3.5s · 6.9s · 4.2s · 9.7s</td>
-  <td>511s<sup>(*)</sup></td>
+  <td>3.5s&nbsp;·&nbsp;6.9s&nbsp;·&nbsp;4.2s&nbsp;·&nbsp;9.7s</td>
+  <td>511s<sup>*</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
@@ -360,8 +376,8 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s · 1.1s · 0.6s · 1.4s</td>
-  <td>12s<sup>(*)</sup></td>
+  <td>0.5s&nbsp;·&nbsp;1.1s&nbsp;·&nbsp;0.6s&nbsp;·&nbsp;1.4s</td>
+  <td>12s<sup>*</sup></td>
  </tr>
 </table>
 
@@ -375,10 +391,10 @@ limitations, and privacy details.
  <tr>
   <td>Dataset</td>
   <td></td>
-  <td><b><i>evmole</i></b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
-  <td><a href="benchmark/providers/whatsabi/"><b><i>whatsabi</i></b></a></td>
-  <td><a href="benchmark/providers/sevm/"><b><i>sevm</i></b></a></td>
-  <td><a href="benchmark/providers/heimdall-rs/"><b><i>heimdall</i></b></a></td>
+  <td><i>evmole</i> <a href="benchmark/providers/evmole-rs/"><i>rs</i></a> · <a href="benchmark/providers/evmole-js/"><i>js</i></a> · <a href="benchmark/providers/evmole-py/"><i>py</i></a> · <a href="benchmark/providers/evmole-go/"><i>go</i></a></td>
+  <td><a href="benchmark/providers/whatsabi/"><i>whatsabi</i></a></td>
+  <td><a href="benchmark/providers/sevm/"><i>sevm</i></a></td>
+  <td><a href="benchmark/providers/heimdall-rs/"><i>heimdall</i></a></td>
  </tr>
  <tr>
   <td rowspan="3"><b>coverage2k</b><br><sub>solidity<br><br>45647<br>functions</sub></td>
@@ -389,7 +405,7 @@ limitations, and privacy details.
   <td>19.6%<br><sub>8951</sub></td>
  </tr>
  <tr>
-  <td><i>Errors strict</i></td>
+  <td><i>Errors&nbsp;strict</i></td>
   <td>9.0% 🥇<br><sub>4107</sub></td>
   <td>70.9%<br><sub>32346</sub></td>
   <td>62.3%<br><sub>28429</sub></td>
@@ -397,10 +413,10 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>10s · 11s · 9.7s · 20s</td>
+  <td>10s&nbsp;·&nbsp;11s&nbsp;·&nbsp;9.7s&nbsp;·&nbsp;20s</td>
   <td>3.1s</td>
-  <td>29s<sup>(*)</sup></td>
-  <td>112s<sup>(*)</sup></td>
+  <td>29s<sup>*</sup></td>
+  <td>112s<sup>*</sup></td>
  </tr>
  <tr><td colspan="6"></td></tr>
  <tr>
@@ -412,7 +428,7 @@ limitations, and privacy details.
   <td>18.6%<br><sub>41507</sub></td>
  </tr>
  <tr>
-  <td><i>Errors strict</i></td>
+  <td><i>Errors&nbsp;strict</i></td>
   <td>8.9% 🥇<br><sub>19940</sub></td>
   <td>69.9%<br><sub>156081</sub></td>
   <td>60.9%<br><sub>136069</sub></td>
@@ -420,10 +436,10 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>48s · 50s · 46s · 88s</td>
+  <td>48s&nbsp;·&nbsp;50s&nbsp;·&nbsp;46s&nbsp;·&nbsp;88s</td>
   <td>12s</td>
-  <td>81s<sup>(*)</sup></td>
-  <td>512s<sup>(*)</sup></td>
+  <td>81s<sup>*</sup></td>
+  <td>512s<sup>*</sup></td>
  </tr>
  <tr><td colspan="6"></td></tr>
  <tr>
@@ -435,7 +451,7 @@ limitations, and privacy details.
   <td>100.0%<br><sub>38278</sub></td>
  </tr>
  <tr>
-  <td><i>Errors strict</i></td>
+  <td><i>Errors&nbsp;strict</i></td>
   <td>1.2% 🥇<br><sub>441</sub></td>
   <td>100.0%<br><sub>38278</sub></td>
   <td>98.4%<br><sub>37650</sub></td>
@@ -443,10 +459,10 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>45s · 39s · 44s · 89s</td>
+  <td>45s&nbsp;·&nbsp;39s&nbsp;·&nbsp;44s&nbsp;·&nbsp;89s</td>
   <td>2.0s</td>
-  <td>5.5s<sup>(*)</sup></td>
-  <td>12s<sup>(*)</sup></td>
+  <td>5.5s<sup>*</sup></td>
+  <td>12s<sup>*</sup></td>
  </tr>
 </table>
 
@@ -457,15 +473,15 @@ limitations, and privacy details.
 <table>
  <tr>
   <td></td>
-  <td><b><i>evmole</i></b> <a href="benchmark/providers/evmole-rs/"><b><i>rs</i></b></a> · <a href="benchmark/providers/evmole-js/"><b><i>js</i></b></a> · <a href="benchmark/providers/evmole-py/"><b><i>py</i></b></a> · <a href="benchmark/providers/evmole-go/"><b><i>go</i></b></a></td>
-  <td><a href="benchmark/providers/ethersolve"><b><i>ethersolve</i></b></a></td>
-  <td><a href="benchmark/providers/evm-cfg"><b><i>evm-cfg</i></b></a></td>
-  <td><a href="benchmark/providers/sevm"><b><i>sevm</i></b></a></td>
-  <td><a href="benchmark/providers/heimdall-rs"><b><i>heimdall-rs</i></b></a></td>
-  <td><a href="benchmark/providers/evm-cfg-builder"><b><i>evm-cfg-builder</i></b></a></td>
+  <td><i>evmole</i> <a href="benchmark/providers/evmole-rs/"><i>rs</i></a> · <a href="benchmark/providers/evmole-js/"><i>js</i></a> · <a href="benchmark/providers/evmole-py/"><i>py</i></a> · <a href="benchmark/providers/evmole-go/"><i>go</i></a></td>
+  <td><a href="benchmark/providers/ethersolve"><i>ethersolve</i></a></td>
+  <td><a href="benchmark/providers/evm-cfg"><i>evm-cfg</i></a></td>
+  <td><a href="benchmark/providers/sevm"><i>sevm</i></a></td>
+  <td><a href="benchmark/providers/heimdall-rs"><i>heimdall-rs</i></a></td>
+  <td><a href="benchmark/providers/evm-cfg-builder"><i>evm-cfg-builder</i></a></td>
  </tr>
  <tr>
-  <td><i>Basic Blocks</i></td>
+  <td><i>Basic&nbsp;Blocks</i></td>
   <td>92.8% 🥇<br><sub>483212</sub></td>
   <td>52.5%<br><sub>273518</sub></td>
   <td>58.6%<br><sub>305248</sub></td>
@@ -474,7 +490,7 @@ limitations, and privacy details.
   <td>14.5%<br><sub>75383</sub></td>
  </tr>
  <tr>
-  <td><i>False Negatives</i></td>
+  <td><i>False&nbsp;Negatives</i></td>
   <td>7.2% 🥇<br><sub>37496</sub></td>
   <td>47.5%<br><sub>247190</sub></td>
   <td>41.4%<br><sub>215460</sub></td>
@@ -484,7 +500,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>14s · 26s · 12s · 55s</td>
+  <td>14s&nbsp;·&nbsp;26s&nbsp;·&nbsp;12s&nbsp;·&nbsp;55s</td>
   <td>888s</td>
   <td>36s</td>
   <td>9.8s</td>
@@ -499,9 +515,9 @@ dataset flow-challenge500, 500 contracts, 520,708 blocks
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.9.3; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.9.3</i>
+<i>versions: evmole v0.9.3; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.9.3; <a href="https://github.com/nevillegrech/gigahorse-toolchain/tree/1b06cef82f0a29790e87f576eba6d6d793170d70">gigahorse</a> commit 1b06cef</i>
 
-<sup>(*)</sup>: <b>sevm</b> and <b>heimdall-rs</b> are full decompilers, not limited to extracting function selectors
+<sup>*</sup>: <b>sevm</b>, <b>heimdall-rs</b>, and <b>gigahorse</b> are full decompilers, not limited to extracting function selectors
 
 ## How it works
 
