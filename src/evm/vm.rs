@@ -437,21 +437,31 @@ where
             op::CALLDATACOPY => {
                 let raws0 = self.stack.pop()?;
                 let mem_off: U256 = (&raws0).into();
-                let mem_off32: u32 = mem_off.try_into()?;
-
                 let raws1 = self.stack.pop()?;
                 let src_off: U256 = (&raws1).into();
-
                 let raws2 = self.stack.pop()?;
                 let size: U256 = (&raws2).into();
-
-                let (data, label) = self.calldata.load(src_off, size)?;
-                self.memory.store(mem_off32, data, label);
+                // Only a labeled size can be nonzero for other inputs; a literal zero copies
+                // nothing on any input.
+                let symbolic_size = raws2.label.is_some();
 
                 let mut ret = StepResult::new(op, 4);
                 ret.args[0] = raws1; // calldata offset, like in CALLDATALOAD
                 ret.args[1] = raws0; // memory off
                 ret.exargs.push(raws2); // size
+                if size.is_zero() {
+                    if symbolic_size
+                        && let Ok(mem_off32) = u32::try_from(mem_off)
+                        && let Ok((_, Some(label))) = self.calldata.load(src_off, size)
+                    {
+                        self.memory.store_symbolic_empty(mem_off32, label);
+                    }
+                    return Ok(ret);
+                }
+
+                let mem_off32: u32 = mem_off.try_into()?;
+                let (data, label) = self.calldata.load(src_off, size)?;
+                self.memory.store(mem_off32, data, label);
                 Ok(ret)
             }
 
@@ -462,10 +472,20 @@ where
 
             op::CODECOPY => {
                 let raws0 = self.stack.pop()?;
-                let src_off: usize = self.stack.pop_uint()?.try_into()?;
+                let raws1 = self.stack.pop()?;
                 let raws2 = self.stack.pop()?;
+                let size_value: U256 = (&raws2).into();
+
+                let mut ret = StepResult::new(op, 3);
+                ret.args[0] = raws0.clone();
+                ret.args[1] = raws2;
+                if size_value.is_zero() {
+                    return Ok(ret);
+                }
+
                 let mem_off: u32 = (&raws0).try_into()?;
-                let size: usize = (&raws2).try_into()?;
+                let src_off: usize = U256::from_be_bytes(raws1.data).try_into()?;
+                let size: usize = size_value.try_into()?;
 
                 if size > 32768 {
                     Err(UnsupportedOpError { op }.into())
@@ -476,9 +496,6 @@ where
                         let n = std::cmp::min(size, code_len - src_off);
                         data[0..n].copy_from_slice(&self.code[src_off..src_off + n]);
                     }
-                    let mut ret = StepResult::new(op, 3);
-                    ret.args[0] = raws0;
-                    ret.args[1] = raws2;
                     self.memory.store(mem_off, data, None);
                     Ok(ret)
                 }
@@ -507,21 +524,24 @@ where
             op::RETURNDATACOPY => {
                 let raws0 = self.stack.pop()?;
                 let mem_off: U256 = (&raws0).into();
-                let mem_off32: u32 = mem_off.try_into()?;
-
                 let src_off_el = self.stack.pop()?;
                 let size_el = self.stack.pop()?;
-                let size: usize = U256::from_be_bytes(size_el.data).try_into()?;
+                let size_value = U256::from_be_bytes(size_el.data);
+
+                let mut ret = StepResult::new(op, 3);
+                ret.args[0] = raws0;
+                ret.args[1] = src_off_el;
+                ret.exargs.push(size_el);
+                if size_value.is_zero() {
+                    return Ok(ret);
+                }
+
+                let mem_off32: u32 = mem_off.try_into()?;
+                let size: usize = size_value.try_into()?;
                 if size > 2048 {
                     Err(UnsupportedOpError { op }.into())
                 } else {
-                    let data: Vec<u8> = vec![0; size];
-                    self.memory.store(mem_off32, data, None);
-
-                    let mut ret = StepResult::new(op, 3);
-                    ret.args[0] = raws0;
-                    ret.args[1] = src_off_el;
-                    ret.exargs.push(size_el);
+                    self.memory.store(mem_off32, vec![0; size], None);
                     Ok(ret)
                 }
             }
@@ -604,10 +624,18 @@ where
             op::MCOPY => {
                 let dest_offset = self.stack.pop()?;
                 let dest_offset_num: U256 = (&dest_offset).into();
-                let dest_offset_u32: u32 = dest_offset_num.try_into()?;
+                let offset = self.stack.pop()?;
+                let size = self.stack.pop()?;
+                let size_num = U256::from_be_bytes(size.data);
+                let mut ret = StepResult::new(op, 3);
+                ret.args[0] = dest_offset;
+                if size_num.is_zero() {
+                    return Ok(ret);
+                }
 
-                let offset: u32 = self.stack.pop_uint()?.try_into()?;
-                let size: u32 = self.stack.pop_uint()?.try_into()?;
+                let dest_offset_u32: u32 = dest_offset_num.try_into()?;
+                let offset: u32 = U256::from_be_bytes(offset.data).try_into()?;
+                let size: u32 = size_num.try_into()?;
                 if size > 2048 {
                     return Err(UnsupportedOpError { op }.into());
                 }
@@ -619,10 +647,8 @@ where
                     None
                 };
                 self.memory.store(dest_offset_u32, data, label);
-                let gas_used: u32 = 3 + 3 * size.div_ceil(32);
-                let mut ret = StepResult::new(op, gas_used);
+                ret.gas_used = 3 + 3 * size.div_ceil(32);
                 ret.memory_load = Some(used);
-                ret.args[0] = dest_offset;
                 Ok(ret)
             }
 
@@ -915,6 +941,27 @@ mod tests {
                 r, expected,
                 "SAR(shift={shift}, value={value:#x}): got {r:#x}, want {expected:#x}"
             );
+        }
+    }
+
+    #[test]
+    fn zero_length_copy_opcodes_ignore_huge_addresses_and_do_not_expand_memory() {
+        for opcode in [
+            op::CALLDATACOPY,
+            op::CODECOPY,
+            op::RETURNDATACOPY,
+            op::MCOPY,
+        ] {
+            let mut vm = Vm::new(&[], &DummyCallData {});
+            vm.memory.store(0, vec![1, 2, 3], None);
+            vm.stack.push_uint(U256::ZERO);
+            vm.stack.push_uint(U256::MAX);
+            vm.stack.push_uint(U256::MAX);
+
+            vm.exec_opcode(opcode).unwrap();
+
+            assert_eq!(vm.memory.size(), 3, "{}", op::info(opcode).name);
+            assert_eq!(vm.memory.load(0, 3).0, [1, 2, 3]);
         }
     }
 }

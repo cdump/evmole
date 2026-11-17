@@ -429,6 +429,15 @@ fn analyze(
     ) {
         args.decoder_active = false;
     }
+    if ret.op == op::CALLDATACOPY
+        && let Some(size) = ret.exargs.first()
+        && size.label.is_none()
+        && U256::from_be_bytes(size.data).is_zero()
+    {
+        // A literal zero size reads no calldata on any input, so it is no evidence of an
+        // argument; the VM stored nothing for it either.
+        return Ok(());
+    }
     match ret {
         StepResult {
             op: op @ (op::CALLDATALOAD | op::CALLDATACOPY),
@@ -464,17 +473,23 @@ fn analyze(
 
                 args.set_info(&full_path, InfoVal::Dynamic(new_off / 32));
 
+                // A zero-length copy succeeds whatever its destination, and labels no memory
+                // past `u32`.
                 let mem_offset = if op == op::CALLDATACOPY {
-                    u32::try_from(sa).expect("set as u32 in vm.rs")
+                    u32::try_from(sa).ok()
                 } else {
-                    0
+                    None
                 };
 
                 if new_off == 0 && *args.array_in_path(&full_path).last().unwrap_or(&false) {
                     match op {
                         op::CALLDATALOAD => vm.stack.peek_mut()?.data = VAL_1_B,
                         op::CALLDATACOPY => {
-                            if let Some(v) = vm.memory.get_mut(mem_offset) {
+                            // A zero-byte overlay copied nothing: giving it data would make
+                            // it a write.
+                            if let Some(v) = mem_offset.and_then(|at| vm.memory.get_mut(at))
+                                && !v.data.is_empty()
+                            {
                                 v.data = VAL_1_B.to_vec();
                             }
                         }
@@ -491,7 +506,7 @@ fn analyze(
                 match op {
                     op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
                     op::CALLDATACOPY => {
-                        if let Some(v) = vm.memory.get_mut(mem_offset) {
+                        if let Some(v) = mem_offset.and_then(|at| vm.memory.get_mut(at)) {
                             args.set_tname(&path, offset, DynSolType::Bytes, 10);
                             v.label = new_label;
                         }
@@ -522,8 +537,9 @@ fn analyze(
                 match op {
                     op::CALLDATALOAD => vm.stack.peek_mut()?.label = new_label,
                     op::CALLDATACOPY => {
-                        let mem_offset = u32::try_from(sa).expect("set as u32 in vm.rs");
-                        if let Some(v) = vm.memory.get_mut(mem_offset) {
+                        // As above: a zero-length copy may name any destination.
+                        if let Some(v) = u32::try_from(sa).ok().and_then(|at| vm.memory.get_mut(at))
+                        {
                             v.label = new_label;
                         }
                     }
@@ -711,7 +727,9 @@ fn analyze(
                             }
 
                             for el in vm.memory.data.iter_mut() {
-                                if let Some(Label::Arg(lab)) = &el.1.label
+                                // Zero-byte overlays stay empty, as above.
+                                if !el.1.data.is_empty()
+                                    && let Some(Label::Arg(lab)) = &el.1.label
                                     && lab.offset == 0
                                     && lab.path == path
                                     && lab.add_val == 0
@@ -1075,6 +1093,23 @@ mod tests {
             functions[0].arguments,
             Some(vec![crate::DynSolType::Uint(256)])
         );
+    }
+
+    /// A `CALLDATACOPY` of literal size zero neither faults nor reads calldata, wherever its
+    /// destination is, so it is no evidence of an argument.
+    #[test]
+    fn test_empty_calldata_copy_is_not_an_argument() {
+        // `calldatacopy(dst, 4, 0)` in the body of `0x11223344`, for a destination past
+        // memory (`2^64 - 1`) and one inside it (`0x100`).
+        for body in ["6000600467ffffffffffffffff3700", "600060046101003700"] {
+            let code = hex::decode(format!("60003560e01c631122334414600f575b{body}")).unwrap();
+
+            let info = contract_info(ContractInfoArgs::new(&code).with_arguments());
+
+            let functions = info.functions.unwrap();
+            assert_eq!(functions.len(), 1);
+            assert_eq!(functions[0].arguments, Some(vec![]), "{body}");
+        }
     }
 
     #[test]

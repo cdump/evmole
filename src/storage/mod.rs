@@ -502,9 +502,9 @@ fn analyze(
 
         StepResult {
             op: op::CODECOPY,
-            args: [mem_off, ..],
+            args: [mem_off, size],
             ..
-        } => {
+        } if !U256::from_be_bytes(size.data).is_zero() => {
             let off: u32 = mem_off.try_into()?;
             if let Some(entry) = vm.memory.get_mut(off) {
                 entry.label = Some(Label::Constant);
