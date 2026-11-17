@@ -238,7 +238,9 @@ where
                     if s1.is_zero() {
                         U256::ZERO
                     } else {
-                        (I256::from_raw(s0) % I256::from_raw(s1)).into_raw()
+                        I256::from_raw(s0)
+                            .wrapping_rem(I256::from_raw(s1))
+                            .into_raw()
                     },
                 )
             }),
@@ -834,6 +836,12 @@ mod tests {
                 I256::unchecked_from(-4).into_raw(),
                 op::SDIV,
                 U256::ZERO,
+                U256::ZERO,
+            ),
+            (
+                I256::MIN.into_raw(),
+                op::SMOD,
+                I256::unchecked_from(-1).into_raw(),
                 U256::ZERO,
             ),
         ];
