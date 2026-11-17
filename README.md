@@ -231,7 +231,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>24ms&nbsp;·&nbsp;0.3s&nbsp;·&nbsp;31ms&nbsp;·&nbsp;0.1s</td>
+  <td>18ms&nbsp;·&nbsp;0.2s&nbsp;·&nbsp;23ms&nbsp;·&nbsp;79ms</td>
   <td>2.0s</td>
   <td>28s<sup>*</sup></td>
   <td>86ms</td>
@@ -278,7 +278,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.1s&nbsp;·&nbsp;0.8s&nbsp;·&nbsp;0.2s&nbsp;·&nbsp;0.8s</td>
+  <td>92ms&nbsp;·&nbsp;0.6s&nbsp;·&nbsp;0.1s&nbsp;·&nbsp;0.5s</td>
   <td>7.1s</td>
   <td>80s<sup>*</sup></td>
   <td>0.4s</td>
@@ -325,7 +325,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>91ms&nbsp;·&nbsp;0.4s&nbsp;·&nbsp;0.1s&nbsp;·&nbsp;0.3s</td>
+  <td>70ms&nbsp;·&nbsp;0.3s&nbsp;·&nbsp;75ms&nbsp;·&nbsp;0.2s</td>
   <td>1.9s</td>
   <td>5.4s<sup>*</sup></td>
   <td>67ms</td>
@@ -347,36 +347,36 @@ limitations, and privacy details.
  <tr>
   <td rowspan="2"><b>coverage2k</b><br><sub>solidity<br><br>45650<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>8.5% 🥇<br><sub>3883</sub></td>
+  <td>8.4% 🥇<br><sub>3820</sub></td>
   <td>23.3%<br><sub>10643</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.8s&nbsp;·&nbsp;1.7s&nbsp;·&nbsp;1.1s&nbsp;·&nbsp;2.1s</td>
+  <td>0.6s&nbsp;·&nbsp;1.5s&nbsp;·&nbsp;0.8s&nbsp;·&nbsp;1.8s</td>
   <td>111s<sup>*</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>random10k</b><br><sub>solidity<br><br>223316<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>6.8% 🥇<br><sub>15296</sub></td>
+  <td>6.8% 🥇<br><sub>15076</sub></td>
   <td>21.4%<br><sub>47878</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>3.5s&nbsp;·&nbsp;6.9s&nbsp;·&nbsp;4.2s&nbsp;·&nbsp;9.7s</td>
+  <td>3.0s&nbsp;·&nbsp;6.0s&nbsp;·&nbsp;3.6s&nbsp;·&nbsp;8.5s</td>
   <td>511s<sup>*</sup></td>
  </tr>
  <tr><td colspan="4"></td></tr>
  <tr>
   <td rowspan="2"><b>coverage1k</b><br><sub>vyper<br><br>38759<br>functions</sub></td>
   <td><i>Errors</i></td>
-  <td>45.4% 🥇<br><sub>17590</sub></td>
+  <td>7.4% 🥇<br><sub>2873</sub></td>
   <td>100.0%<br><sub>38759</sub></td>
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>0.5s&nbsp;·&nbsp;1.1s&nbsp;·&nbsp;0.6s&nbsp;·&nbsp;1.4s</td>
+  <td>0.4s&nbsp;·&nbsp;0.9s&nbsp;·&nbsp;0.5s&nbsp;·&nbsp;1.2s</td>
   <td>12s<sup>*</sup></td>
  </tr>
 </table>
@@ -413,7 +413,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>10s&nbsp;·&nbsp;11s&nbsp;·&nbsp;9.7s&nbsp;·&nbsp;20s</td>
+  <td>7.4s&nbsp;·&nbsp;7.6s&nbsp;·&nbsp;7.0s&nbsp;·&nbsp;14s</td>
   <td>3.1s</td>
   <td>29s<sup>*</sup></td>
   <td>112s<sup>*</sup></td>
@@ -436,7 +436,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>48s&nbsp;·&nbsp;50s&nbsp;·&nbsp;46s&nbsp;·&nbsp;88s</td>
+  <td>35s&nbsp;·&nbsp;34s&nbsp;·&nbsp;33s&nbsp;·&nbsp;67s</td>
   <td>12s</td>
   <td>81s<sup>*</sup></td>
   <td>512s<sup>*</sup></td>
@@ -459,7 +459,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>45s&nbsp;·&nbsp;39s&nbsp;·&nbsp;44s&nbsp;·&nbsp;89s</td>
+  <td>34s&nbsp;·&nbsp;31s&nbsp;·&nbsp;36s&nbsp;·&nbsp;71s</td>
   <td>2.0s</td>
   <td>5.5s<sup>*</sup></td>
   <td>12s<sup>*</sup></td>
@@ -500,7 +500,7 @@ limitations, and privacy details.
  </tr>
  <tr>
   <td><i>Time</i></td>
-  <td>14s&nbsp;·&nbsp;26s&nbsp;·&nbsp;12s&nbsp;·&nbsp;55s</td>
+  <td>13s&nbsp;·&nbsp;24s&nbsp;·&nbsp;11s&nbsp;·&nbsp;47s</td>
   <td>888s</td>
   <td>36s</td>
   <td>9.8s</td>
@@ -515,7 +515,7 @@ dataset flow-challenge500, 500 contracts, 520,708 blocks
 
 See [benchmark/README.md](./benchmark/) for the methodology and commands to reproduce these results
 
-<i>versions: evmole v0.9.3; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.9.3; <a href="https://github.com/nevillegrech/gigahorse-toolchain/tree/1b06cef82f0a29790e87f576eba6d6d793170d70">gigahorse</a> commit 1b06cef</i>
+<i>versions: evmole v0.9.5; <a href="https://github.com/shazow/whatsabi">whatsabi</a> v0.25.0; <a href="https://github.com/acuarica/evm">sevm</a> v0.7.4; <a href="https://github.com/g00dv1n/evm-hound-rs">evm-hound-rs</a> v0.1.4; <a href="https://github.com/Jon-Becker/heimdall-rs">heimdall-rs</a> v0.9.3; <a href="https://github.com/nevillegrech/gigahorse-toolchain/tree/1b06cef82f0a29790e87f576eba6d6d793170d70">gigahorse</a> commit 1b06cef</i>
 
 <sup>*</sup>: <b>sevm</b>, <b>heimdall-rs</b>, and <b>gigahorse</b> are full decompilers, not limited to extracting function selectors
 
