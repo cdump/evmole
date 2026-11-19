@@ -1,6 +1,6 @@
 # EVMole Go
 
-Go bindings for [EVMole](https://github.com/cdump/evmole) - a library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including function selectors, arguments, state mutability, storage layouts, control flow graphs, proxy implementation sources, and CBOR metadata.
+Go bindings for [EVMole](https://github.com/cdump/evmole), which analyzes deployed EVM bytecode, even for unverified contracts. It finds function selectors, infers their arguments and state mutability, recovers persistent and transient storage layouts, detects proxy implementation sources, builds control-flow graphs, and extracts CBOR metadata.
 
 ## Features
 

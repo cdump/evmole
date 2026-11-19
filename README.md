@@ -7,7 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/evmole?color=006dad)](https://pypi.org/project/evmole)
 [![Go](https://img.shields.io/badge/go-pkg-00ADD8)](https://pkg.go.dev/github.com/cdump/evmole/go)
 
-EVMole is a powerful library that extracts information from Ethereum Virtual Machine (EVM) bytecode, including [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), arguments, [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), persistent and transient storage layouts, and CBOR metadata, even for unverified contracts.
+EVMole analyzes deployed EVM bytecode, even for unverified contracts. It finds [function selectors](https://docs.soliditylang.org/en/latest/abi-spec.html#function-selector), infers their arguments and [state mutability](https://docs.soliditylang.org/en/latest/contracts.html#state-mutability), recovers persistent and transient storage layouts, detects proxy implementation sources, builds control-flow graphs, and extracts CBOR metadata.
 
 **[EVMole Decompiler](https://evmole.com/)**, built on this library, turns bytecode into Solidity-like code that behaves like the original, and flags the gap where it can't be exact. It is a separate hosted service, not part of this repository.
 
