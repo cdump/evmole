@@ -1,7 +1,8 @@
 // Package evmole provides EVM bytecode analysis functionality.
 //
-// EVMole extracts function selectors, arguments, state mutability,
-// storage layout, and control flow graphs from Ethereum Virtual Machine bytecode.
+// EVMole extracts function selectors, arguments, state mutability, storage
+// layout, control flow graphs, proxy implementation sources, and CBOR metadata
+// from Ethereum Virtual Machine bytecode.
 //
 // Basic usage:
 //
