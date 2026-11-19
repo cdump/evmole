@@ -1,0 +1,461 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cdump/evmole/blob/master/agent/schemas/response-v2.schema.json",
+  "title": "EVMole agent analysis response v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evmoleVersion",
+    "input",
+    "analysis",
+    "pagination",
+    "warnings"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "evmoleVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+"
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["byteLength", "normalizedBytecodeHash"],
+      "properties": {
+        "byteLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "normalizedBytecodeHash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "analysis": {
+      "$ref": "#/$defs/analysis"
+    },
+    "pagination": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "functions",
+        "storage",
+        "transientStorage",
+        "metadata",
+        "proxy",
+        "disassembly",
+        "basicBlocks",
+        "controlFlowGraph"
+      ],
+      "properties": {
+        "functions": {
+          "description": "Function records returned when selectors, arguments, or stateMutability is requested. Arguments and stateMutability are present only when requested.",
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "items": {"$ref": "#/$defs/function"}
+            }
+          ]
+        },
+        "storage": {
+          "$ref": "#/$defs/nullableStorage"
+        },
+        "transientStorage": {
+          "$ref": "#/$defs/nullableStorage"
+        },
+        "metadata": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/metadata"}
+          ]
+        },
+        "proxy": {
+          "description": "Possible implementation sources of a fallback that forwards the incoming calldata by DELEGATECALL. An empty array means none was found. When several are found, the active one can depend on the caller or contract state; their order carries no priority.",
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "items": {"$ref": "#/$defs/proxySource"}
+            }
+          ]
+        },
+        "disassembly": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {"type": "integer", "minimum": 0},
+                  {"type": "string"}
+                ],
+                "items": false
+              }
+            }
+          ]
+        },
+        "basicBlocks": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "prefixItems": [
+                  {"type": "integer", "minimum": 0},
+                  {"type": "integer", "minimum": 0}
+                ],
+                "items": false
+              }
+            }
+          ]
+        },
+        "controlFlowGraph": {
+          "oneOf": [
+            {"type": "null"},
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["blocks"],
+              "properties": {
+                "blocks": {
+                  "type": "array",
+                  "items": {"$ref": "#/$defs/cfgBlock"}
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "function": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selector", "bytecodeOffset", "dispatch"],
+      "properties": {
+        "selector": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{8}$"
+        },
+        "bytecodeOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dispatch": {
+          "enum": ["abi", "fallback"]
+        },
+        "arguments": {
+          "type": "string"
+        },
+        "stateMutability": {
+          "enum": ["pure", "view", "payable", "nonpayable"]
+        }
+      }
+    },
+    "nullableStorage": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "array",
+          "items": {"$ref": "#/$defs/storageRecord"}
+        }
+      ]
+    },
+    "storageRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot", "offset", "type", "reads", "writes"],
+      "properties": {
+        "slot": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]+$"
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 31
+        },
+        "type": {
+          "type": "string"
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{8}$"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^0x[0-9a-f]{8}$"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bytecodeOffset", "cborLength", "entries"],
+      "properties": {
+        "bytecodeOffset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cborLength": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "value"],
+            "properties": {
+              "key": {"type": "string"},
+              "value": {"type": "object"}
+            }
+          }
+        }
+      }
+    },
+    "proxySource": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["Address", "Storage", "Call", "PerSelector", "Eip7702"]}
+      },
+      "oneOf": [
+        {
+          "description": "A fixed implementation address in the code.",
+          "additionalProperties": false,
+          "required": ["type", "data"],
+          "properties": {
+            "type": {"const": "Address"},
+            "data": {"$ref": "#/$defs/address"}
+          }
+        },
+        {
+          "description": "An address in one of the proxy's own storage slots.",
+          "additionalProperties": false,
+          "required": ["type", "data"],
+          "properties": {
+            "type": {"const": "Storage"},
+            "data": {"$ref": "#/$defs/storageRef"}
+          }
+        },
+        {
+          "description": "The address another contract, such as a beacon or registry, returns for this call.",
+          "additionalProperties": false,
+          "required": ["type", "data"],
+          "properties": {
+            "type": {"const": "Call"},
+            "data": {"$ref": "#/$defs/proxyCall"}
+          }
+        },
+        {
+          "description": "A target chosen by the incoming selector, such as a diamond's facet.",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {"const": "PerSelector"}
+          }
+        },
+        {
+          "description": "The address an EIP-7702 account delegates to.",
+          "additionalProperties": false,
+          "required": ["type", "data"],
+          "properties": {
+            "type": {"const": "Eip7702"},
+            "data": {"$ref": "#/$defs/address"}
+          }
+        }
+      ]
+    },
+    "proxyCall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["address", "args"],
+      "properties": {
+        "address": {
+          "description": "The callee.",
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["type", "data"],
+              "properties": {
+                "type": {"const": "Constant"},
+                "data": {"$ref": "#/$defs/address"}
+              }
+            },
+            {"$ref": "#/$defs/proxyStorageValue"}
+          ]
+        },
+        "selector": {
+          "description": "Absent when the call sends empty calldata.",
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{8}$"
+        },
+        "args": {
+          "description": "The 32-byte argument words after the selector.",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "data"],
+                "properties": {
+                  "type": {"const": "Constant"},
+                  "data": {"type": "string", "pattern": "^0x[0-9a-f]{64}$"}
+                }
+              },
+              {"$ref": "#/$defs/proxyStorageValue"}
+            ]
+          }
+        }
+      }
+    },
+    "proxyStorageValue": {
+      "description": "Bytes of a storage slot, in the value's low bytes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "data"],
+      "properties": {
+        "type": {"const": "Storage"},
+        "data": {"$ref": "#/$defs/storageRef"}
+      }
+    },
+    "storageRef": {
+      "description": "size bytes of a storage slot, offset bytes from its low end.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slot", "offset", "size"],
+      "properties": {
+        "slot": {"type": "string", "pattern": "^0x[0-9a-f]{64}$"},
+        "offset": {"type": "integer", "minimum": 0, "maximum": 31},
+        "size": {"type": "integer", "minimum": 1, "maximum": 32}
+      }
+    },
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{40}$"
+    },
+    "cfgBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "start", "end", "type", "data"],
+      "properties": {
+        "id": {"type": "integer", "minimum": 0},
+        "start": {"type": "integer", "minimum": 0},
+        "end": {"type": "integer", "minimum": 0},
+        "type": {"enum": ["Terminate", "Jump", "Jumpi", "DynamicJump", "DynamicJumpi"]},
+        "data": {"type": "object"}
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "type": {"const": "Terminate"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["success"],
+              "properties": {"success": {"type": "boolean"}}
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "Jump"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["to"],
+              "properties": {"to": {"type": "integer", "minimum": 0}}
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "Jumpi"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["true_to", "false_to"],
+              "properties": {
+                "true_to": {"type": "integer", "minimum": 0},
+                "false_to": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "DynamicJump"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["to"],
+              "properties": {
+                "to": {"type": "array", "items": {"$ref": "#/$defs/dynamicJump"}}
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {"const": "DynamicJumpi"},
+            "data": {
+              "additionalProperties": false,
+              "required": ["true_to", "false_to"],
+              "properties": {
+                "true_to": {"type": "array", "items": {"$ref": "#/$defs/dynamicJump"}},
+                "false_to": {"type": "integer", "minimum": 0}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "dynamicJump": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+        "to": {"type": "integer", "minimum": 0}
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "limit", "returned", "available", "truncated"],
+      "properties": {
+        "offset": {"type": "integer", "minimum": 0},
+        "limit": {"type": "integer", "minimum": 1},
+        "returned": {"type": "integer", "minimum": 0},
+        "available": {"type": "integer", "minimum": 0},
+        "truncated": {"type": "boolean"}
+      }
+    }
+  }
+}

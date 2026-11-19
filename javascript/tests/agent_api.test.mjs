@@ -21,7 +21,7 @@ const fixture = async (name) =>
 const schema = async (name) =>
   JSON.parse(
     await readFile(
-      new URL(`../../agent/schemas/${name}-v1.schema.json`, import.meta.url),
+      new URL(`../../agent/schemas/${name}-v${AGENT_SCHEMA_VERSION}.schema.json`, import.meta.url),
       "utf8",
     ),
   );
@@ -36,6 +36,7 @@ test("normalizes bytecode and defaults", () => {
     "storage",
     "transientStorage",
     "metadata",
+    "proxy",
   ]);
   assert.equal(lower.offset, 0);
   assert.equal(lower.limit, 1000);
@@ -154,6 +155,7 @@ test("matches checked-in canonical fixtures", async () => {
     ],
     ["storage", "storage-runtime.hex", ["storage", "transientStorage"]],
     ["metadata", "metadata-runtime.hex", ["metadata"]],
+    ["proxy", "proxy-runtime.hex", ["proxy"]],
   ]) {
     const expected = JSON.parse(
       await readFile(
@@ -173,6 +175,8 @@ test("distinguishes requested empty and unrequested sections", async () => {
   const response = analyzeBytecode({ bytecode, include: ["selectors"] });
   assert.deepEqual(response.analysis.functions, []);
   assert.equal(response.analysis.storage, null);
+  assert.equal(response.analysis.proxy, null);
+  assert.equal(Object.hasOwn(response.pagination, "proxy"), false);
   assert.deepEqual(response.pagination.functions, {
     offset: 0,
     limit: 1000,
@@ -292,6 +296,51 @@ test("keeps persistent and transient storage domains distinct", async () => {
   assert.deepEqual(response.analysis.storage, []);
   assert.equal(response.analysis.transientStorage.length, 1);
   assert.deepEqual(response.analysis.transientStorage[0].writes, ["0x11223344"]);
+});
+
+test("normalizes every proxy source shape to schema-valid 0x-prefixed hex", async () => {
+  const forward = (push) => `${push}365f5f375f5f365f845af400`;
+  const lookup = `73${"cd".repeat(20)}5afa50365f5f375f5f365f6080515af400`;
+  const word = (byte) => `0x${"00".repeat(31)}${byte}`;
+  const callee = { type: "Constant", data: `0x${"cd".repeat(20)}` };
+  const cases = [
+    ["0x00", []],
+    [
+      `0x363d3d373d3d3d363d73${"be".repeat(20)}5af43d82803e903d91601957fd5bf3`,
+      [{ type: "Address", data: `0x${"be".repeat(20)}` }],
+    ],
+    [
+      forward("600754"),
+      [{ type: "Storage", data: { slot: word("07"), offset: 0, size: 20 } }],
+    ],
+    [
+      `631234567860e01b60805260426084526020608060246080${lookup}`,
+      [{
+        type: "Call",
+        data: { address: callee, selector: "0x12345678", args: [{ type: "Constant", data: word("42") }] },
+      }],
+    ],
+    [
+      `602060805f5f${lookup}`,
+      [{ type: "Call", data: { address: callee, args: [] } }],
+    ],
+    [
+      forward("5f3563ffffffff60e01b165f52600160205260405f2054"),
+      [{ type: "PerSelector" }],
+    ],
+    [
+      `0xef0100${"12".repeat(20)}`,
+      [{ type: "Eip7702", data: `0x${"12".repeat(20)}` }],
+    ],
+  ];
+  const validate = new Ajv2020({ strict: false }).compile(await schema("response"));
+  for (const [bytecode, expected] of cases) {
+    const response = analyzeBytecode({ bytecode, include: ["proxy"] });
+    assert.deepEqual(response.analysis.proxy, expected, bytecode);
+    assert.equal(response.pagination.proxy.available, expected.length);
+    assert.match(response.warnings[0], /^Proxy implementation sources are inferred/);
+    assert.equal(validate(response), true, JSON.stringify(validate.errors));
+  }
 });
 
 test("preserves CBOR integers beyond JSON safe precision as encoded strings", () => {

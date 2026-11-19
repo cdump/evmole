@@ -14,7 +14,8 @@ const { version: SERVER_VERSION } =
 const TOOL_DESCRIPTION =
   "Analyze deployed EVM runtime bytecode locally with EVMole. Extract function " +
   "selectors, inferred arguments and mutability, persistent or transient " +
-  "storage access, metadata, disassembly, basic blocks, or a control-flow graph. " +
+  "storage access, proxy implementation sources, metadata, disassembly, basic " +
+  "blocks, or a control-flow graph. " +
   "This tool does not fetch contracts, decode calldata, verify source code, or " +
   "fully decompile a contract.";
 
@@ -43,7 +44,7 @@ export function createEvmoleServer({
       description: TOOL_DESCRIPTION,
       // Unknown keys pass through so the shared adapter rejects them with its
       // canonical INVALID_REQUEST envelope; the advertised JSON Schema still
-      // declares additionalProperties: false, as request-v1.schema.json does.
+      // declares additionalProperties: false, as request-v2.schema.json does.
       inputSchema: z.looseObject({
         bytecode: z
           .string()

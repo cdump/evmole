@@ -20,6 +20,7 @@ for (const section of [
   "storage",
   "transientStorage",
   "metadata",
+  "proxy",
   "controlFlowGraph",
 ]) {
   assert.match(skill, new RegExp(section), `skill must route ${section}`);

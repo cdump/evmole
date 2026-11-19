@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "input": {
     "byteLength": 24,
     "normalizedBytecodeHash": "sha256:f672fde33a62e6a520b526239abf68b04b0690dffaa5be1f86fdc22e6d558cc3"
@@ -17,6 +17,7 @@
     ],
     "transientStorage": [],
     "metadata": null,
+    "proxy": null,
     "disassembly": null,
     "basicBlocks": null,
     "controlFlowGraph": null

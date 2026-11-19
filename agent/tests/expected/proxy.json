@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "input": {
+    "byteLength": 70,
+    "normalizedBytecodeHash": "sha256:7ff6619708ecbe93d627c9c9107ed751213a63f5b295edadc852227bea9d0032"
+  },
+  "analysis": {
+    "functions": null,
+    "storage": null,
+    "transientStorage": null,
+    "metadata": null,
+    "proxy": [
+      {
+        "type": "Call",
+        "data": {
+          "address": {
+            "type": "Storage",
+            "data": {
+              "slot": "0xa3f0ad74e5423aebfd80d3ef4346578335a9a72aeaee59ff6cb3582b35133d50",
+              "offset": 0,
+              "size": 20
+            }
+          },
+          "selector": "0x5c60da1b",
+          "args": []
+        }
+      }
+    ],
+    "disassembly": null,
+    "basicBlocks": null,
+    "controlFlowGraph": null
+  },
+  "pagination": {
+    "proxy": {"offset": 0, "limit": 1000, "returned": 1, "available": 1, "truncated": false}
+  },
+  "warnings": [
+    "Proxy implementation sources are inferred from runtime bytecode rather than verified from source."
+  ]
+}

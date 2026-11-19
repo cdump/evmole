@@ -67,7 +67,7 @@ test("analyzes argument input with pure compact JSON stdout", async () => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
   assert.doesNotMatch(result.stdout.trim(), /\n/);
-  assert.equal(JSON.parse(result.stdout).schemaVersion, 1);
+  assert.equal(JSON.parse(result.stdout).schemaVersion, 2);
 });
 
 test("supports stdin and pretty JSON", async () => {
@@ -145,6 +145,6 @@ test("prints help, version, and schemas", () => {
   const schemas = run(["schema"]);
   assert.equal(schemas.status, 0, schemas.stderr);
   const parsed = JSON.parse(schemas.stdout);
-  assert.equal(parsed.schemaVersion, 1);
-  assert.equal(parsed.request.title, "EVMole agent analysis request v1");
+  assert.equal(parsed.schemaVersion, 2);
+  assert.equal(parsed.request.title, "EVMole agent analysis request v2");
 });

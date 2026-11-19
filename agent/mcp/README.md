@@ -37,6 +37,7 @@ extract:
 - function selectors and dispatch locations;
 - inferred arguments and state mutability;
 - inferred persistent and transient storage access;
+- inferred proxy implementation sources;
 - compiler metadata;
 - disassembly, basic blocks, and a control-flow graph.
 
@@ -46,9 +47,9 @@ requested function information is combined in `analysis.functions`. Other
 requested analyses are returned in their corresponding `analysis` fields.
 
 If `include` is omitted, the tool analyzes selectors, arguments, state
-mutability, both storage domains, and metadata. Disassembly and control-flow
+mutability, both storage domains, metadata, and proxy sources. Disassembly and control-flow
 features are opt-in because their output can be large. The tool returns the
-canonical version 1 EVMole response as structured content plus a JSON text
+canonical version 2 EVMole response as structured content plus a JSON text
 fallback. Check `warnings` and `pagination` before interpreting the result.
 
 ## Privacy and limitations
@@ -56,8 +57,8 @@ fallback. Check `warnings` and `pagination` before interpreting the result.
 The server uses stdio only, makes no network requests, requires no credentials,
 does not fetch contract addresses, and writes no files. It does not decode
 calldata, verify source, execute creation bytecode, or fully decompile source.
-Arguments, mutability, and storage descriptions are inferred rather than
-verified source-level facts.
+Arguments, mutability, storage descriptions, and proxy sources are inferred
+rather than verified source-level facts.
 
 Each `evmole-mcp` release depends on the matching exact `evmole` version.
 

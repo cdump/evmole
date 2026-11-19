@@ -3,6 +3,7 @@
 import { readFile, stat } from "node:fs/promises";
 
 import {
+  AGENT_SCHEMA_VERSION,
   AgentApiError,
   EVMOLE_VERSION,
   MAX_BYTECODE_BYTES,
@@ -171,11 +172,11 @@ async function loadSchemas() {
   const names = ["request", "response", "error"];
   const entries = await Promise.all(
     names.map(async (name) => {
-      const url = new URL(`./schemas/${name}-v1.schema.json`, import.meta.url);
+      const url = new URL(`./schemas/${name}-v${AGENT_SCHEMA_VERSION}.schema.json`, import.meta.url);
       return [name, JSON.parse(await readFile(url, "utf8"))];
     }),
   );
-  return { schemaVersion: 1, ...Object.fromEntries(entries) };
+  return { schemaVersion: AGENT_SCHEMA_VERSION, ...Object.fromEntries(entries) };
 }
 
 function exitCodeFor(error) {
@@ -199,7 +200,7 @@ function helpText() {
 
 Commands:
   analyze     Analyze deployed EVM runtime bytecode as JSON
-  schema      Print the version 1 request, response, and error schemas
+  schema      Print the version ${AGENT_SCHEMA_VERSION} request, response, and error schemas
 
 Options:
   -h, --help      Show help

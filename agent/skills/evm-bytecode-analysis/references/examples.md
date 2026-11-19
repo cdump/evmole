@@ -14,6 +14,12 @@ inferred.
 For “Extract the compiler metadata,” request `metadata`. A `null` result means
 no valid terminal metadata was decoded; it does not identify the compiler.
 
+For “Is this a proxy, and where is its implementation?”, request `proxy` and
+report each source by type. Reading the current implementation from a slot or
+a lookup call needs an authorized RPC or chain-data tool; analyze the
+implementation's own runtime bytecode separately. Selectors and storage of a
+proxy describe the proxy, not its implementation.
+
 For “Explain the control-flow structure,” begin with `basicBlocks` and
 `controlFlowGraph`. Add `disassembly` only when instruction-level evidence is
 needed. Summarize branches and destinations instead of dumping all blocks.

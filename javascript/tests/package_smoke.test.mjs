@@ -30,6 +30,9 @@ test("npm package contains and executes the JSON CLI", { timeout: 120_000 }, asy
     "dist/agent_api.mjs",
     "dist/evmole_cli.mjs",
     "dist/schemas/request-v1.schema.json",
+    "dist/schemas/request-v2.schema.json",
+    "dist/schemas/response-v2.schema.json",
+    "dist/schemas/error-v2.schema.json",
   ]) {
     assert.ok(paths.has(required), `missing ${required}`);
   }

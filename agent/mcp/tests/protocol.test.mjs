@@ -48,6 +48,8 @@ test("negotiates protocol and lists exactly one documented tool", async () => {
     assert.match(includeSchema.description, /selectors/);
     assert.match(includeSchema.description, /arguments/);
     assert.match(includeSchema.description, /stateMutability/);
+    assert.match(includeSchema.description, /proxy/);
+    assert.match(result.tools[0].description, /proxy/);
     assert.doesNotMatch(includeSchema.description, /(?:^|, )functions(?:,|\.)/);
     assert.equal(transport.stderr.read(), null);
   });
@@ -63,37 +65,32 @@ test("returns canonical structured content and JSON fallback", async () => {
       },
     });
     assert.equal(result.isError, undefined);
-    assert.equal(result.structuredContent.schemaVersion, 1);
+    assert.equal(result.structuredContent.schemaVersion, 2);
     assert.deepEqual(JSON.parse(result.content[0].text), result.structuredContent);
   });
 });
 
 test("is semantically identical to the CLI", async () => {
-  const bytecode = await fixture("functions-runtime.hex");
-  const cliResult = spawnSync(
-    process.execPath,
-    [
-      cli,
-      "analyze",
-      "--bytecode",
-      bytecode,
-      "--include",
-      "selectors,arguments,stateMutability,metadata",
-    ],
-    { encoding: "utf8", env: childEnvironment },
-  );
-  assert.equal(cliResult.status, 0, cliResult.stderr || String(cliResult.error));
-  const expected = JSON.parse(cliResult.stdout);
-  await withClient(async (client) => {
-    const result = await client.callTool({
-      name: "analyze_evm_bytecode",
-      arguments: {
-        bytecode,
-        include: ["selectors", "arguments", "stateMutability", "metadata"],
-      },
+  for (const [name, include] of [
+    ["functions-runtime.hex", ["selectors", "arguments", "stateMutability", "metadata"]],
+    ["proxy-runtime.hex", ["proxy"]],
+  ]) {
+    const bytecode = await fixture(name);
+    const cliResult = spawnSync(
+      process.execPath,
+      [cli, "analyze", "--bytecode", bytecode, "--include", include.join(",")],
+      { encoding: "utf8", env: childEnvironment },
+    );
+    assert.equal(cliResult.status, 0, cliResult.stderr || String(cliResult.error));
+    const expected = JSON.parse(cliResult.stdout);
+    await withClient(async (client) => {
+      const result = await client.callTool({
+        name: "analyze_evm_bytecode",
+        arguments: { bytecode, include },
+      });
+      assert.deepEqual(result.structuredContent, expected);
     });
-    assert.deepEqual(result.structuredContent, expected);
-  });
+  }
 });
 
 test("returns canonical errors for semantically invalid requests", async () => {
@@ -121,7 +118,7 @@ test("returns canonical errors for semantically invalid requests", async () => {
         arguments: arguments_,
       });
       assert.equal(result.isError, true);
-      assert.equal(result.structuredContent.schemaVersion, 1);
+      assert.equal(result.structuredContent.schemaVersion, 2);
       assert.equal(result.structuredContent.error.code, code);
       assert.deepEqual(
         JSON.parse(result.content[0].text),

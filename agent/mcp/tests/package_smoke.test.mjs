@@ -67,7 +67,7 @@ test("packed MCP executable works with packed evmole", { timeout: 120_000 }, asy
       name: "analyze_evm_bytecode",
       arguments: { bytecode: "0x00", include: [] },
     });
-    assert.equal(result.structuredContent.schemaVersion, 1);
+    assert.equal(result.structuredContent.schemaVersion, 2);
     assert.equal(result.structuredContent.evmoleVersion, evmole.version);
     assert.deepEqual(JSON.parse(result.content[0].text), result.structuredContent);
   } finally {

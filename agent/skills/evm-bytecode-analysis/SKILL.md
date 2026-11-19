@@ -1,6 +1,6 @@
 ---
 name: evm-bytecode-analysis
-description: Analyze supplied deployed EVM runtime bytecode with EVMole or guide a separate application in integrating a published EVMole Rust, Go, Python, or JavaScript binding. Use for unverified-contract inspection, ABI reconstruction from runtime code, selector discovery, storage-access analysis, EVM control-flow inspection, and external application integration. Do not use for implementing, debugging, refactoring, or reviewing EVMole's own source code unless the task specifically targets the CLI, MCP server, agent adapter, schemas, or this skill. Do not use for calldata decoding, source verification, creation-bytecode execution, or full source-code decompilation.
+description: Analyze supplied deployed EVM runtime bytecode with EVMole or guide a separate application in integrating a published EVMole Rust, Go, Python, or JavaScript binding. Use for unverified-contract inspection, ABI reconstruction from runtime code, selector discovery, storage-access analysis, proxy detection, EVM control-flow inspection, and external application integration. Do not use for implementing, debugging, refactoring, or reviewing EVMole's own source code unless the task specifically targets the CLI, MCP server, agent adapter, schemas, or this skill. Do not use for calldata decoding, source verification, creation-bytecode execution, or full source-code decompilation.
 ---
 
 # EVM Bytecode Analysis
@@ -37,6 +37,7 @@ bytecode.
    - `stateMutability` for inferred mutability; this implies selectors.
    - `storage` or `transientStorage` for inferred storage access.
    - `metadata` for terminal compiler metadata.
+   - `proxy` for where a forwarding proxy's implementation address comes from.
    - `disassembly`, `basicBlocks`, or `controlFlowGraph` for instruction and
      control-flow evidence.
 3. Prefer the `analyze_evm_bytecode` MCP tool when available. Otherwise run the
@@ -54,8 +55,12 @@ bytecode.
 
 ## Interpretation rules
 
-- Treat call arguments, mutability, storage types, and storage labels as inferred.
-  Never present them as verified source-level facts.
+- Treat call arguments, mutability, storage types, storage labels, and proxy
+  sources as inferred. Never present them as verified source-level facts.
+- For `Address`, report the embedded implementation address. For `Eip7702`,
+  report the delegate address encoded in the designator. For `Storage`,
+  `Call`, and `PerSelector`, describe the slot, lookup call, or dependence on
+  the incoming selector. The other sections describe the supplied runtime.
 - Report selectors without inventing function names or source semantics.
 - Separate direct bytecode evidence from inference and state material
   uncertainty.

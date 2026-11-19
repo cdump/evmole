@@ -8,7 +8,7 @@ const { version: EVMOLE_VERSION } =
 
 export { EVMOLE_VERSION };
 
-export const AGENT_SCHEMA_VERSION = 1;
+export const AGENT_SCHEMA_VERSION = 2;
 export const MAX_BYTECODE_BYTES = 1024 * 1024;
 export const DEFAULT_ANALYSIS_LIMIT = 1000;
 export const MAX_ANALYSIS_LIMIT = 5000;
@@ -19,6 +19,7 @@ export const ANALYSIS_SECTIONS = Object.freeze([
   "storage",
   "transientStorage",
   "metadata",
+  "proxy",
   "disassembly",
   "basicBlocks",
   "controlFlowGraph",
@@ -30,6 +31,7 @@ export const DEFAULT_ANALYSIS_SECTIONS = Object.freeze([
   "storage",
   "transientStorage",
   "metadata",
+  "proxy",
 ]);
 
 const SECTION_SET = new Set(ANALYSIS_SECTIONS);
@@ -125,6 +127,7 @@ export function analyzeBytecode(request) {
     storage: null,
     transientStorage: null,
     metadata: null,
+    proxy: null,
     disassembly: null,
     basicBlocks: null,
     controlFlowGraph: null,
@@ -185,6 +188,16 @@ export function analyzeBytecode(request) {
       analysis.metadata = null;
       pagination.metadata = pageDescriptor(validated, 0, 0);
     }
+  }
+  if (requested.has("proxy")) {
+    const proxy = (raw.proxy ?? []).map(normalizeProxySource);
+    analysis.proxy = pageSection(
+      "proxy",
+      proxy,
+      validated,
+      pagination,
+      warnings,
+    );
   }
   if (requested.has("disassembly")) {
     const disassembly = normalizeJson(raw.disassembled ?? []);
@@ -339,6 +352,7 @@ function analysisOptions(include) {
     stateMutability: sections.has("stateMutability"),
     storage: sections.has("storage") || sections.has("transientStorage"),
     metadata: sections.has("metadata"),
+    proxy: sections.has("proxy"),
     disassemble: sections.has("disassembly"),
     basicBlocks: sections.has("basicBlocks"),
     controlFlowGraph: sections.has("controlFlowGraph"),
@@ -383,6 +397,7 @@ function createInferenceWarning(requested) {
   if (requested.has("storage") || requested.has("transientStorage")) {
     fields.push("storage types", "storage labels");
   }
+  if (requested.has("proxy")) fields.push("proxy implementation sources");
   if (fields.length === 0) return null;
   const list = fields.length === 1
     ? fields[0]
@@ -405,6 +420,42 @@ function normalizeStorage(records) {
       writes: (entry.writes ?? []).map(normalizePrefixedHex).sort(),
     }))
     .sort((a, b) => a.slot.localeCompare(b.slot) || a.offset - b.offset);
+}
+
+// The binding's `{type, data}` shape, with every hex string 0x-prefixed.
+function normalizeProxySource(source) {
+  switch (source.type) {
+    case "Address":
+    case "Eip7702":
+      return { type: source.type, data: normalizePrefixedHex(source.data) };
+    case "Storage":
+      return { type: source.type, data: normalizeStorageRef(source.data) };
+    case "Call": {
+      const call = { address: normalizeProxyValue(source.data.address) };
+      if (source.data.selector !== undefined && source.data.selector !== null) {
+        call.selector = normalizePrefixedHex(source.data.selector);
+      }
+      call.args = source.data.args.map(normalizeProxyValue);
+      return { type: source.type, data: call };
+    }
+    case "PerSelector":
+      return { type: source.type };
+    default:
+      throw new AgentApiError(
+        "ANALYSIS_FAILED",
+        "EVMole returned an invalid analysis result.",
+      );
+  }
+}
+
+function normalizeProxyValue(value) {
+  return value.type === "Storage"
+    ? { type: value.type, data: normalizeStorageRef(value.data) }
+    : { type: value.type, data: normalizePrefixedHex(value.data) };
+}
+
+function normalizeStorageRef({ slot, offset, size }) {
+  return { slot: normalizePrefixedHex(slot), offset, size };
 }
 
 function normalizePrefixedHex(value) {

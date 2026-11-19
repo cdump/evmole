@@ -21,25 +21,30 @@ Explicit `--bytecode` and `--file` input does not consume standard input. When
 neither option is present, the CLI reads piped stdin.
 
 Use `--offset` and `--limit` to page list-like output, `--pretty` for
-human-readable JSON, `evmole schema` for the version 1 contracts, and
+human-readable JSON, `evmole schema` for the version 2 contracts, and
 `evmole --help` for all options. Exit code 0 means success, 2 means invalid CLI
 usage, 3 means invalid bytecode/request data, 4 means an input or output bound
 was exceeded, and 1 means an unexpected analysis failure. Analyze failures are
 written as one JSON error document on stdout.
 
 Supported features are `selectors`, `arguments`, `stateMutability`, `storage`,
-`transientStorage`, `metadata`, `disassembly`, `basicBlocks`, and
+`transientStorage`, `metadata`, `proxy`, `disassembly`, `basicBlocks`, and
 `controlFlowGraph`. Arguments and state mutability imply selectors; requested
-function data is combined into `analysis.functions` records. The default
-requests selectors, arguments, state mutability, both storage domains, and
-metadata. Disassembly and control-flow output are opt-in because they can be
-large. Input must be deployed/runtime bytecode; EVMole does not execute or
+function data is combined into `analysis.functions` records. `proxy` returns
+the possible sources of a forwarding fallback's DELEGATECALL target: a fixed
+address, a storage slot, a beacon or registry call, a per-selector table, or an
+EIP-7702 delegation. The default requests selectors, arguments, state
+mutability, both storage domains, metadata, and proxy sources. Disassembly and
+control-flow output are opt-in because they can be large. Input must be deployed/runtime bytecode; EVMole does not execute or
 strip creation bytecode.
 
 The canonical contracts are
-[request v1](schemas/request-v1.schema.json),
-[response v1](schemas/response-v1.schema.json), and
-[error v1](schemas/error-v1.schema.json).
+[request v2](schemas/request-v2.schema.json),
+[response v2](schemas/response-v2.schema.json), and
+[error v2](schemas/error-v2.schema.json).
+Version 2 adds `analysis.proxy` to every analysis response. Its value is
+`null` when an explicit `include` list omits `proxy`. Use the envelope's
+`schemaVersion` to select the matching schema when reading saved results.
 
 ## Portable skill
 
@@ -122,8 +127,12 @@ Remove standalone MCP entries with the relevant client's MCP removal command.
 
 ## Interpretation and limitations
 
-Selectors are bytecode evidence, but arguments, mutability, and storage types
-can be inferred and must not be presented as verified source-level facts.
+Selectors are bytecode evidence, but arguments, mutability, storage types, and
+proxy sources are inferred and must not be presented as verified source-level
+facts. `Address` gives the embedded implementation address and `Eip7702`
+gives the delegate address encoded in the designator. Resolving `Storage` or
+`Call` needs chain state. `PerSelector` indicates that the target depends on
+the incoming selector.
 EVMole does not fetch contract addresses, decode calldata, resolve signature
 names, verify source, or reconstruct exact source code. Check every response's
 `warnings` and `pagination` objects before summarizing it.

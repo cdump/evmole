@@ -24,19 +24,19 @@ option reads only the explicitly supplied local file.
 ## Options and features
 
 - `--include <comma-separated-features>` selects `selectors`, `arguments`,
-  `stateMutability`, `storage`, `transientStorage`, `metadata`, `disassembly`,
-  `basicBlocks`, or `controlFlowGraph`.
+  `stateMutability`, `storage`, `transientStorage`, `metadata`, `proxy`,
+  `disassembly`, `basicBlocks`, or `controlFlowGraph`.
 - `arguments` and `stateMutability` imply selectors. Requested function data
   is returned in the combined `analysis.functions` array.
 - `--offset <integer>` starts list-like sections at an offset.
 - `--limit <integer>` returns at most that many items per requested list-like
   section. The default is 1,000 and maximum is 5,000.
 - `--pretty` formats JSON for humans.
-- `evmole schema` prints the version 1 request, response, and error schemas.
+- `evmole schema` prints the version 2 request, response, and error schemas.
 - `evmole --version` and `evmole --help` report package information.
 
 The default includes selectors, arguments, state mutability, persistent
-storage, transient storage, and metadata. Disassembly and control-flow
+storage, transient storage, metadata, and proxy sources. Disassembly and control-flow
 features are opt-in.
 
 ## Output and recovery
