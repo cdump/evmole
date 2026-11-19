@@ -30,16 +30,12 @@ test: evmole.latest.tgz $(NODE_MODULES_TARGETS)
 
 	node examples/node/with_require.cjs
 
-ifeq ($(GITHUB_ACTIONS),true)
-	cd tests && npx playwright test
-else
 	npm install
-	$(DOCKER) run --network=none --rm \
+	$(DOCKER) run --network=none --rm --init \
 		-v $(shell pwd)/:/mnt \
-		-it mcr.microsoft.com/playwright:v1.61.0-noble \
+		mcr.microsoft.com/playwright:v1.65.1-noble \
 		/bin/bash -c \
-		'cd /mnt/tests && npx playwright test'
-endif
+		'cd /mnt/tests && node_modules/.bin/playwright test'
 
 clean:
 	rm -f *.tgz

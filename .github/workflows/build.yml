@@ -152,7 +152,6 @@ jobs:
           npm --prefix javascript run build
           (cd javascript && npx tsc ./dist/evmole.d.ts)
           npm --prefix javascript/tests ci
-          (cd javascript/tests && npx playwright install --with-deps)
           npm --prefix javascript test
           make -C javascript test
 
