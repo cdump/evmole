@@ -12,8 +12,8 @@ on:
 
 env:
   README_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.sha }}
-  MATURIN_VERSION: 1.15.0
-  MCP_PUBLISHER_VERSION: 1.8.1
+  MATURIN_VERSION: 1.16.0
+  MCP_PUBLISHER_VERSION: 1.8.9
 
 jobs:
   prepare-release:
@@ -177,7 +177,7 @@ jobs:
     if: always() && needs.rust-test.result == 'success'
     strategy:
       matrix:
-        python-version: [ '3.10', '3.11', '3.12', '3.13', '3.14', '3.15']
+        python-version: [ '3.11', '3.12', '3.13', '3.14', '3.15']
         platform:
           - runner: ubuntu-latest
             os: linux
@@ -259,8 +259,7 @@ jobs:
       - name: Install python
         uses: actions/setup-python@v7
         with:
-          python-version: 3.13
-          allow-prereleases: true
+          python-version: 3.x
       - uses: actions/download-artifact@v8
         with:
           name: python-sdist
