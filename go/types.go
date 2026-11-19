@@ -7,8 +7,6 @@ import (
 
 // Contract contains analyzed information about a smart contract.
 type Contract struct {
-	// Metadata is terminal CBOR metadata, when requested and valid.
-	Metadata *CborMetadata `json:"metadata,omitempty"`
 	// Functions is the list of contract functions with their metadata.
 	Functions []Function `json:"functions,omitempty"`
 	// Storage is the persistent contract storage layout.
@@ -21,6 +19,183 @@ type Contract struct {
 	BasicBlocks []BasicBlock `json:"basic_blocks,omitempty"`
 	// ControlFlowGraph represents the program's execution paths.
 	ControlFlowGraph *ControlFlowGraph `json:"control_flow_graph,omitempty"`
+	// Metadata is terminal CBOR metadata, when requested and valid.
+	Metadata *CborMetadata `json:"metadata,omitempty"`
+	// Proxy is nil unless requested. An empty slice means no implementation source was found.
+	Proxy []ProxySource `json:"proxy,omitzero"`
+}
+
+// StorageRef identifies Size bytes of a slot, Offset bytes from its low end.
+type StorageRef struct {
+	Slot   string `json:"slot"`
+	Offset uint8  `json:"offset"`
+	Size   uint8  `json:"size"`
+}
+
+// ProxySourceKind is the kind of a ProxySource.
+type ProxySourceKind int
+
+const (
+	// ProxySourceAddress is a fixed implementation address in the code.
+	ProxySourceAddress ProxySourceKind = iota
+	// ProxySourceStorage is an address in one of the proxy's own storage slots.
+	ProxySourceStorage
+	// ProxySourceCall is an address another contract returns: a beacon, a registry.
+	ProxySourceCall
+	// ProxySourcePerSelector is a target that depends on the incoming selector.
+	ProxySourcePerSelector
+	// ProxySourceEip7702 is the delegate in an EIP-7702 designator.
+	ProxySourceEip7702
+)
+
+// String returns the JSON type name for the source kind.
+func (k ProxySourceKind) String() string {
+	switch k {
+	case ProxySourceAddress:
+		return "Address"
+	case ProxySourceStorage:
+		return "Storage"
+	case ProxySourceCall:
+		return "Call"
+	case ProxySourcePerSelector:
+		return "PerSelector"
+	case ProxySourceEip7702:
+		return "Eip7702"
+	default:
+		return "Unknown"
+	}
+}
+
+// ProxySource is a possible implementation source. Kind selects the field that is set:
+// Address for ProxySourceAddress and ProxySourceEip7702, Storage for ProxySourceStorage,
+// Call for ProxySourceCall, and none for ProxySourcePerSelector.
+type ProxySource struct {
+	Kind    ProxySourceKind
+	Address string
+	Storage *StorageRef
+	Call    *ProxyCall
+}
+
+// UnmarshalJSON implements custom unmarshaling for ProxySource.
+func (s *ProxySource) UnmarshalJSON(data []byte) error {
+	var tagged struct {
+		Type string          `json:"type"`
+		Data json.RawMessage `json:"data,omitempty"`
+	}
+	if err := json.Unmarshal(data, &tagged); err != nil {
+		return err
+	}
+	*s = ProxySource{}
+	switch tagged.Type {
+	case "Address":
+		s.Kind = ProxySourceAddress
+		return json.Unmarshal(tagged.Data, &s.Address)
+	case "Eip7702":
+		s.Kind = ProxySourceEip7702
+		return json.Unmarshal(tagged.Data, &s.Address)
+	case "Storage":
+		s.Kind = ProxySourceStorage
+		s.Storage = &StorageRef{}
+		return json.Unmarshal(tagged.Data, s.Storage)
+	case "Call":
+		s.Kind = ProxySourceCall
+		s.Call = &ProxyCall{}
+		return json.Unmarshal(tagged.Data, s.Call)
+	case "PerSelector":
+		s.Kind = ProxySourcePerSelector
+		return nil
+	default:
+		return fmt.Errorf("unknown proxy source type: %s", tagged.Type)
+	}
+}
+
+// MarshalJSON implements custom marshaling for ProxySource with type and data fields.
+func (s ProxySource) MarshalJSON() ([]byte, error) {
+	var data any
+	switch s.Kind {
+	case ProxySourceAddress, ProxySourceEip7702:
+		data = s.Address
+	case ProxySourceStorage:
+		data = s.Storage
+	case ProxySourceCall:
+		data = s.Call
+	}
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Data any    `json:"data,omitempty"`
+	}{s.Kind.String(), data})
+}
+
+// ProxyCall describes an implementation lookup. A nil Selector means empty calldata.
+type ProxyCall struct {
+	Address  ProxyValue   `json:"address"`
+	Selector *string      `json:"selector"`
+	Args     []ProxyValue `json:"args"`
+}
+
+// ProxyValueKind is the kind of a ProxyValue.
+type ProxyValueKind int
+
+const (
+	// ProxyValueConstant is a literal callee address or argument word.
+	ProxyValueConstant ProxyValueKind = iota
+	// ProxyValueStorage is bytes of a storage slot, in the word's low bytes.
+	ProxyValueStorage
+)
+
+// String returns the JSON type name for the value kind.
+func (k ProxyValueKind) String() string {
+	switch k {
+	case ProxyValueConstant:
+		return "Constant"
+	case ProxyValueStorage:
+		return "Storage"
+	default:
+		return "Unknown"
+	}
+}
+
+// ProxyValue is a lookup's callee address or one of its argument words. Kind selects the field
+// that is set: Value for ProxyValueConstant, Storage for ProxyValueStorage.
+type ProxyValue struct {
+	Kind    ProxyValueKind
+	Value   string
+	Storage *StorageRef
+}
+
+// UnmarshalJSON implements custom unmarshaling for ProxyValue.
+func (v *ProxyValue) UnmarshalJSON(data []byte) error {
+	var tagged struct {
+		Type string          `json:"type"`
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(data, &tagged); err != nil {
+		return err
+	}
+	*v = ProxyValue{}
+	switch tagged.Type {
+	case "Constant":
+		v.Kind = ProxyValueConstant
+		return json.Unmarshal(tagged.Data, &v.Value)
+	case "Storage":
+		v.Kind = ProxyValueStorage
+		v.Storage = &StorageRef{}
+		return json.Unmarshal(tagged.Data, v.Storage)
+	default:
+		return fmt.Errorf("unknown proxy value type: %s", tagged.Type)
+	}
+}
+
+// MarshalJSON implements custom marshaling for ProxyValue with type and data fields.
+func (v ProxyValue) MarshalJSON() ([]byte, error) {
+	var data any = v.Value
+	if v.Kind == ProxyValueStorage {
+		data = v.Storage
+	}
+	return json.Marshal(struct {
+		Type string `json:"type"`
+		Data any    `json:"data"`
+	}{v.Kind.String(), data})
 }
 
 // CborMetadata locates the terminal CBOR payload and exposes its text-keyed entries.

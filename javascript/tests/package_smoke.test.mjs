@@ -42,6 +42,20 @@ test("npm package contains and executes the JSON CLI", { timeout: 120_000 }, asy
     { cwd: directory, encoding: "utf8", env: environment },
   );
   assert.equal(install.status, 0, install.stderr);
+  const proxyCheck = spawnSync(process.execPath, ["--input-type=module", "-e", `
+    import assert from "node:assert/strict";
+    import { contractInfo } from "evmole";
+    const code = "602060805f5f73cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd5afa50365f5f375f5f365f6080515af400";
+    assert.equal(contractInfo(code, {}).proxy, undefined);
+    assert.deepEqual(contractInfo("00", { proxy: true }).proxy, []);
+    const [lookup] = contractInfo(code, { proxy: true }).proxy;
+    assert.equal(lookup.type, "Call");
+    assert.deepEqual(lookup.data.address, { type: "Constant", data: "cd".repeat(20) });
+    assert.equal(lookup.data.selector, undefined);
+    assert.deepEqual(lookup.data.args, []);
+  `], { cwd: directory, encoding: "utf8", env: environment });
+  assert.equal(proxyCheck.status, 0, proxyCheck.stderr);
+
   const executable = process.platform === "win32"
     ? join(directory, "node_modules", ".bin", "evmole.cmd")
     : join(directory, "node_modules", ".bin", "evmole");

@@ -8,6 +8,7 @@
 pub use contract_info::contract_info;
 pub use contract_info::{Contract, ContractInfoArgs, Function, SelectorDispatch};
 pub use metadata::{CborEntry, CborMetadata, CborValue};
+pub use proxy::{ProxySource, ProxyValue, StorageRef};
 pub use storage::StorageRecord;
 
 mod arguments;
@@ -16,6 +17,7 @@ mod contract_info;
 pub mod control_flow_graph;
 mod evm;
 mod metadata;
+mod proxy;
 mod selectors;
 mod state_mutability;
 mod storage;
@@ -26,6 +28,12 @@ mod serialize;
 
 /// A 4-byte function selector
 pub type Selector = [u8; 4];
+
+/// A 20-byte EVM address.
+pub type Address = [u8; 20];
+
+/// A 32-byte EVM word.
+pub type Word = [u8; 32];
 
 /// A 32-byte storage slot identifier in EVM storage.
 pub type Slot = [u8; 32];

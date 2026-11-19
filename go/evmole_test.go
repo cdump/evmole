@@ -292,3 +292,66 @@ func BenchmarkContractInfo(b *testing.B) {
 		}
 	}
 }
+
+func TestProxy(t *testing.T) {
+	ctx := context.Background()
+	code, err := hex.DecodeString("602060805f5f73cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd5afa50365f5f375f5f365f6080515af400")
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := ContractInfo(ctx, code, Options{Proxy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(info.Proxy) != 1 || info.Proxy[0].Kind != ProxySourceCall || info.Proxy[0].Call == nil {
+		t.Fatalf("unexpected proxy sources: %#v", info.Proxy)
+	}
+	lookup := info.Proxy[0].Call
+	if lookup.Address.Kind != ProxyValueConstant || lookup.Address.Value != "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd" ||
+		lookup.Selector != nil || len(lookup.Args) != 0 {
+		t.Fatalf("unexpected lookup: %#v", lookup)
+	}
+
+	info, err = ContractInfo(ctx, []byte{0}, Options{Proxy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Proxy == nil || len(info.Proxy) != 0 {
+		t.Fatalf("want an empty, non-nil slice: %#v", info.Proxy)
+	}
+}
+
+func TestProxySourceJSON(t *testing.T) {
+	const slot = "0000000000000000000000000000000000000000000000000000000000000007"
+	const text = `[{"type":"Address","data":"bebebebebebebebebebebebebebebebebebebebe"},` +
+		`{"type":"Storage","data":{"slot":"` + slot + `","offset":12,"size":20}},` +
+		`{"type":"Call","data":{"address":{"type":"Storage","data":{"slot":"` + slot + `","offset":0,"size":20}},` +
+		`"selector":"5c60da1b","args":[{"type":"Constant","data":"` + slot + `"}]}},` +
+		`{"type":"PerSelector"},` +
+		`{"type":"Eip7702","data":"1212121212121212121212121212121212121212"}]`
+	var sources []ProxySource
+	if err := json.Unmarshal([]byte(text), &sources); err != nil {
+		t.Fatal(err)
+	}
+	kinds := []ProxySourceKind{ProxySourceAddress, ProxySourceStorage, ProxySourceCall, ProxySourcePerSelector, ProxySourceEip7702}
+	for i, kind := range kinds {
+		if sources[i].Kind != kind {
+			t.Fatalf("source %d: got %v, want %v", i, sources[i].Kind, kind)
+		}
+	}
+	if sources[1].Storage.Offset != 12 || sources[4].Address != "1212121212121212121212121212121212121212" {
+		t.Fatalf("unexpected payloads: %#v", sources)
+	}
+	call := sources[2].Call
+	if call.Address.Kind != ProxyValueStorage || call.Address.Storage.Slot != slot || *call.Selector != "5c60da1b" ||
+		call.Args[0].Kind != ProxyValueConstant || call.Args[0].Value != slot {
+		t.Fatalf("unexpected call: %#v", call)
+	}
+	again, err := json.Marshal(sources)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(again) != text {
+		t.Fatalf("round trip:\n got %s\nwant %s", again, text)
+	}
+}

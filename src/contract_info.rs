@@ -1,9 +1,10 @@
-use crate::{CborMetadata, DynSolType, Selector, StateMutability, StorageRecord};
+use crate::{CborMetadata, DynSolType, ProxySource, Selector, StateMutability, StorageRecord};
 use crate::{
     arguments::function_arguments,
     control_flow_graph::basic_blocks,
     control_flow_graph::{ControlFlowGraph, control_flow_graph},
     evm::code_iterator::disassemble,
+    proxy::contract_proxy,
     selectors::function_selectors,
     state_mutability::function_state_mutability,
     storage::contract_storage,
@@ -94,6 +95,16 @@ pub struct Contract {
     /// Terminal CBOR metadata, when requested and valid.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub metadata: Option<CborMetadata>,
+
+    /// Possible implementation sources inferred from the runtime. `None` means the analysis was
+    /// not requested. An empty list means no source was found. When several sources are returned,
+    /// the active one can depend on the caller or contract state. Their order carries no priority.
+    ///
+    /// Only a fallback that forwards the incoming calldata by DELEGATECALL counts. An
+    /// implementation contract, such as a UUPS implementation or a diamond facet, is not a proxy
+    /// and gets an empty list.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub proxy: Option<Vec<ProxySource>>,
 }
 
 /// Builder for configuring contract analysis parameters
@@ -111,6 +122,7 @@ pub struct ContractInfoArgs<'a> {
     need_basic_blocks: bool,
     need_control_flow_graph: bool,
     need_metadata: bool,
+    need_proxy: bool,
 }
 
 impl<'a> ContractInfoArgs<'a> {
@@ -176,6 +188,22 @@ impl<'a> ContractInfoArgs<'a> {
     /// Enables extraction of terminal CBOR metadata.
     pub fn with_metadata(mut self) -> Self {
         self.need_metadata = true;
+        self
+    }
+
+    /// Infers possible proxy implementation sources.
+    ///
+    /// ```rust
+    /// use evmole::{contract_info, ContractInfoArgs, ProxySource};
+    ///
+    /// let code = alloy_primitives::hex!("363d3d373d3d3d363d6007545af43d82803e903d91601957fd5bf3");
+    /// let info = contract_info(ContractInfoArgs::new(&code).with_proxy());
+    /// let sources = info.proxy.unwrap();
+    /// assert!(matches!(&sources[..], [ProxySource::Storage(at)]
+    ///     if at.slot[31] == 7 && at.offset == 0 && at.size == 20));
+    /// ```
+    pub fn with_proxy(mut self) -> Self {
+        self.need_proxy = true;
         self
     }
 }
@@ -270,6 +298,8 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
 
     let disassembled = args.need_disassemble.then(|| disassemble(args.code));
 
+    let proxy = args.need_proxy.then(|| contract_proxy(args.code));
+
     let metadata = metadata.filter(|_| args.need_metadata);
 
     Contract {
@@ -280,5 +310,6 @@ pub fn contract_info(args: ContractInfoArgs) -> Contract {
         basic_blocks,
         control_flow_graph,
         metadata,
+        proxy,
     }
 }

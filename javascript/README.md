@@ -128,11 +128,12 @@ Analyzes contract bytecode and returns contract information based on specified o
 | [args.selectors] | <code>boolean</code> | When true, includes function selectors in the output |
 | [args.arguments] | <code>boolean</code> | When true, includes function arguments information |
 | [args.stateMutability] | <code>boolean</code> | When true, includes state mutability information for functions |
-| [args.storage] | <code>boolean</code> | When true, includes contract storage layout information |
+| [args.storage] | <code>boolean</code> | When true, includes persistent and transient storage layout information |
 | [args.disassemble] | <code>boolean</code> | When true, includes disassembled bytecode |
 | [args.basicBlocks] | <code>boolean</code> | When true, includes basic block analysis |
 | [args.controlFlowGraph] | <code>boolean</code> | When true, includes control flow graph analysis |
 | [args.metadata] | <code>boolean</code> | When true, extracts terminal CBOR metadata |
+| [args.proxy] | <code>boolean</code> | When true, infers possible proxy implementation sources |
 
 <a name="Contract"></a>
 
@@ -151,7 +152,7 @@ Contains the analysis results of a contract
 | [basicBlocks] | <code>Array.&lt;Array.&lt;number&gt;&gt;</code> | Array of basic blocks found in the contract. Not present if basic blocks were not analyzed. |
 | [controlFlowGraph] | [<code>ControlFlowGraph</code>](#ControlFlowGraph) | Control flow graph representation. Not present if CFG was not generated. |
 | [metadata] | [<code>CborMetadata</code>](#CborMetadata) | Terminal CBOR metadata. Not present unless requested and valid. |
-
+| [proxy] | [<code>Array.&lt;ProxySource&gt;</code>](#ProxySource) | Possible implementation sources; an empty array means none was found. When several are found, the active one can depend on the caller or contract state. Not present unless requested. |
 
 <a name="ContractFunction"></a>
 
@@ -165,7 +166,7 @@ Represents a function found in the contract bytecode
 | --- | --- | --- |
 | selector | <code>string</code> | Function selector as a 4-byte hex string without '0x' prefix (e.g., 'aabbccdd') |
 | bytecodeOffset | <code>number</code> | Starting byte offset within the EVM bytecode for the function body |
-| dispatch | <code>(&quot;abi&quot;\|&quot;fallback&quot;)</code> | Whether the selector is handled by the normal ABI dispatcher or fallback dispatch logic |
+| dispatch | <code>&#x27;abi&#x27;</code> \| <code>&#x27;fallback&#x27;</code> | Whether the selector is handled by the normal ABI dispatcher or fallback dispatch logic |
 | [arguments] | <code>string</code> | Function argument types in canonical format (e.g., 'uint256,address[]'). Not present if arguments were not extracted |
 | [stateMutability] | <code>string</code> | Function's state mutability ("pure", "view", "payable", or "nonpayable"). Not present if state mutability were not extracted |
 
@@ -179,7 +180,7 @@ Represents a storage record found in the contract
 
 | Name | Type | Description |
 | --- | --- | --- |
-| slot | <code>string</code> | Storage slot number as a hex string (e.g., '0', '1b') |
+| slot | <code>string</code> | Storage slot as 64 hex digits without a '0x' prefix |
 | offset | <code>number</code> | Byte offset within the storage slot (0-31) |
 | type | <code>string</code> | Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32') |
 | reads | <code>Array.&lt;string&gt;</code> | Array of function selectors that read from this storage location |
@@ -278,7 +279,6 @@ Represents a dynamic jump destination in the control flow
 | path | <code>Array.&lt;number&gt;</code> | Path of block IDs leading to this jump |
 | [to] | <code>number</code> | Destination block ID if known; use `Block.start` to get the bytecode offset. Optional |
 
-
 <a name="CborMetadata"></a>
 
 ### CborMetadata : <code>Object</code>
@@ -312,3 +312,57 @@ Represents a dynamic jump destination in the control flow
 | --- | --- | --- |
 | type | <code>&#x27;string&#x27;</code> \| <code>&#x27;integer&#x27;</code> \| <code>&#x27;bytes&#x27;</code> \| <code>&#x27;bool&#x27;</code> \| <code>&#x27;undecoded&#x27;</code> |  |
 | value | <code>string</code> \| <code>number</code> \| <code>boolean</code> | Decoded scalar or lowercase hex-encoded CBOR bytes |
+
+<a name="ProxySource"></a>
+
+### ProxySource : <code>Object</code>
+A possible implementation source: where a proxy's implementation address comes from. Only a fallback that forwards the incoming calldata by DELEGATECALL counts. An implementation contract, such as a UUPS implementation or a diamond facet, is not a proxy and gets an empty array.
+
+**Kind**: global typedef
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| type | <code>&#x27;Address&#x27;</code> \| <code>&#x27;Storage&#x27;</code> \| <code>&#x27;Call&#x27;</code> \| <code>&#x27;PerSelector&#x27;</code> \| <code>&#x27;Eip7702&#x27;</code> | `Address`: a fixed address in the code; `Storage`: an address in one of the proxy's own storage slots; `Call`: the address a beacon or registry returns for the call; `PerSelector`: chosen by the incoming selector; `Eip7702`: the address an EIP-7702 account delegates to |
+| [data] | <code>string</code> \| [<code>StorageRef</code>](#StorageRef) \| [<code>ProxyCall</code>](#ProxyCall) | The address for `Address` and `Eip7702` (40 lowercase hex digits), a `StorageRef` for `Storage`, a `ProxyCall` for `Call`. Not present for `PerSelector` |
+
+<a name="ProxyCall"></a>
+
+### ProxyCall : <code>Object</code>
+The call that returns the implementation address
+
+**Kind**: global typedef
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| address | [<code>ProxyValue</code>](#ProxyValue) | The callee |
+| [selector] | <code>string</code> | 4-byte hex selector. Not present when the call sends empty calldata |
+| args | [<code>Array.&lt;ProxyValue&gt;</code>](#ProxyValue) | The 32-byte argument words after the selector |
+
+<a name="ProxyValue"></a>
+
+### ProxyValue : <code>Object</code>
+A callee address or argument word
+
+**Kind**: global typedef
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| type | <code>&#x27;Constant&#x27;</code> \| <code>&#x27;Storage&#x27;</code> |  |
+| data | <code>string</code> \| [<code>StorageRef</code>](#StorageRef) | A literal (40 hex digits for a callee, 64 for an argument word), or a `StorageRef` whose bytes sit in the word's low bytes |
+
+<a name="StorageRef"></a>
+
+### StorageRef : <code>Object</code>
+`size` bytes of a storage slot, `offset` bytes from its low end
+
+**Kind**: global typedef
+**Properties**
+
+| Name | Type | Description |
+| --- | --- | --- |
+| slot | <code>string</code> | Storage slot as 64 hex digits |
+| offset | <code>number</code> | Byte offset from the slot's low end |
+| size | <code>number</code> | Size in bytes |

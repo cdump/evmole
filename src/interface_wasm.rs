@@ -39,6 +39,7 @@ const OPT_DISASSEMBLE: u32 = 16;
 const OPT_BASIC_BLOCKS: u32 = 32;
 const OPT_CONTROL_FLOW_GRAPH: u32 = 64;
 const OPT_METADATA: u32 = 128;
+const OPT_PROXY: u32 = 256;
 
 /// Analyze EVM bytecode and return contract information as JSON.
 ///
@@ -88,6 +89,9 @@ pub extern "C" fn contract_info(code_ptr: *const u8, code_len: usize, opts: u32)
     if opts & OPT_METADATA != 0 {
         args = args.with_metadata();
     }
+    if opts & OPT_PROXY != 0 {
+        args = args.with_proxy();
+    }
 
     let info = crate::contract_info(args);
 
@@ -135,6 +139,8 @@ struct ContractResult {
     basic_blocks: Option<Vec<(usize, usize)>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     control_flow_graph: Option<ControlFlowGraphResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    proxy: Option<Vec<crate::ProxySource>>,
 }
 
 #[derive(serde::Serialize)]
@@ -291,6 +297,7 @@ impl ContractResult {
             disassembled: info.disassembled,
             basic_blocks: info.basic_blocks,
             control_flow_graph,
+            proxy: info.proxy,
         }
     }
 }

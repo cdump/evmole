@@ -24,6 +24,7 @@ const DOC_CONTRACT: &'static str = r#"
  * @property basicBlocks - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
  * @property controlFlowGraph - Control flow graph representation. Not present if CFG was not generated.
  * @property metadata - Terminal CBOR metadata. Not present unless requested and valid.
+ * @property proxy - Possible implementation sources; an empty array means none was found. When several are found, the active one can depend on the caller or contract state. Not present unless requested.
  * @see ContractFunction
  * @see StorageRecord
  */
@@ -35,6 +36,7 @@ export type Contract = {
     basicBlocks?: [number, number][],
     controlFlowGraph?: ControlFlowGraph,
     metadata?: CborMetadata,
+    proxy?: ProxySource[],
 };
 "#;
 /// @typedef {Object} Contract
@@ -46,6 +48,7 @@ export type Contract = {
 /// @property {Array<Array<number>>} [basicBlocks] - Array of basic blocks found in the contract. Not present if basic blocks were not analyzed.
 /// @property {ControlFlowGraph} [controlFlowGraph] - Control flow graph representation. Not present if CFG was not generated.
 /// @property {CborMetadata} [metadata] - Terminal CBOR metadata. Not present unless requested and valid.
+/// @property {ProxySource[]} [proxy] - Possible implementation sources; an empty array means none was found. When several are found, the active one can depend on the caller or contract state. Not present unless requested.
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_contract() {}
 // }}}
@@ -84,6 +87,71 @@ pub fn dummy_cbor_entry() {}
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_cbor_value() {}
 
+// {{{ ProxySource
+#[wasm_bindgen(typescript_custom_section)]
+const DOC_PROXY: &'static str = r#"
+/**
+ * A possible implementation source: where a proxy's implementation address comes from.
+ * `Address`: a fixed address in the code. `Storage`: an address in one of the proxy's own storage slots.
+ * `Call`: the address a beacon or registry returns for the call. `PerSelector`: chosen by the incoming selector.
+ * `Eip7702`: the address an EIP-7702 account delegates to.
+ * Only a fallback that forwards the incoming calldata by DELEGATECALL counts. An implementation contract,
+ * such as a UUPS implementation or a diamond facet, is not a proxy and gets an empty array.
+ */
+export type ProxySource =
+    | { type: 'Address', data: string }
+    | { type: 'Storage', data: StorageRef }
+    | { type: 'Call', data: ProxyCall }
+    | { type: 'PerSelector' }
+    | { type: 'Eip7702', data: string };
+/**
+ * The call that returns the implementation address.
+ * @property address - The callee
+ * @property selector - 4-byte hex selector. Not present when the call sends empty calldata.
+ * @property args - The 32-byte argument words after the selector
+ */
+export type ProxyCall = { address: ProxyValue, selector?: string, args: ProxyValue[] };
+/** A callee address or argument word: a literal, or bytes of a storage slot in the word's low bytes. */
+export type ProxyValue =
+    | { type: 'Constant', data: string }
+    | { type: 'Storage', data: StorageRef };
+/**
+ * `size` bytes of a storage slot, `offset` bytes from its low end.
+ * @property slot - Storage slot as 64 hex digits
+ */
+export type StorageRef = { slot: string, offset: number, size: number };
+"#;
+/// @typedef {Object} ProxySource
+/// @description A possible implementation source: where a proxy's implementation address comes from. Only a fallback that forwards the incoming calldata by DELEGATECALL counts. An implementation contract, such as a UUPS implementation or a diamond facet, is not a proxy and gets an empty array.
+/// @property {('Address'|'Storage'|'Call'|'PerSelector'|'Eip7702')} type - `Address`: a fixed address in the code; `Storage`: an address in one of the proxy's own storage slots; `Call`: the address a beacon or registry returns for the call; `PerSelector`: chosen by the incoming selector; `Eip7702`: the address an EIP-7702 account delegates to
+/// @property {(string|StorageRef|ProxyCall)} [data] - The address for `Address` and `Eip7702` (40 lowercase hex digits), a `StorageRef` for `Storage`, a `ProxyCall` for `Call`. Not present for `PerSelector`
+#[wasm_bindgen(skip_jsdoc)]
+pub fn dummy_proxy_source() {}
+
+/// @typedef {Object} ProxyCall
+/// @description The call that returns the implementation address
+/// @property {ProxyValue} address - The callee
+/// @property {string} [selector] - 4-byte hex selector. Not present when the call sends empty calldata
+/// @property {ProxyValue[]} args - The 32-byte argument words after the selector
+#[wasm_bindgen(skip_jsdoc)]
+pub fn dummy_proxy_call() {}
+
+/// @typedef {Object} ProxyValue
+/// @description A callee address or argument word
+/// @property {('Constant'|'Storage')} type
+/// @property {(string|StorageRef)} data - A literal (40 hex digits for a callee, 64 for an argument word), or a `StorageRef` whose bytes sit in the word's low bytes
+#[wasm_bindgen(skip_jsdoc)]
+pub fn dummy_proxy_value() {}
+
+/// @typedef {Object} StorageRef
+/// @description `size` bytes of a storage slot, `offset` bytes from its low end
+/// @property {string} slot - Storage slot as 64 hex digits
+/// @property {number} offset - Byte offset from the slot's low end
+/// @property {number} size - Size in bytes
+#[wasm_bindgen(skip_jsdoc)]
+pub fn dummy_storage_ref() {}
+// }}}
+
 // {{{ Function
 #[wasm_bindgen(typescript_custom_section)]
 const DOC_FUNCTION: &'static str = r#"
@@ -119,7 +187,7 @@ pub fn dummy_function() {}
 const DOC_STORAGE: &'static str = r#"
 /**
  * Represents a storage record found in the contract
- * @property slot - Storage slot number as a hex string (e.g., '0', '1b').
+ * @property slot - Storage slot as 64 hex digits without a '0x' prefix.
  * @property offset - Byte offset within the storage slot (0-31).
  * @property type - Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32').
  * @property reads - Array of function selectors that read from this storage location.
@@ -136,7 +204,7 @@ export type StorageRecord = {
 /// Represents a storage record found in the contract
 ///
 /// @typedef {Object} StorageRecord
-/// @property {string} slot - Storage slot number as a hex string (e.g., '0', '1b')
+/// @property {string} slot - Storage slot as 64 hex digits without a '0x' prefix
 /// @property {number} offset - Byte offset within the storage slot (0-31)
 /// @property {string} type - Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32')
 /// @property {string[]} reads - Array of function selectors that read from this storage location
@@ -223,15 +291,15 @@ pub fn dummy_block_data_terminate() {}
 
 // {{{ Data Jump Block
 /// @typedef {Object} DataJump
-/// @property {number} to - Destination block ID; use Block.start to get the bytecode offset
+/// @property {number} to - Destination block ID; use `Block.start` to get the bytecode offset
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_jump() {}
 // }}}
 
 // {{{ Data Jumpi Block
 /// @typedef {Object} DataJumpi
-/// @property {number} true_to - Destination block ID if condition is true; use Block.start to get the bytecode offset
-/// @property {number} false_to - Destination block ID if condition is false; use Block.start to get the bytecode offset
+/// @property {number} true_to - Destination block ID if condition is true; use `Block.start` to get the bytecode offset
+/// @property {number} false_to - Destination block ID if condition is false; use `Block.start` to get the bytecode offset
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_jumpi() {}
 // }}}
@@ -246,7 +314,7 @@ pub fn dummy_block_data_dynamic_jump() {}
 // {{{ Data DynamicJumpi Block
 /// @typedef {Object} DataDynamicJumpi
 /// @property {DynamicJump[]} true_to - Possible computed jump destinations if true
-/// @property {number} false_to - Destination block ID if condition is false; use Block.start to get the bytecode offset
+/// @property {number} false_to - Destination block ID if condition is false; use `Block.start` to get the bytecode offset
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_block_data_dynamic_jumpi() {}
 // }}}
@@ -267,7 +335,7 @@ export type DynamicJump = {
 /// @typedef {Object} DynamicJump
 /// @description Represents a dynamic jump destination in the control flow
 /// @property {number[]} path - Path of block IDs leading to this jump
-/// @property {number} [to] - Destination block ID if known; use Block.start to get the bytecode offset. Optional
+/// @property {number} [to] - Destination block ID if known; use `Block.start` to get the bytecode offset. Optional
 #[wasm_bindgen(skip_jsdoc)]
 pub fn dummy_dynamic_jump() {}
 // }}}
@@ -298,6 +366,9 @@ struct ContractInfoArgs {
 
     #[serde(default, rename = "controlFlowGraph")]
     control_flow_graph: bool,
+
+    #[serde(default)]
+    proxy: bool,
 }
 
 #[wasm_bindgen(typescript_custom_section)]
@@ -315,6 +386,7 @@ const DOC_CONTRACT_INFO: &'static str = r#"
  * @param args.basicBlocks - When true, includes basic block analysis
  * @param args.controlFlowGraph - When true, includes control flow graph analysis
  * @param args.metadata - When true, extracts terminal CBOR metadata
+ * @param args.proxy - When true, infers possible proxy implementation sources
  * @returns Analyzed contract information
  */
 export function contractInfo(code: string, args: {
@@ -325,7 +397,8 @@ export function contractInfo(code: string, args: {
     disassemble?: boolean,
     basicBlocks?: boolean,
     controlFlowGraph?: boolean,
-    metadata?: boolean
+    metadata?: boolean,
+    proxy?: boolean
 }): Contract;
 "#;
 /// Analyzes contract bytecode and returns contract information based on specified options.
@@ -340,6 +413,7 @@ export function contractInfo(code: string, args: {
 /// @param {boolean} [args.basicBlocks] - When true, includes basic block analysis
 /// @param {boolean} [args.controlFlowGraph] - When true, includes control flow graph analysis
 /// @param {boolean} [args.metadata] - When true, extracts terminal CBOR metadata
+/// @param {boolean} [args.proxy] - When true, infers possible proxy implementation sources
 /// @returns {Contract} Analyzed contract information
 #[wasm_bindgen(js_name = contractInfo, skip_typescript, skip_jsdoc)]
 pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
@@ -347,10 +421,6 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     let args: ContractInfoArgs = serde_wasm_bindgen::from_value(args)?;
 
     let mut cargs = crate::ContractInfoArgs::new(&c);
-
-    if args.metadata {
-        cargs = cargs.with_metadata();
-    }
 
     if args.selectors {
         cargs = cargs.with_selectors();
@@ -372,6 +442,12 @@ pub fn contract_info(code: &str, args: JsValue) -> Result<JsValue, JsError> {
     }
     if args.control_flow_graph {
         cargs = cargs.with_control_flow_graph();
+    }
+    if args.metadata {
+        cargs = cargs.with_metadata();
+    }
+    if args.proxy {
+        cargs = cargs.with_proxy();
     }
 
     let info = crate::contract_info(cargs);

@@ -24,7 +24,7 @@ class StorageRecord:
     The containing Contract field identifies the storage domain.
 
     Attributes:
-        slot (str): Storage slot number as a hex string (e.g., '0', '1b').
+        slot (str): Storage slot as 64 hex digits without a '0x' prefix.
         offset (int): Byte offset within the storage slot (0-31).
         type (str): Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32').
         reads (List[str]): List of function selectors that read from this storage location.
@@ -118,6 +118,9 @@ class Contract:
             None if control flow analysis was not requested
         metadata (Optional[CborMetadata]): Terminal CBOR metadata.
             None if extraction was not requested or no valid trailer exists
+        proxy (Optional[List[ProxySource]]): Possible implementation sources; an empty list means
+            none was found. When several are found, the active one can depend on the caller or
+            contract state. None if proxy detection was not requested
     """
 
     functions: Optional[List[Function]]
@@ -127,6 +130,7 @@ class Contract:
     basic_blocks: Optional[List[Tuple[int, int]]]
     control_flow_graph: Optional[ControlFlowGraph]
     metadata: Optional[CborMetadata]
+    proxy: Optional[List[ProxySource]]
 
 class CborValue:
     """
@@ -166,6 +170,53 @@ class CborMetadata:
     cbor_length: int
     entries: List[CborEntry]
 
+class ProxySource:
+    """
+    Represents a possible implementation source: where a proxy's implementation address comes from.
+    Only a fallback that forwards the incoming calldata by DELEGATECALL counts. An implementation
+    contract, such as a UUPS implementation or a diamond facet, is not a proxy and gets an empty list.
+    This is an enum-like class, all child classes are derived from ProxySource class.
+    Addresses are 40 lowercase hex digits, slots 64 and selectors 8, without a '0x' prefix.
+    """
+    class Address(ProxySource):
+        """A fixed implementation address in the code"""
+        address: str
+        def __init__(self, address: str) -> None: ...
+    class Storage(ProxySource):
+        """An address in one of the proxy's own storage slots"""
+        slot: str
+        offset: int  # Byte offset from the slot's low end
+        size: int
+        def __init__(self, slot: str, offset: int, size: int) -> None: ...
+    class Call(ProxySource):
+        """The address a beacon or registry returns for this call"""
+        address: ProxyValue
+        selector: Optional[str]  # None: the call sends empty calldata
+        args: List[ProxyValue]  # The 32-byte argument words after the selector
+        def __init__(self, address: ProxyValue, selector: Optional[str], args: List[ProxyValue]) -> None: ...
+    class PerSelector(ProxySource):
+        """A target chosen by the incoming selector, such as a diamond's facet"""
+    class Eip7702(ProxySource):
+        """The address an EIP-7702 account delegates to"""
+        address: str
+        def __init__(self, address: str) -> None: ...
+
+class ProxyValue:
+    """
+    Represents a lookup's callee address, or one 32-byte word of its arguments.
+    This is an enum-like class, all child classes are derived from ProxyValue class.
+    """
+    class Constant(ProxyValue):
+        """A literal: 40 hex digits for a callee, 64 for an argument word"""
+        value: str
+        def __init__(self, value: str) -> None: ...
+    class Storage(ProxyValue):
+        """Bytes of a storage slot, in the word's low bytes"""
+        slot: str
+        offset: int  # Byte offset from the slot's low end
+        size: int
+        def __init__(self, slot: str, offset: int, size: int) -> None: ...
+
 def contract_info(
     code: Union[bytes, str],
     *,
@@ -177,6 +228,7 @@ def contract_info(
     basic_blocks: bool = False,
     control_flow_graph: bool = False,
     metadata: bool = False,
+    proxy: bool = False,
 ) -> Contract:
     """
     Extracts information about a smart contract from its EVM bytecode.
@@ -197,6 +249,8 @@ def contract_info(
         control_flow_graph (bool, optional): When True, builds control flow graph.
             Defaults to False.
         metadata (bool, optional): When True, extracts terminal CBOR metadata.
+            Defaults to False.
+        proxy (bool, optional): When True, infers possible proxy implementation sources.
             Defaults to False.
 
     Returns:

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use alloy_primitives::hex;
 use serde::{Serializer, ser::SerializeSeq};
 
-use crate::{DynSolType, Selector, Slot, StateMutability, control_flow_graph::Block};
+use crate::{DynSolType, Selector, StateMutability, control_flow_graph::Block};
 
 pub fn selector<S: Serializer>(val: &Selector, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str(&hex::encode(val))
@@ -36,8 +36,18 @@ pub fn state_mutability<S: Serializer>(
     }
 }
 
-pub fn slot<S: Serializer>(val: &Slot, serializer: S) -> Result<S::Ok, S::Error> {
+pub fn hex_bytes<S: Serializer, T: AsRef<[u8]>>(val: &T, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.serialize_str(&hex::encode(val))
+}
+
+pub fn opt_selector<S: Serializer>(
+    val: &Option<Selector>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    match val {
+        Some(sel) => serializer.serialize_str(&hex::encode(sel)),
+        None => serializer.serialize_none(),
+    }
 }
 
 pub fn vec_selector<S: Serializer>(val: &Vec<Selector>, serializer: S) -> Result<S::Ok, S::Error> {

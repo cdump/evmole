@@ -46,3 +46,17 @@ assert info.metadata.entries[0].key == 'solc'
 assert isinstance(info.metadata.entries[0].value, CborValue)
 assert info.metadata.entries[0].value.type == 'bytes'
 assert info.metadata.entries[0].value.value == bytes.fromhex('00081a')
+
+from evmole import ProxySource, ProxyValue
+
+beacon_code = '602060805f5f73cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd5afa50365f5f375f5f365f6080515af400'
+assert contract_info(beacon_code).proxy is None
+lookup, = contract_info(beacon_code, proxy=True).proxy
+assert isinstance(lookup, ProxySource.Call)
+assert isinstance(lookup.address, ProxyValue.Constant)
+assert lookup.address.value == 'cd' * 20
+assert lookup.selector is None and lookup.args == []
+
+delegate = '00' * 4 + '12' * 16
+source, = contract_info('ef0100' + delegate, proxy=True).proxy
+assert isinstance(source, ProxySource.Eip7702) and source.address == delegate

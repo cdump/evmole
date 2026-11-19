@@ -160,6 +160,7 @@ for _, instr := range info.Disassembled {
 | `BasicBlocks` | Extract basic blocks |
 | `ControlFlowGraph` | Generate control flow graph (enables BasicBlocks) |
 | `Metadata` | Extract string-keyed values from terminal length-suffixed CBOR metadata |
+| `Proxy` | Infer possible implementation sources |
 
 ### Types
 
@@ -172,6 +173,8 @@ type Contract struct {
     Disassembled     []Instruction
     BasicBlocks      []BasicBlock
     ControlFlowGraph *ControlFlowGraph
+    Metadata         *CborMetadata
+    Proxy            []ProxySource
 }
 ```
 
@@ -215,6 +218,51 @@ type Block struct {
 ```
 
 Jump destination fields (`Jump.To`, `Jumpi.TrueTo`, `Jumpi.FalseTo`, `DynamicJumpi.FalseTo`, `DynamicJump.To`) are **block IDs**, not bytecode offsets. Use `Block.Start` (looked up by ID) to get the actual bytecode offset.
+
+#### ProxySource
+```go
+type ProxySource struct {
+    Kind    ProxySourceKind // see below
+    Address string          // ProxySourceAddress, ProxySourceEip7702
+    Storage *StorageRef     // ProxySourceStorage
+    Call    *ProxyCall      // ProxySourceCall
+}
+
+type ProxyCall struct {
+    Address  ProxyValue
+    Selector *string // nil: empty calldata
+    Args     []ProxyValue
+}
+
+type ProxyValue struct {
+    Kind    ProxyValueKind // ProxyValueConstant or ProxyValueStorage
+    Value   string         // ProxyValueConstant
+    Storage *StorageRef    // ProxyValueStorage
+}
+
+type StorageRef struct {
+    Slot   string
+    Offset uint8 // bytes from the slot's low end
+    Size   uint8
+}
+```
+
+`Contract.Proxy` is nil unless requested. An empty slice means no source was found. Only a
+fallback that forwards the incoming calldata by DELEGATECALL counts. An implementation contract,
+such as a UUPS implementation or a diamond facet, is not a proxy and gets an empty slice. Switch
+on `source.Kind`:
+
+| Kind | The implementation address is |
+|------|-------------------------------|
+| `ProxySourceAddress` | a fixed address in the code |
+| `ProxySourceStorage` | in one of the proxy's own storage slots |
+| `ProxySourceCall` | what a beacon or registry returns for the call |
+| `ProxySourcePerSelector` | chosen by the incoming selector |
+| `ProxySourceEip7702` | the address an EIP-7702 account delegates to |
+
+When several sources are found, the active one can depend on the caller or contract state.
+Addresses, including literal callees, are 40 lowercase hex digits without a prefix. Slots and
+literal argument words use 64 digits, and selectors use eight.
 
 ## Thread Safety
 

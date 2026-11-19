@@ -57,8 +57,6 @@ func getWasmBinary() ([]byte, error) {
 
 // Options configures which analyses to perform.
 type Options struct {
-	// Metadata enables extraction of terminal CBOR metadata.
-	Metadata bool
 	// Selectors enables extraction of function selectors.
 	Selectors bool
 	// Arguments enables extraction of function parameter types.
@@ -73,6 +71,10 @@ type Options struct {
 	BasicBlocks bool
 	// ControlFlowGraph enables generation of control flow graph.
 	ControlFlowGraph bool
+	// Metadata enables extraction of terminal CBOR metadata.
+	Metadata bool
+	// Proxy infers possible implementation sources.
+	Proxy bool
 }
 
 // Options bitmask constants (must match Rust side)
@@ -85,6 +87,7 @@ const (
 	optBasicBlocks      uint32 = 32
 	optControlFlowGraph uint32 = 64
 	optMetadata         uint32 = 128
+	optProxy            uint32 = 256
 )
 
 func (o Options) toBitmask() uint32 {
@@ -112,6 +115,9 @@ func (o Options) toBitmask() uint32 {
 	}
 	if o.Metadata {
 		mask |= optMetadata
+	}
+	if o.Proxy {
+		mask |= optProxy
 	}
 	return mask
 }

@@ -19,6 +19,7 @@ EVMole is a powerful library that extracts information from Ethereum Virtual Mac
 - Lightweight: Clean codebase with minimal external dependencies.
 - Unverified contract analysis: Extracts information even from unverified bytecode.
 - Selector dispatch classification: Distinguishes normal ABI dispatch from selectors handled by fallback logic.
+- Proxy detection: Infers possible implementation sources from runtime bytecode, including clones, storage slots, beacon lookups, selector-based routing, and EIP-7702 delegation.
 - CBOR metadata: Extracts string-keyed values from a terminal, length-suffixed CBOR map without assuming a particular compiler.
 
 

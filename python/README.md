@@ -23,7 +23,8 @@ def contract_info(code: Union[bytes, str],
                   disassemble: bool = False,
                   basic_blocks: bool = False,
                   control_flow_graph: bool = False,
-                  metadata: bool = False) -> Contract
+                  metadata: bool = False,
+                  proxy: bool = False) -> Contract
 ```
 
 Extracts information about a smart contract from its EVM bytecode.
@@ -40,6 +41,7 @@ Extracts information about a smart contract from its EVM bytecode.
 - `basic_blocks` - When True, extracts basic block ranges.
 - `control_flow_graph` - When True, builds control flow graph.
 - `metadata` - When True, extracts terminal CBOR metadata.
+- `proxy` - When True, infers possible proxy implementation sources.
 
 **Returns**:
 
@@ -57,6 +59,7 @@ class Contract():
     basic_blocks: Optional[List[Tuple[int, int]]]
     control_flow_graph: Optional[ControlFlowGraph]
     metadata: Optional[CborMetadata]
+    proxy: Optional[List[ProxySource]]
 ```
 
 Contains analyzed information about a smart contract.
@@ -70,6 +73,8 @@ Contains analyzed information about a smart contract.
 - `basic_blocks` - List of basic block ranges as (first_op, last_op) offsets. None if basic blocks were not requested
 - `control_flow_graph` - Control flow graph of the contract. None if control flow analysis was not requested
 - `metadata` - Terminal CBOR metadata. None if extraction was not requested or no valid trailer exists
+- `proxy` - Possible implementation sources; an empty list means none was found. When several are
+  found, the active one can depend on the caller or contract state. None if proxy detection was not requested
 
 ### Function
 
@@ -110,7 +115,7 @@ Represents an inferred persistent or transient storage record. The containing `C
 
 **Attributes**:
 
-- `slot` - Storage slot number as a hex string (e.g., '0', '1b').
+- `slot` - Storage slot as 64 hex digits without a '0x' prefix.
 - `offset` - Byte offset within the storage slot (0-31).
 - `type` - Variable type (e.g., 'uint256', 'mapping(address => uint256)', 'bytes32').
 - `reads` - List of function selectors that read from this storage location.
@@ -261,3 +266,92 @@ Represents terminal length-suffixed CBOR metadata.
 - `bytecode_offset` - Absolute byte offset of the CBOR payload.
 - `cbor_length` - CBOR payload length, excluding the two-byte suffix.
 - `entries` - Entries having text-string keys; other keys are skipped.
+
+### ProxySource
+
+```python
+class ProxySource():
+    class Address:
+        address: str
+
+    class Storage:
+        slot: str
+        offset: int
+        size: int
+
+    class Call:
+        address: ProxyValue
+        selector: Optional[str]
+        args: List[ProxyValue]
+
+    class PerSelector:
+        pass
+
+    class Eip7702:
+        address: str
+```
+
+Represents a possible implementation source: where a proxy's implementation address comes from.
+Only a fallback that forwards the incoming calldata by DELEGATECALL counts. An implementation
+contract, such as a UUPS implementation or a diamond facet, is not a proxy and gets an empty list.
+
+This is an enum-like class, all child classes are derived from `ProxySource` class. Addresses are
+40 lowercase hex digits, slots 64 and selectors 8, without a '0x' prefix.
+
+```python
+from evmole import ProxySource, contract_info
+
+for source in contract_info(code, proxy=True).proxy or []:
+    if isinstance(source, ProxySource.Storage):
+        print(source.slot, source.offset, source.size)
+```
+
+#### Address
+A fixed implementation address in the code
+- `address` - The implementation address
+
+#### Storage
+An address in one of the proxy's own storage slots
+- `slot` - Storage slot
+- `offset` - Byte offset from the slot's low end
+- `size` - Size in bytes
+
+#### Call
+The address a beacon or registry returns for this call
+- `address` - The callee, a `ProxyValue`
+- `selector` - The call's selector; None when the call sends empty calldata
+- `args` - The 32-byte argument words after the selector, each a `ProxyValue`
+
+#### PerSelector
+A target chosen by the incoming selector, such as a diamond's facet
+
+#### Eip7702
+The address an EIP-7702 account delegates to
+- `address` - The delegate address
+
+### ProxyValue
+
+```python
+class ProxyValue():
+    class Constant:
+        value: str
+
+    class Storage:
+        slot: str
+        offset: int
+        size: int
+```
+
+Represents a lookup's callee address, or one 32-byte word of its arguments.
+
+This is an enum-like class, all child classes are derived from `ProxyValue` class
+
+#### Constant
+A literal
+- `value` - 40 hex digits for a callee, 64 for an argument word
+
+#### Storage
+Bytes of a storage slot, in the word's low bytes
+- `slot` - Storage slot
+- `offset` - Byte offset from the slot's low end
+- `size` - Size in bytes

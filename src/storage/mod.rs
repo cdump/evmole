@@ -27,7 +27,10 @@ use std::{
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StorageRecord {
     /// Storage slot location for the variable
-    #[cfg_attr(feature = "serde", serde(serialize_with = "crate::serialize::slot"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "crate::serialize::hex_bytes")
+    )]
     pub slot: Slot,
 
     /// Byte offset within the storage slot (0-31)

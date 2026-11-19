@@ -80,6 +80,124 @@ mod evmole {
     }
     // }}}
 
+    // {{{ ProxySource, ProxyValue
+    /// A lookup's callee address, or one 32-byte word of its arguments. Storage: `size` bytes of
+    /// `slot`, `offset` bytes from its low end, in the word's low bytes.
+    #[pyclass(name = "ProxyValue", from_py_object)]
+    #[derive(Clone)]
+    enum PyProxyValue {
+        Constant { value: String },
+        Storage { slot: String, offset: u8, size: u8 },
+    }
+
+    impl<T: AsRef<[u8]>> From<&crate::ProxyValue<T>> for PyProxyValue {
+        fn from(v: &crate::ProxyValue<T>) -> Self {
+            match v {
+                crate::ProxyValue::Constant(word) => Self::Constant {
+                    value: hex::encode(word),
+                },
+                crate::ProxyValue::Storage(at) => Self::Storage {
+                    slot: hex::encode(at.slot),
+                    offset: at.offset,
+                    size: at.size,
+                },
+            }
+        }
+    }
+
+    #[pymethods]
+    impl PyProxyValue {
+        fn __repr__(&self) -> String {
+            match self {
+                Self::Constant { value } => format!("Constant(value=\"{value}\")"),
+                Self::Storage { slot, offset, size } => {
+                    format!("Storage(slot=\"{slot}\", offset={offset}, size={size})")
+                }
+            }
+        }
+    }
+
+    /// Where a proxy's implementation address comes from.
+    #[pyclass(name = "ProxySource", skip_from_py_object)]
+    #[derive(Clone)]
+    enum PyProxySource {
+        Address {
+            address: String,
+        },
+        Storage {
+            slot: String,
+            offset: u8,
+            size: u8,
+        },
+        Call {
+            address: PyProxyValue,
+            selector: Option<String>,
+            args: Vec<PyProxyValue>,
+        },
+        PerSelector {},
+        Eip7702 {
+            address: String,
+        },
+    }
+
+    impl From<&crate::ProxySource> for PyProxySource {
+        fn from(s: &crate::ProxySource) -> Self {
+            match s {
+                crate::ProxySource::Address(address) => Self::Address {
+                    address: hex::encode(address),
+                },
+                crate::ProxySource::Storage(at) => Self::Storage {
+                    slot: hex::encode(at.slot),
+                    offset: at.offset,
+                    size: at.size,
+                },
+                crate::ProxySource::Call {
+                    address,
+                    selector,
+                    args,
+                } => Self::Call {
+                    address: address.into(),
+                    selector: selector.map(hex::encode),
+                    args: args.iter().map(PyProxyValue::from).collect(),
+                },
+                crate::ProxySource::PerSelector => Self::PerSelector {},
+                crate::ProxySource::Eip7702(address) => Self::Eip7702 {
+                    address: hex::encode(address),
+                },
+            }
+        }
+    }
+
+    #[pymethods]
+    impl PyProxySource {
+        fn __repr__(&self) -> String {
+            match self {
+                Self::Address { address } => format!("Address(address=\"{address}\")"),
+                Self::Storage { slot, offset, size } => {
+                    format!("Storage(slot=\"{slot}\", offset={offset}, size={size})")
+                }
+                Self::Call {
+                    address,
+                    selector,
+                    args,
+                } => format!(
+                    "Call(address={}, selector={}, args=[{}])",
+                    address.__repr__(),
+                    selector
+                        .as_ref()
+                        .map_or_else(|| "None".to_string(), |v| format!("\"{v}\"")),
+                    args.iter()
+                        .map(PyProxyValue::__repr__)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                Self::PerSelector {} => "PerSelector()".to_string(),
+                Self::Eip7702 { address } => format!("Eip7702(address=\"{address}\")"),
+            }
+        }
+    }
+    // }}}
+
     // {{{ DynamicJump
     #[pyclass(name = "DynamicJump", get_all, from_py_object)]
     #[derive(Clone)]
@@ -293,13 +411,14 @@ mod evmole {
         disassembled: Option<Vec<(usize, String)>>,
         basic_blocks: Option<Vec<(usize, usize)>>,
         control_flow_graph: Option<PyControlFlowGraph>,
+        proxy: Option<Vec<PyProxySource>>,
     }
 
     #[pymethods]
     impl PyContract {
         fn __repr__(&self) -> String {
             format!(
-                "Contract(functions={}, storage={}, transient_storage={}, disassembled={}, basic_blocks={}, control_flow_graph={}, metadata={})",
+                "Contract(functions={}, storage={}, transient_storage={}, disassembled={}, basic_blocks={}, control_flow_graph={}, metadata={}, proxy={})",
                 self.functions.as_ref().map_or_else(
                     || "None".to_string(),
                     |v| format!(
@@ -342,6 +461,19 @@ mod evmole {
                 self.metadata
                     .as_ref()
                     .map_or_else(|| "None".to_string(), PyCborMetadata::__repr__),
+                self.proxy.as_ref().map_or_else(
+                    || "None".to_string(),
+                    |sources| {
+                        format!(
+                            "[{}]",
+                            sources
+                                .iter()
+                                .map(PyProxySource::__repr__)
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                    }
+                ),
             )
         }
     }
@@ -349,7 +481,7 @@ mod evmole {
 
     // {{{ contract_info
     #[pyfunction]
-    #[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, storage=false, disassemble=false, basic_blocks=false, control_flow_graph=false, metadata=false))]
+    #[pyo3(signature = (code, *, selectors=false, arguments=false, state_mutability=false, storage=false, disassemble=false, basic_blocks=false, control_flow_graph=false, metadata=false, proxy=false))]
     #[allow(clippy::too_many_arguments)]
     fn contract_info(
         code: &Bound<'_, PyAny>,
@@ -361,6 +493,7 @@ mod evmole {
         basic_blocks: bool,
         control_flow_graph: bool,
         metadata: bool,
+        proxy: bool,
     ) -> PyResult<PyContract> {
         let code_bytes = input_to_bytes(code)?;
         let mut args = crate::ContractInfoArgs::new(&code_bytes);
@@ -388,6 +521,9 @@ mod evmole {
         }
         if metadata {
             args = args.with_metadata();
+        }
+        if proxy {
+            args = args.with_proxy();
         }
 
         let info = crate::contract_info(args);
@@ -493,6 +629,9 @@ mod evmole {
             disassembled: info.disassembled,
             basic_blocks: info.basic_blocks,
             control_flow_graph,
+            proxy: info
+                .proxy
+                .map(|sources| sources.iter().map(PyProxySource::from).collect()),
         })
     }
     // }}}
