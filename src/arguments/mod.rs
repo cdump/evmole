@@ -797,7 +797,16 @@ fn analyze(
 
         StepResult {
             op: op::MSTORE8,
-            args: [elabel!(Label::Arg(Val { offset, path, .. })), ..],
+            args:
+                [
+                    _,
+                    elabel!(Label::Arg(Val {
+                        offset,
+                        path,
+                        add_val: 0,
+                        ..
+                    })),
+                ],
             ..
         } => {
             args.mark_not_bool(&path, offset);
